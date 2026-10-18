@@ -1,0 +1,211 @@
+{
+  "courseId": "http",
+  "units": [
+    {
+      "courseId": "http",
+      "unitId": "http-request-once",
+      "title": "一次 HTTP 请求",
+      "published": true,
+      "paths": {
+        "normal": {
+          "steps": [
+            {
+              "stepId": "dns",
+              "title": "DNS",
+              "stepType": "advance",
+              "copy": {
+                "beginner": "你就是这一次请求。先找门牌：把 example.com 问成能前往的地址。",
+                "pro": "解析 example.com：递归查询得到可连接的地址，后面的握手都用它。"
+              }
+            },
+            {
+              "stepId": "tcp",
+              "title": "TCP",
+              "stepType": "advance",
+              "copy": {
+                "beginner": "找到地址后，和服务器接通一条能来回送信的路。",
+                "pro": "三次握手完成，连接进入 ESTABLISHED，随后才能在这条连接上发字节。"
+              }
+            },
+            {
+              "stepId": "tls",
+              "title": "TLS",
+              "stepType": "advance",
+              "copy": {
+                "beginner": "路上加一把锁，这样旁人看不到信的内容。",
+                "pro": "TLS 握手协商套件并校验证书，HTTP 报文在加密通道里传输。"
+              }
+            },
+            {
+              "stepId": "pack",
+              "title": "组包",
+              "stepType": "pack",
+              "copy": {
+                "beginner": "信要寄到 example.com 的首页。把方法、路径、主机填成一套能寄出的组合。",
+                "pro": "组装请求行与 Host。本步合法组合是发往 example.com 根路径的 GET。"
+              },
+              "failHint": {
+                "beginner": "这封信还寄不出去：方法、路径、主机要填成一套能对上的组合。",
+                "pro": "Method、Path、Host 缺漏，或不在本步允许的合法组合里。"
+              },
+              "packRule": {
+                "fields": ["Method", "Path", "Host"],
+                "validCombinations": [{ "Method": "GET", "Path": "/", "Host": "example.com" }]
+              }
+            },
+            {
+              "stepId": "response",
+              "title": "响应",
+              "stepType": "advance",
+              "copy": {
+                "beginner": "服务器回了信：首页在，这次请求走通了。",
+                "pro": "收到响应：状态行 200，以及与这次 GET / 对应的响应头和正文。"
+              }
+            }
+          ]
+        },
+        "fault": {
+          "steps": [
+            {
+              "stepId": "dns",
+              "title": "DNS",
+              "stepType": "repair",
+              "skippable": true,
+              "copy": {
+                "beginner": "门牌问错了。example.invalid 找不到房子，请求停在原地。",
+                "pro": "DNS 返回 NXDOMAIN：查询名 example.invalid 没有 A/AAAA 记录。"
+              },
+              "failHint": {
+                "beginner": "还是那个找不到的名字。",
+                "pro": "查询名仍是 example.invalid，NXDOMAIN 还在。"
+              },
+              "repair": {
+                "successAction": "use-example-com",
+                "options": [
+                  {
+                    "id": "keep-invalid",
+                    "label": { "beginner": "继续问 example.invalid", "pro": "保持查询 example.invalid" }
+                  },
+                  {
+                    "id": "use-example-com",
+                    "label": { "beginner": "改问 example.com", "pro": "将查询名改为 example.com" }
+                  }
+                ]
+              }
+            },
+            {
+              "stepId": "tcp",
+              "title": "TCP",
+              "stepType": "repair",
+              "skippable": true,
+              "copy": {
+                "beginner": "路没接通。你敲的是一扇不肯开的门。",
+                "pro": "向 80 端口发送 SYN，对端拒绝连接，握手没有完成。"
+              },
+              "failHint": {
+                "beginner": "这扇门还是不开。",
+                "pro": "目标端口仍拒绝连接。"
+              },
+              "repair": {
+                "successAction": "connect-443",
+                "options": [
+                  {
+                    "id": "keep-80",
+                    "label": { "beginner": "继续撞原来的门", "pro": "继续向 80 端口重试" }
+                  },
+                  {
+                    "id": "connect-443",
+                    "label": { "beginner": "改走 443 那扇门", "pro": "向 443 端口重新握手" }
+                  }
+                ]
+              }
+            },
+            {
+              "stepId": "tls",
+              "title": "TLS",
+              "stepType": "repair",
+              "skippable": true,
+              "copy": {
+                "beginner": "锁上的名字和要去的房子对不上。",
+                "pro": "证书主体与 example.com 不一致，握手停在校验。"
+              },
+              "failHint": {
+                "beginner": "名字还是对不上，锁没有打开。",
+                "pro": "证书仍不匹配 example.com。"
+              },
+              "repair": {
+                "successAction": "match-cert-name",
+                "options": [
+                  {
+                    "id": "ignore-cert",
+                    "label": { "beginner": "不管锁上的名字，硬走", "pro": "跳过证书校验" }
+                  },
+                  {
+                    "id": "match-cert-name",
+                    "label": { "beginner": "换一把名字相符的锁", "pro": "使用匹配 example.com 的证书重新握手" }
+                  }
+                ]
+              }
+            },
+            {
+              "stepId": "pack",
+              "title": "组包",
+              "stepType": "pack",
+              "skippable": true,
+              "copy": {
+                "beginner": "信纸皱了。仍要寄到 example.com 的首页，方法、路径、主机得配成一套。",
+                "pro": "组包坑：Method、Path、Host 需组成发往 example.com 根路径的 GET，才能发送。"
+              },
+              "failHint": {
+                "beginner": "这封信还寄不出去：方法、路径、主机要填成一套能对上的组合。",
+                "pro": "Method、Path、Host 缺漏，或不在本步允许的合法组合里。"
+              },
+              "packRule": {
+                "fields": ["Method", "Path", "Host"],
+                "validCombinations": [{ "Method": "GET", "Path": "/", "Host": "example.com" }]
+              }
+            },
+            {
+              "stepId": "response",
+              "title": "响应",
+              "stepType": "repair",
+              "skippable": true,
+              "copy": {
+                "beginner": "信寄到了，网关却说上游暂时没把页面交出来。",
+                "pro": "网关返回 502 Bad Gateway，上游没有给出成功响应。"
+              },
+              "failHint": {
+                "beginner": "页面还是没回来。",
+                "pro": "上游仍为 502。"
+              },
+              "repair": {
+                "successAction": "retry-upstream",
+                "options": [
+                  {
+                    "id": "accept-502",
+                    "label": { "beginner": "把这页报错当成首页", "pro": "接受 502 正文" }
+                  },
+                  {
+                    "id": "retry-upstream",
+                    "label": { "beginner": "让网关再向上游要一次", "pro": "重试上游直到 200" }
+                  }
+                ]
+              },
+              "whenPrior": {
+                "stepId": "pack",
+                "result": "skipped",
+                "copy": {
+                  "beginner": "信没有寄出，所以没有正常回信。这一步以失败结束。",
+                  "pro": "组包已跳过，未发送合法请求，响应以失败结束。"
+                },
+                "stepType": "advance",
+                "completionResult": "failed",
+                "skippable": false
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
