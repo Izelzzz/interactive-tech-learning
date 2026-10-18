@@ -1,5 +1,10 @@
 # interactive-tech-learning
 
-交互式技术学习平台。课程固定；单元可交互；小白 / 进阶双版本讲解。
+HTTP 交互式学习。第一课是「一次 HTTP 请求」：从课程目录进入课页，沿概念、交互、应用、测验读完并提交测验。
 
-产品规格见 `docs/2026-10-18-http-course-from-scratch/产品规格.md`。
+```bash
+npm install
+npm run dev
+```
+
+产品规格与技术规格见 `docs/2026-10-18-http-course-from-scratch/`。
