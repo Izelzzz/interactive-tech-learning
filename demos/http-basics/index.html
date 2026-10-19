@@ -183,6 +183,25 @@
     font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
   }
   .tldr { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; font-weight: 600; font-size: 0.95rem; }
+  body[data-level="advanced"] .only-beginner, body[data-level="beginner"] .only-advanced { display: none !important; }
+  .extras { margin-top: 12px; display: grid; gap: 8px; font-size: 0.9rem; }
+  .extras div { padding: 8px 12px; border-radius: 8px; background: var(--surface-2); }
+  .extras b { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .stack { display: grid; gap: 6px; margin-top: 10px; }
+  .stack div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
+  .stack div b { font-family: var(--mono); font-size: 0.85rem; }
+  .stack small { color: var(--muted); }
+  .waterfall { margin-top: 14px; }
+  .waterfall .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .wf-row { display: grid; grid-template-columns: 80px 1fr 56px; gap: 8px; align-items: center; font-size: 0.78rem; padding: 2px 0; color: var(--muted); }
+  .wf-row .track { position: relative; height: 12px; }
+  .wf-row .seg-bar { position: absolute; top: 0; height: 100%; border-radius: 3px; background: var(--line); transition: background .3s; }
+  .wf-row.visited .seg-bar { background: color-mix(in srgb, var(--accent) 45%, var(--surface-2)); }
+  .wf-row.current { color: var(--text); font-weight: 600; }
+  .wf-row.current .seg-bar { background: var(--accent); }
+  .wf-row .ms { text-align: right; font-family: var(--mono); }
+  .plain { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 0.92rem; }
+  .plain b { color: var(--muted); font-weight: 600; }
   .bigpicture { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; font-size: 0.95rem; }
   .bigpicture ol { margin: 8px 0 0; padding-left: 22px; }
   .bigpicture li { margin: 2px 0; }
@@ -310,7 +329,7 @@
     <div class="section-head">
       <div><div class="kicker">Unit 1</div><h2>The request journey</h2></div>
     </div>
-    <div class="bigpicture">
+    <div class="bigpicture only-beginner">
       <b>The big picture.</b> Opening a web page is like phoning a shop to order something:
       <ol>
         <li>Look up the shop's phone number. <b>(DNS)</b></li>
@@ -321,6 +340,15 @@
         <li>They hand it over with a note saying "OK". <b>(HTTP response)</b></li>
         <li>You unpack it, notice a few missing pieces and ask for those too. <b>(render)</b></li>
       </ol>
+    </div>
+    <div class="bigpicture only-advanced">
+      <b>Under the hood.</b> One page load goes through four protocol layers. Each layer relies on the one below it:
+      <div class="stack">
+        <div><b>HTTP</b><span>Methods, headers, status codes. <small>HTTP/1.1 and h2 run over TLS + TCP; HTTP/3 runs over QUIC.</small></span></div>
+        <div><b>TLS 1.3</b><span>Encryption and proof of the server's identity. <small>Certificates, ECDHE, ALPN.</small></span></div>
+        <div><b>TCP</b><span>A reliable, ordered stream of bytes. <small>Replaced by QUIC (over UDP) in HTTP/3.</small></span></div>
+        <div><b>IP</b><span>Moves packets to an address. <small>DNS turns names into these addresses.</small></span></div>
+      </div>
     </div>
     <p class="lede">Press <b>Play</b> to watch the whole trip, or click a stage to replay just that part.</p>
 
@@ -336,17 +364,17 @@
         <g class="node" id="n-browser" transform="translate(110 210)">
           <rect x="-65" y="-35" width="130" height="70" rx="12"></rect>
           <text class="title" y="-3" text-anchor="middle">Browser</text>
-          <text class="sub" y="16" text-anchor="middle">your computer</text>
+          <text class="sub" id="sub-browser" y="16" text-anchor="middle"></text>
         </g>
         <g class="node" id="n-dns" transform="translate(400 70)">
           <rect x="-60" y="-32" width="120" height="64" rx="12"></rect>
           <text class="title" y="-3" text-anchor="middle">DNS</text>
-          <text class="sub" y="15" text-anchor="middle">address book</text>
+          <text class="sub" id="sub-dns" y="15" text-anchor="middle"></text>
         </g>
         <g class="node" id="n-server" transform="translate(690 210)">
           <rect x="-65" y="-35" width="130" height="70" rx="12"></rect>
           <text class="title" y="-3" text-anchor="middle">Server</text>
-          <text class="sub" y="16" text-anchor="middle">example.com</text>
+          <text class="sub" id="sub-server" y="16" text-anchor="middle"></text>
         </g>
 
         <text id="s-browser" class="status" x="110" y="270" text-anchor="middle"></text>
@@ -356,6 +384,7 @@
         <g id="packets"></g>
       </svg>
     </div>
+    <div class="waterfall only-advanced" id="waterfall"></div>
 
     <div class="explain">
       <div class="text">
@@ -363,8 +392,9 @@
         <h3 id="stepTitle"></h3>
         <div class="tldr" id="stepTldr"></div>
         <p id="stepBody"></p>
+        <div class="extras" id="stepExtras"></div>
       </div>
-      <div class="codeblock"><div class="codeblock-head"><span>On the wire</span><button class="copy">Copy</button></div><pre id="wire"></pre></div>
+      <div class="codeblock"><div class="codeblock-head"><span id="wireLabel">On the wire</span><button class="copy">Copy</button></div><pre id="wire"></pre></div>
     </div>
 
     <div class="controls">
@@ -388,6 +418,8 @@
         <div class="mname" id="mName"></div>
         <p id="mDesc" style="margin-top:6px"></p>
         <div class="props" id="mProps"></div>
+        <p class="only-beginner" style="font-size:.85rem;color:var(--muted);margin:-6px 0 14px"><b>Safe</b> = only reads, never changes data. <b>Idempotent</b> = doing it twice has the same effect as doing it once.</p>
+        <p class="only-advanced" id="mMeta" style="font-size:.85rem;color:var(--muted);margin:-6px 0 14px"></p>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary" id="sendBtn">Send request</button>
@@ -404,6 +436,7 @@
           <div class="codeblock"><div class="codeblock-head"><span>Request</span><button class="copy">Copy</button></div><pre id="reqText"></pre></div>
           <div class="codeblock"><div class="codeblock-head"><span>Response</span><button class="copy">Copy</button></div><pre id="resText">(press Send)</pre></div>
         </div>
+        <div class="plain only-beginner" id="mPlain"></div>
         <div class="insight" id="insight"></div>
 
         <div class="db">
@@ -463,14 +496,16 @@
     level = b.dataset.level;
     saved.level = level; persist();
     document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    renderStepText(current);
-    renderMethod();
+    applyLevel();
+    if (!playing && visited.has(current)) runStep(current);
   }));
-  document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
 
   /* =========================================================
      UNIT 1: the request journey
      ========================================================= */
+  // Pick the beginner or advanced variant of a string.
+  const L = (beginner, advanced) => level === 'advanced' ? advanced : beginner;
+
   const STEPS = [
     {
       short: 'URL',
@@ -478,11 +513,16 @@
       tldr: 'Work out who to contact and what to ask for.',
       beginner: 'You type https://example.com/index.html and press Enter. The browser splits it into three parts: how to talk (https), who to talk to (example.com) and what to ask for (/index.html).',
       advanced: 'The URL is parsed into scheme, host, port (443 is implied for https), path and query. Before using the network, the browser checks HSTS rules, its HTTP cache and any service worker. Any of these can answer or change the request.',
-      wireHtml: '<span class="u-scheme">https://</span><span class="u-host">example.com</span><span class="u-path">/index.html</span>\n\nscheme = <span class="u-scheme">https</span>   (port 443)\nhost   = <span class="u-host">example.com</span>\npath   = <span class="u-path">/index.html</span>',
+      analogy: 'Reading the address on an envelope before you post it.',
+      cost: '≈ 0 ms. A cache hit here skips every later stage.',
+      gotcha: 'On an HSTS host, http:// is upgraded to https:// inside the browser. No redirect goes over the network.',
+      ms: 1,
+      talkHtml: 'You:     "Open <span class="u-scheme">https://</span><span class="u-host">example.com</span><span class="u-path">/index.html</span>"\n\nBrowser: "Got it. I\'ll talk <span class="u-scheme">securely</span>,\n          to <span class="u-host">example.com</span>,\n          and ask for <span class="u-path">/index.html</span>."',
+      wireHtml: '<span class="u-scheme">https://</span><span class="u-host">example.com</span><span class="u-path">/index.html</span>\n\nscheme = <span class="u-scheme">https</span>   (port 443)\nhost   = <span class="u-host">example.com</span>\npath   = <span class="u-path">/index.html</span>\n\nHSTS preload   ✓ https only\nHTTP cache     ✗ miss\nservice worker ✗ none',
       async anim(alive) {
-        node('browser', 'pulse'); status('browser', 'parsing URL…');
+        node('browser', 'pulse'); status('browser', L('reading the address…', 'HSTS / cache check…'));
         await sleep(1200); if (!alive()) return;
-        status('browser', 'host = example.com'); node('browser', null);
+        status('browser', L('address understood ✓', 'host = example.com')); node('browser', null);
       },
     },
     {
@@ -491,14 +531,19 @@
       tldr: 'Turn the name example.com into a numeric address.',
       beginner: 'Computers find each other by number (an IP address), not by name. The browser asks DNS: "What is the address of example.com?" It works like looking up a phone number in your contacts.',
       advanced: 'The browser checks its own cache, then the OS cache, then asks a recursive resolver (UDP port 53, or DNS-over-HTTPS). If the resolver has no cached answer, it asks the root servers, then the .com servers, then example.com\'s own nameserver for an A/AAAA record. The answer is cached for its TTL.',
-      wire: '→ QUERY   example.com  IN A ?\n← ANSWER  example.com  IN A  93.184.215.14\n          TTL 300 s',
+      analogy: 'Looking up a friend\'s phone number in your contacts.',
+      cost: '0 ms when cached; roughly 20–120 ms when not.',
+      gotcha: 'A low TTL makes failover faster but causes more lookups. <link rel="dns-prefetch"> hides this wait.',
+      ms: 25,
+      talk: 'Browser → DNS:  "Where does example.com live?"\nDNS → Browser:  "At 93.184.215.14.\n                 You can remember that for 5 minutes."',
+      wire: '→ QUERY   example.com  IN A ?\n← ANSWER  example.com  IN A  93.184.215.14\n          TTL 300 s\n\nresolver path (cold):\n  .  →  com.  →  example.com. (authoritative)',
       async anim(alive) {
         node('dns', 'active');
-        if (!await packet('browser', 'dns', 'example.com ?', cssVar('--m-post'))) return;
+        if (!await packet('browser', 'dns', L('Where is example.com?', 'A? example.com'), cssVar('--m-post'))) return;
         node('dns', 'pulse'); await sleep(500); if (!alive()) return;
         node('dns', 'active');
-        if (!await packet('dns', 'browser', '93.184.215.14', cssVar('--m-get'))) return;
-        status('browser', 'IP = 93.184.215.14'); node('dns', null);
+        if (!await packet('dns', 'browser', L('It\'s 93.184.215.14', 'A 93.184.215.14 TTL 300'), cssVar('--m-get'))) return;
+        status('browser', L('found the address ✓', 'IP = 93.184.215.14')); node('dns', null);
       },
     },
     {
@@ -507,12 +552,17 @@
       tldr: 'Open a reliable two-way line to the server.',
       beginner: 'Before talking, the browser and server do a handshake to open a reliable line: "Can you hear me?" "Yes, can you hear me?" "Yes!" After this, nothing gets lost or arrives out of order.',
       advanced: 'The three-way handshake (SYN → SYN-ACK → ACK) exchanges starting sequence numbers and costs one round trip. HTTP/3 replaces TCP with QUIC over UDP, which combines the transport and TLS handshakes into one.',
-      wire: '→ SYN       seq=1000\n← SYN-ACK   seq=5000  ack=1001\n→ ACK       ack=5001\n\nconnection ESTABLISHED',
+      analogy: '"Hello?" "Hi, I can hear you!" "Great!" at the start of a phone call.',
+      cost: '1 round trip (RTT).',
+      gotcha: 'Every new origin needs its own connection. <link rel="preconnect"> does DNS + TCP + TLS early.',
+      ms: 30,
+      talk: 'Browser: "Hello, can you hear me?"\nServer:  "Yes! Can you hear me?"\nBrowser: "Yes! Let\'s talk."\n\n✓ line is open',
+      wire: '→ SYN       seq=1000  win=65535  MSS=1460\n← SYN-ACK   seq=5000  ack=1001\n→ ACK       ack=5001\n\nconnection ESTABLISHED  (10.0.0.5:52144 ⇄ :443)',
       async anim(alive) {
         const c = cssVar('--m-options');
-        if (!await packet('browser', 'server', 'SYN', c)) return;
-        if (!await packet('server', 'browser', 'SYN-ACK', c)) return;
-        if (!await packet('browser', 'server', 'ACK', c)) return;
+        if (!await packet('browser', 'server', L('Hello?', 'SYN'), c)) return;
+        if (!await packet('server', 'browser', L('Hi! Hear me?', 'SYN-ACK'), c)) return;
+        if (!await packet('browser', 'server', L('Yes!', 'ACK'), c)) return;
       },
     },
     {
@@ -521,13 +571,18 @@
       tldr: 'Prove the server is real and encrypt the line.',
       beginner: 'The server shows an ID card (its certificate) to prove it really is example.com, and both sides agree on a secret key. From now on everything is scrambled, so nobody in between can read it.',
       advanced: 'TLS 1.3: the ClientHello carries cipher suites, a key share, SNI (the hostname) and ALPN. The server answers with ServerHello, its certificate and Finished. The client checks the certificate chain against trusted CAs. Both sides derive session keys with ECDHE. This costs one round trip, or zero when resuming a session. ALPN chooses h2 or http/1.1.',
-      wire: '→ ClientHello   SNI=example.com, ALPN=[h2, http/1.1]\n← ServerHello   + Certificate (CN=example.com)\n                + Finished\n→ Finished\n\n🔒 encrypted channel ready',
+      analogy: 'A shop showing you its official licence, then you both switch to a secret code only the two of you know.',
+      cost: '1 RTT with TLS 1.3 (2 with TLS 1.2), 0 RTT when resuming.',
+      gotcha: 'A missing intermediate certificate fails on some clients only. 0-RTT data can be replayed, so only use it for idempotent requests.',
+      ms: 30,
+      talk: 'Browser: "Prove you\'re really example.com."\nServer:  "Here\'s my ID card, signed by\n          an authority you trust."\nBrowser: "Checked ✓. Let\'s use a secret code."\n\n🔒 Nobody in between can read what follows.',
+      wire: '→ ClientHello   SNI=example.com, ALPN=[h2, http/1.1]\n                key_share=x25519\n← ServerHello   cipher=TLS_AES_128_GCM_SHA256\n                + Certificate (CN=example.com)\n                + CertificateVerify + Finished\n→ Finished\n\n🔒 TLS 1.3 established · ALPN = h2',
       async anim(alive) {
         const c = cssVar('--m-head');
-        if (!await packet('browser', 'server', 'ClientHello', c)) return;
-        if (!await packet('server', 'browser', 'ServerHello + cert', c)) return;
-        status('browser', 'cert valid ✓');
-        if (!await packet('browser', 'server', 'Finished', c)) return;
+        if (!await packet('browser', 'server', L('Prove who you are', 'ClientHello'), c)) return;
+        if (!await packet('server', 'browser', L('Here is my ID card', 'ServerHello + cert'), c)) return;
+        status('browser', L('ID checked ✓', 'cert chain valid ✓'));
+        if (!await packet('browser', 'server', L('OK, let\'s go secret', 'Finished'), c)) return;
       },
     },
     {
@@ -536,9 +591,14 @@
       tldr: 'Ask for the page: method + path + headers.',
       beginner: 'Now the browser asks its real question. The first word is the method. GET means "please give me this." Headers add extra details, such as which browser you are using.',
       advanced: 'A request has a method, a target, a version, headers and an optional body. HTTP/2 sends the same thing as binary frames with HPACK-compressed headers, multiplexed on a stream. The meaning does not change.',
-      wire: 'GET /index.html HTTP/1.1\nHost: example.com\nUser-Agent: Mozilla/5.0\nAccept: text/html\nAccept-Language: en-US',
+      analogy: 'Placing your order at the counter.',
+      cost: '½ RTT for the request to arrive.',
+      gotcha: 'Cookies are sent with every request to the origin. Large cookies slow down every request, images included.',
+      ms: 15,
+      talk: 'Browser: "Please GET me the page /index.html.\n          By the way, I\'m Chrome,\n          and I prefer English."',
+      wire: 'GET /index.html HTTP/1.1\nHost: example.com\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64) Chrome/130\nAccept: text/html,application/xhtml+xml\nAccept-Encoding: gzip, br\nAccept-Language: en-US\nCookie: session=8f2a…',
       async anim(alive) {
-        await packet('browser', 'server', 'GET /index.html', cssVar('--m-get'));
+        await packet('browser', 'server', L('Please give me the page', 'GET /index.html'), cssVar('--m-get'));
       },
     },
     {
@@ -547,13 +607,20 @@
       tldr: 'Find the right code, fetch the data, build a reply.',
       beginner: 'The server reads the request and works out which piece of its code should handle it. That code may look something up in a database. Then it prepares an answer.',
       advanced: 'A typical path: load balancer or reverse proxy → router matches method + path → middleware (auth, logging, rate limits) → handler → cache or database → response serialisation. The time spent here shows up in TTFB (time to first byte).',
-      wire: 'router   GET /index.html → pageHandler\nauth     anonymous: ok\ndb       SELECT … (3 ms)\nrender   index template → 1.2 KB',
+      analogy: 'The kitchen cooking your order.',
+      cost: 'It depends on the server. Aim for under 200 ms TTFB.',
+      gotcha: 'A slow database query shows up as a high TTFB. The Server-Timing header can show where the time went.',
+      ms: 40,
+      talk: 'Server: "Who handles /index.html? The page code."\n        "Let me look up what goes on the page…"\n        "…and wrap it all up as HTML."',
+      wire: 'proxy    TLS terminated → upstream app:8080\nrouter   GET /index.html → pageHandler\nauth     anonymous: ok\ndb       SELECT … (3 ms)\nrender   index template → 1.2 KB\n\nServer-Timing: db;dur=3, render;dur=6',
       async anim(alive) {
         node('server', 'pulse');
-        for (const s of ['→ router', '→ handler', '→ database', '→ build response']) {
+        const steps = L(['reading the order…', 'finding the right code…', 'looking up data…', 'packing the answer…'],
+                        ['→ router', '→ handler', '→ database', '→ serialise']);
+        for (const s of steps) {
           status('server', s); await sleep(650); if (!alive()) return;
         }
-        status('server', 'ready'); node('server', null);
+        status('server', L('ready ✓', 'TTFB ≈ 40 ms')); node('server', null);
       },
     },
     {
@@ -562,9 +629,14 @@
       tldr: 'Status code + headers + the page itself.',
       beginner: 'The server replies with a status code (200 means "OK, here you go"), some headers and the body, which is the actual HTML of the page.',
       advanced: 'A response has a status line, headers and a body. Cache-Control and ETag control caching. Content-Encoding (gzip or br) compresses the body. The connection stays open (keep-alive) so it can be reused.',
-      wire: 'HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\nContent-Length: 1256\nCache-Control: max-age=600\n\n<!doctype html>\n<html> … </html>',
+      analogy: 'The waiter bringing your food along with the receipt.',
+      cost: '½ RTT plus transfer time (size ÷ bandwidth, slowed at first by TCP slow start).',
+      gotcha: 'Without Cache-Control, browsers guess how long to cache the page. Set it explicitly.',
+      ms: 35,
+      talk: 'Server: "200, which means OK, here you go!"\n        "It\'s an HTML page, 1256 bytes long."\n        "You can keep a copy for 10 minutes."',
+      wire: 'HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\nContent-Encoding: br\nContent-Length: 1256\nCache-Control: max-age=600\nETag: "3147526947"\n\n<!doctype html>\n<html> … </html>',
       async anim(alive) {
-        await packet('server', 'browser', '200 OK · HTML', cssVar('--m-get'));
+        await packet('server', 'browser', L('OK! Here is the page', '200 OK · text/html'), cssVar('--m-get'));
       },
     },
     {
@@ -573,17 +645,24 @@
       tldr: 'Draw the page and request the CSS, JS and images it needs.',
       beginner: 'The browser reads the HTML and finds it needs more files: styles, scripts and images. It asks for them over the same open connection, then draws the page on your screen.',
       advanced: 'The parser builds the DOM while the preload scanner finds subresources and requests them early. With HTTP/2 these requests share one connection. DOM + CSSOM → render tree → layout → paint → composite.',
-      wire: 'GET /style.css  → 200  text/css\nGET /app.js     → 200  application/javascript\nGET /logo.png   → 200  image/png\n\n(same connection, reused)',
+      analogy: 'Noticing you also need cutlery and sauce, asking for them, then starting to eat.',
+      cost: 'At least 1 RTT per wave of subresources. CSS and synchronous JS block the first paint.',
+      gotcha: 'A <script> without defer or async stops the HTML parser until it has downloaded and run.',
+      ms: 120,
+      talk: 'Browser: "This page also needs a style sheet,\n          a script and a logo. Send those too?"\nServer:  "Here they are!"\nBrowser: "Drawing the page… done ✓"',
+      wire: ':stream 3  GET /style.css  → 200  text/css\n:stream 5  GET /app.js     → 200  application/javascript\n:stream 7  GET /logo.png   → 200  image/png\n\n(HTTP/2: one connection, three streams)\nDOM + CSSOM → layout → paint → composite',
       async anim(alive) {
-        status('browser', 'parsing HTML…');
+        status('browser', L('reading the page…', 'parsing HTML…'));
         const c = cssVar('--m-get');
-        const out = [['GET /style.css', 45], ['GET /app.js', 0], ['GET /logo.png', -45]];
+        const out = L([['need: styles', 45], ['need: script', 0], ['need: logo', -45]],
+                      [['GET /style.css', 45], ['GET /app.js', 0], ['GET /logo.png', -45]]);
         const reqs = out.map(([l, lift], i) => sleep(i * 220).then(() => alive() && packet('browser', 'server', l, c, lift)));
         await Promise.all(reqs); if (!alive()) return;
-        const back = [['200 CSS', 45], ['200 JS', 0], ['200 PNG', -45]];
+        const back = L([['styles ✓', 45], ['script ✓', 0], ['logo ✓', -45]],
+                       [['200 CSS', 45], ['200 JS', 0], ['200 PNG', -45]]);
         await Promise.all(back.map(([l, lift], i) => sleep(i * 220).then(() => alive() && packet('server', 'browser', l, c, lift))));
         if (!alive()) return;
-        status('browser', 'page painted ✓');
+        status('browser', L('page is on screen ✓', 'first paint ✓'));
       },
     },
   ];
@@ -639,9 +718,9 @@
     // connection state after step i has finished
     const conn = $('conn'), label = $('connLabel');
     conn.classList.remove('tcp', 'tls');
-    if (i >= 3) { conn.classList.add('tls'); label.textContent = 'TCP + TLS · encrypted 🔒'; }
-    else if (i >= 2) { conn.classList.add('tcp'); label.textContent = 'TCP connection open'; }
-    else label.textContent = 'no connection yet';
+    if (i >= 3) { conn.classList.add('tls'); label.textContent = L('private line 🔒', 'TCP + TLS 1.3 · h2 🔒'); }
+    else if (i >= 2) { conn.classList.add('tcp'); label.textContent = L('line open', 'TCP ESTABLISHED'); }
+    else label.textContent = L('not connected yet', 'no connection');
   }
 
   function renderTimeline() {
@@ -663,7 +742,33 @@
     $('stepTitle').textContent = s.title;
     $('stepTldr').textContent = s.tldr;
     $('stepBody').textContent = s[level];
-    if (s.wireHtml) $('wire').innerHTML = s.wireHtml; else $('wire').textContent = s.wire;
+    $('stepExtras').innerHTML = L(
+      `<div><b>Think of it like</b>${esc(s.analogy)}</div>`,
+      `<div><b>Cost</b>${esc(s.cost)}</div><div><b>Watch out</b>${esc(s.gotcha)}</div>`);
+    $('wireLabel').textContent = L('What they\'re saying', 'On the wire');
+    const html = L(s.talkHtml, s.wireHtml), text = L(s.talk, s.wire);
+    if (html) $('wire').innerHTML = html; else $('wire').textContent = text;
+    renderWaterfall();
+  }
+
+  function renderStage() {
+    $('sub-browser').textContent = L('your computer', 'Chrome · 10.0.0.5');
+    $('sub-dns').textContent = L('address book', 'resolver 1.1.1.1');
+    $('sub-server').textContent = L('example.com', '93.184.215.14:443');
+  }
+
+  function renderWaterfall() {
+    const total = STEPS.reduce((n, s) => n + s.ms, 0);
+    let at = 0;
+    $('waterfall').innerHTML = `<div class="label"><span>Timing (illustrative, 30 ms round trip)</span><span>≈ ${total} ms</span></div>` +
+      STEPS.map((s, i) => {
+        const row = `<div class="wf-row ${i === current ? 'current' : ''} ${visited.has(i) ? 'visited' : ''}">
+          <span>${s.short}</span>
+          <span class="track"><span class="seg-bar" style="left:${(at / total) * 100}%;width:max(3px, ${(s.ms / total) * 100}%)"></span></span>
+          <span class="ms">${s.ms} ms</span></div>`;
+        at += s.ms;
+        return row;
+      }).join('');
   }
 
   async function runStep(i) {
@@ -679,6 +784,7 @@
     setConn(i);
     visited.add(i);
     renderTimeline();
+    renderWaterfall();
     updateProgress();
     return true;
   }
@@ -709,6 +815,9 @@
   const METHODS = {
     GET: {
       color: '--m-get',
+      say: 'Show me all the books.',
+      typical: '200 OK · 304 Not Modified · 404',
+      spec: 'RFC 9110 §9.3.1',
       beginner: 'Read something. Like opening a book to look at it: you don\'t change anything.',
       advanced: 'Retrieves a representation of the target resource. Safe and idempotent, and responses are cacheable. A body on a GET has no defined meaning, so don\'t send one.',
       props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
@@ -716,6 +825,9 @@
     },
     POST: {
       color: '--m-post',
+      say: 'Add a new book called Neuromancer.',
+      typical: '201 Created · 200 · 400 · 409 Conflict',
+      spec: 'RFC 9110 §9.3.3',
       beginner: 'Create something new or submit data. Like posting a letter: every letter you send is a new one.',
       advanced: 'Processes the request body according to the resource\'s own rules, usually by creating a new resource (201 + Location). Neither safe nor idempotent, so a retry can create a duplicate. That is why payment APIs accept an Idempotency-Key header.',
       props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
@@ -723,6 +835,9 @@
     },
     PUT: {
       color: '--m-put',
+      say: 'Replace book 1 with: Dune Messiah, not read yet.',
+      typical: '200 OK · 201 Created · 204',
+      spec: 'RFC 9110 §9.3.4',
       beginner: 'Replace something completely. Like swapping a whole page in a binder for a new one.',
       advanced: 'Creates or replaces the target resource with the representation in the body. Idempotent: N identical PUTs leave the same state as one. Any field you leave out is not kept.',
       props: { Safe: false, Idempotent: true, 'Request body': true, Cacheable: false },
@@ -730,6 +845,9 @@
     },
     PATCH: {
       color: '--m-patch',
+      say: 'For book 2, just mark it as read.',
+      typical: '200 OK · 204 · 409 · 422',
+      spec: 'RFC 5789',
       beginner: 'Change just part of something. Like fixing one word with a pen instead of reprinting the page.',
       advanced: 'Applies a partial change (RFC 5789), for example in JSON Merge Patch or JSON Patch format. It is not guaranteed to be idempotent: an "increment" operation changes the result every time.',
       props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
@@ -737,6 +855,9 @@
     },
     DELETE: {
       color: '--m-delete',
+      say: 'Remove book 3.',
+      typical: '204 No Content · 200 · 404',
+      spec: 'RFC 9110 §9.3.5',
       beginner: 'Remove something. Like throwing a page away.',
       advanced: 'Removes the resource at the target URI. Idempotent: the server state after one DELETE or many is the same, even though later calls may return 404.',
       props: { Safe: false, Idempotent: true, 'Request body': false, Cacheable: false },
@@ -744,6 +865,9 @@
     },
     HEAD: {
       color: '--m-head',
+      say: 'Is the book list there, and how big is it? No need to send it.',
+      typical: '200 OK · 304 · 404',
+      spec: 'RFC 9110 §9.3.2',
       beginner: 'Like GET, but it only asks for the label on the box, not what\'s inside.',
       advanced: 'The same as GET, but the server must not send a body. Use it to check cheaply whether a resource exists, how big it is (Content-Length) or whether it is still fresh (ETag / Last-Modified).',
       props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
@@ -751,6 +875,9 @@
     },
     OPTIONS: {
       color: '--m-options',
+      say: 'What am I allowed to do with the book list?',
+      typical: '204 No Content · 200',
+      spec: 'RFC 9110 §9.3.7',
       beginner: 'Asks the server: "What am I allowed to do here?"',
       advanced: 'Describes which methods and options the target supports. Before some cross-origin requests, browsers send it automatically as a CORS preflight and read the Access-Control-Allow-* headers in the reply.',
       props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: false },
@@ -768,6 +895,7 @@
   let method = 'GET';
   let sends = {};
   let busy = false;
+  let lastRes = null;
 
   function renderMethodList() {
     $('mlist').innerHTML = '';
@@ -791,9 +919,38 @@
     $('mDesc').textContent = m[level];
     $('mProps').innerHTML = Object.entries(m.props)
       .map(([k, v]) => `<span class="prop ${v ? 'yes' : 'no'}">${v ? '✓' : '✗'} ${k}</span>`).join('');
-    $('reqText').textContent = m.req;
-    $('resText').textContent = '(press Send)';
-    $('insight').classList.remove('show');
+    $('mMeta').innerHTML = `Typical responses: <b>${m.typical}</b> &nbsp;·&nbsp; Spec: ${m.spec}`;
+    $('reqText').textContent = L(stripHeaders(m.req), m.req);
+    if (lastRes && lastRes.m === method) renderResponse();
+    else {
+      $('resText').textContent = '(press Send)';
+      $('mPlain').innerHTML = `<b>You ask:</b> "${esc(m.say)}"`;
+      $('insight').classList.remove('show');
+    }
+  }
+
+  // Beginner view: first line + body only, no headers.
+  function stripHeaders(msg) {
+    const [head, body] = msg.split('\n\n');
+    return head.split('\n')[0] + (body ? '\n\n' + body : '');
+  }
+
+  function renderResponse() {
+    const { m, r } = lastRes;
+    let headers = { ...r.h };
+    if (level === 'advanced') {
+      headers = { Date: 'Mon, 19 Oct 2026 08:00:00 GMT', Server: 'nginx', ...headers };
+      if ((m === 'GET' || m === 'HEAD') && r.s === 200) Object.assign(headers, { ETag: `"v${store.length}-${nextId}"`, 'Cache-Control': 'max-age=60' });
+    }
+    let text = `HTTP/1.1 ${r.s} ${STATUS[r.s]}`;
+    if (level === 'advanced') text += '\n' + Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\n');
+    if (r.body !== undefined) text += '\n\n' + JSON.stringify(r.body, null, 2);
+    else if (m === 'HEAD') text += level === 'advanced' ? '\n\n(no body: HEAD only returns headers)' : '\n\n(no body, just the label)';
+    else if (m === 'OPTIONS' && level === 'beginner') text += '\n\nAllowed: ' + r.h.Allow;
+    $('resText').textContent = text;
+    $('mPlain').innerHTML = `<b>You ask:</b> "${esc(METHODS[m].say)}"<br><b>Server says:</b> "${esc(r.plain)}"`;
+    $('insight').textContent = insightFor(m, r, sends[m]);
+    $('insight').classList.add('show');
   }
 
   function renderDb(flashId) {
@@ -809,39 +966,39 @@
     let r;
     switch (m) {
       case 'GET':
-        r = { s: 200, h: json, body: [...store].sort((a, b) => a.id - b.id) }; break;
+        r = { s: 200, h: json, body: [...store].sort((a, b) => a.id - b.id), plain: `Here are all ${store.length} books.` }; break;
       case 'POST': {
         const b = { id: nextId++, title: 'Neuromancer', read: false };
         store.push(b);
-        r = { s: 201, h: { ...json, Location: `/api/books/${b.id}` }, body: b, flash: b.id }; break;
+        r = { s: 201, h: { ...json, Location: `/api/books/${b.id}` }, body: b, flash: b.id, plain: `Done. I added it as book #${b.id}.` }; break;
       }
       case 'PUT': {
         const nb = { id: 1, title: 'Dune Messiah', read: false };
         const i = store.findIndex(b => b.id === 1);
-        if (i >= 0) { store[i] = nb; r = { s: 200, h: json, body: nb, flash: 1 }; }
-        else { store.push(nb); r = { s: 201, h: { ...json, Location: '/api/books/1' }, body: nb, flash: 1 }; }
+        if (i >= 0) { store[i] = nb; r = { s: 200, h: json, body: nb, flash: 1, plain: 'Done. Book 1 has been completely replaced.' }; }
+        else { store.push(nb); r = { s: 201, h: { ...json, Location: '/api/books/1' }, body: nb, flash: 1, plain: 'Book 1 didn\'t exist, so I created it.' }; }
         break;
       }
       case 'PATCH': {
         const b = store.find(b => b.id === 2);
-        if (!b) r = { s: 404, h: json, body: { error: 'book 2 not found' } };
-        else { b.read = true; r = { s: 200, h: json, body: b, flash: 2 }; }
+        if (!b) r = { s: 404, h: json, body: { error: 'book 2 not found' }, plain: 'Sorry, I can\'t find book 2.' };
+        else { b.read = true; r = { s: 200, h: json, body: b, flash: 2, plain: 'Done. Book 2 is marked as read. Nothing else changed.' }; }
         break;
       }
       case 'DELETE': {
         const i = store.findIndex(b => b.id === 3);
-        if (i < 0) r = { s: 404, h: json, body: { error: 'book 3 not found' } };
-        else { store.splice(i, 1); r = { s: 204, h: {} }; }
+        if (i < 0) r = { s: 404, h: json, body: { error: 'book 3 not found' }, plain: 'Sorry, I can\'t find book 3. It\'s already gone.' };
+        else { store.splice(i, 1); r = { s: 204, h: {}, plain: 'Done, it\'s gone. I have nothing to send back.' }; }
         break;
       }
       case 'HEAD':
-        r = { s: 200, h: { ...json, 'Content-Length': String(JSON.stringify(store).length) } }; break;
+        { const len = JSON.stringify(store).length; r = { s: 200, h: { ...json, 'Content-Length': String(len) }, plain: `Yes, it's there. It's ${len} bytes, but I won't send it.` }; } break;
       case 'OPTIONS':
         r = { s: 204, h: {
           Allow: 'GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS',
           'Access-Control-Allow-Origin': 'https://app.example.com',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE',
-        } }; break;
+        }, plain: 'You may read, add, replace, change and delete books.' }; break;
     }
     r.changed = before !== JSON.stringify(store);
     return r;
@@ -882,14 +1039,9 @@
     const statusColor = r.s >= 400 ? cssVar('--m-delete') : cssVar('--m-get');
     await lanePacket(`${r.s} ${STATUS[r.s]}`, statusColor, -1);
 
-    let text = `HTTP/1.1 ${r.s} ${STATUS[r.s]}\n` + Object.entries(r.h).map(([k, v]) => `${k}: ${v}`).join('\n');
-    if (r.body !== undefined) text += '\n\n' + JSON.stringify(r.body, null, 2);
-    else if (m === 'HEAD') text += '\n\n(no body: HEAD only returns headers)';
-    $('resText').textContent = text;
-
     sends[m] = (sends[m] || 0) + 1;
-    $('insight').textContent = insightFor(m, r, sends[m]);
-    $('insight').classList.add('show');
+    lastRes = { m, r };
+    renderResponse();
 
     tried.add(m);
     renderMethodList();
@@ -910,14 +1062,14 @@
   }
 
   $('resetDb').addEventListener('click', () => {
-    store = freshStore(); nextId = 4; sends = {};
+    store = freshStore(); nextId = 4; sends = {}; lastRes = null;
     renderDb(); renderMethod();
   });
 
   /* =========================================================
      UNIT 3: quiz
      ========================================================= */
-  const QUIZ = [
+  const QUIZ_BEGINNER = [
     { q: 'Your app needs to show a user\'s profile without changing anything. Which method?',
       opts: ['POST', 'GET', 'PUT', 'PATCH'], a: 1,
       why: 'GET reads data. It is safe (no side effects) and can be cached.' },
@@ -944,6 +1096,34 @@
       items: ['DNS lookup', 'TCP handshake', 'TLS handshake', 'Send HTTP request', 'Server processes', 'Receive response'],
       why: 'Find the address → open a connection → secure it → ask → server works → answer comes back.' },
   ];
+  const QUIZ_ADVANCED = [
+    { q: 'TLS 1.3 over TCP, DNS already cached. How many round trips pass before the first byte of the HTTP response arrives?',
+      opts: ['1', '2', '3', '4'], a: 2,
+      why: 'TCP handshake (1) + TLS 1.3 handshake (1) + request/response (1) = 3. TLS 1.2 adds one more. HTTP/3 (QUIC) combines the first two into 1.' },
+    { q: 'What does SNI in the ClientHello allow?',
+      opts: ['Choosing the right certificate when many sites share one IP', 'Compressing headers', 'Negotiating HTTP/2', 'Resuming a previous session'], a: 0,
+      why: 'SNI sends the hostname before encryption starts, so a server hosting many domains knows which certificate to present. ALPN is what negotiates h2.' },
+    { q: 'A stored book is {"title":"Dune","read":true}. You send PUT /books/1 with {"title":"Dune"}. What happens to "read"?',
+      opts: ['It stays true', 'It is dropped or reset, because PUT replaces the whole resource', 'The server must reject the request', 'The server treats it as a PATCH'], a: 1,
+      why: 'PUT sends the complete new state. Any field you leave out is not kept. Use PATCH for partial updates.' },
+    { q: 'A payment API must handle a client retrying POST /charges without charging twice. What is the standard technique?',
+      opts: ['Switch to GET', 'An Idempotency-Key header', 'Cache-Control: no-store', 'Sending HEAD first'], a: 1,
+      why: 'The client sends a unique Idempotency-Key. If the server sees the same key again, it returns the stored result instead of charging again.' },
+    { q: 'The browser sends If-None-Match: "abc" and the resource has not changed. What is the response?',
+      opts: ['200 OK with the body', '204 No Content', '304 Not Modified with no body', '412 Precondition Failed'], a: 2,
+      why: 'A conditional GET whose ETag still matches gets 304. The browser reuses its cached copy and saves the transfer.' },
+    { q: 'Which cross-origin fetch triggers a CORS preflight?',
+      opts: ['GET with no custom headers', 'POST with Content-Type: text/plain', 'DELETE with an Authorization header', 'A <img> tag load'], a: 2,
+      why: 'DELETE is not a CORS-safelisted method, and Authorization is not a safelisted header. Either one is enough to trigger an OPTIONS preflight.' },
+    { q: 'Why is TLS 1.3 0-RTT early data limited to idempotent requests?',
+      opts: ['It is sent unencrypted', 'An attacker can replay it', 'It skips the certificate check', 'It turns off HTTP/2'], a: 1,
+      why: 'Early data has no protection against replay. Replaying a GET is harmless; replaying a POST could, for example, place an order twice.' },
+    { type: 'order',
+      q: 'Put the full sequence in order. Tap the stages from first to last.',
+      items: ['HSTS & cache check', 'DNS resolution', 'TCP SYN / SYN-ACK / ACK', 'TLS ClientHello / ServerHello', 'Request headers sent', 'Server work (TTFB)', 'Response streamed & parsed'],
+      why: 'Local checks → name resolution → transport → security → HTTP request → server time → response and rendering.' },
+  ];
+  let QUIZ = QUIZ_BEGINNER;
   let qi = 0, score = 0;
 
   function renderQuiz() {
@@ -1039,12 +1219,23 @@
     setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
   }));
 
+  function applyLevel() {
+    document.body.dataset.level = level;
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+    renderStage();
+    renderStepText(current);
+    const conn = $('conn').classList;
+    setConn(conn.contains('tls') ? 3 : conn.contains('tcp') ? 2 : -1);
+    renderMethod();
+    QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
+    qi = 0; score = 0;
+    renderQuiz();
+  }
+
   /* ---------------- init ---------------- */
-  renderStepText(0);
   renderTimeline();
-  renderMethod();
   renderDb();
-  renderQuiz();
+  applyLevel();
   updateProgress();
   // Re-tint the selected method button when the colour scheme flips.
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderMethod);
