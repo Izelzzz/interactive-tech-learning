@@ -248,13 +248,17 @@
   .schip .seen i { width: 12px; height: 4px; border-radius: 2px; background: var(--surface-2); }
   .schip .seen i.o.on { background: var(--c-offset); }
   .schip .seen i.c.on { background: var(--c-cursor); }
-  .schip .tag {
-    position: absolute; top: -19px; left: 50%; transform: translateX(-50%); white-space: nowrap;
-    font: 700 0.62rem system-ui, sans-serif; letter-spacing: .03em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; color: #fff;
-  }
-  .schip .tag.o { background: var(--c-offset); }
-  .schip .tag.c { background: var(--c-cursor); }
-  .schip .tag.o + .tag.c { top: -36px; }
+  /* "next page starts here" markers: small arrows above the chip plus a ring */
+  .schip .mk { position: absolute; top: -15px; left: 0; right: 0; display: flex; justify-content: center; gap: 3px; }
+  .arrow { display: inline-block; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 9px solid; }
+  .arrow.o { border-top-color: var(--c-offset); }
+  .arrow.c { border-top-color: var(--c-cursor); }
+  .schip.at-o { box-shadow: 0 0 0 2px var(--c-offset); }
+  .schip.at-c { box-shadow: 0 0 0 2px var(--c-cursor); }
+  .schip.at-o.at-c { box-shadow: 0 0 0 2px var(--c-offset), 0 0 0 4px var(--c-cursor); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .server-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
   .schip.gone { animation: fadeOut .5s ease-in forwards; }
   @keyframes slideIn { from { opacity: 0; transform: translateX(-20px) scale(.8); } }
   @keyframes fadeOut { to { opacity: 0; transform: scale(.6); } }
@@ -492,7 +496,7 @@ Content-Type: application/problem+json
     <p class="lede only-advanced">Offset pagination versus cursor (keyset) pagination on a feed sorted newest-first, with writes happening between page requests. Press <b>Play the classic bug</b>, or drive it yourself.</p>
 
     <div class="callout only-beginner" style="margin-bottom:14px">
-      <b>Page number (offset)</b> means "skip the first 6 posts, give me the next 3". <b>Cursor</b> works like a bookmark: "give me the 3 posts that come after #7". The coloured tags on the server show where each method's next page will start.
+      <b>Page number (offset)</b> means "skip the first 6 posts, give me the next 3". <b>Cursor</b> works like a bookmark: "give me the 3 posts that come after #7". The coloured arrows on the server data show where each method's next page will start.
     </div>
     <div class="callout only-advanced" style="margin-bottom:14px">
       <b>Offset</b>: <code>LIMIT 3 OFFSET 6</code>. The database scans and discards 6 rows (O(offset)), and the window shifts whenever rows are inserted or deleted above it.<br>
@@ -500,7 +504,10 @@ Content-Type: application/problem+json
     </div>
 
     <div class="server">
-      <div class="label">Server data · newest first</div>
+      <div class="server-head">
+        <div class="label">Server data · newest first</div>
+        <div class="legend" id="legend"></div>
+      </div>
       <div class="strip" id="strip"></div>
     </div>
 
@@ -989,11 +996,16 @@ Content-Type: application/problem+json
     const curNext = cur.after === null ? 0 : posts.findIndex(id => id < cur.after);
     const gotO = new Set(off.received), gotC = new Set(cur.received);
     $('strip').innerHTML = posts.map((id, i) => {
-      const tags = (i === offNext ? `<span class="tag o">${L('next page', 'offset')}</span>` : '') +
-                   (i === curNext ? `<span class="tag c">${L('bookmark', 'cursor')}</span>` : '');
-      return `<div class="schip ${id === justAdded ? 'new' : ''} ${id === gone ? 'gone' : ''}">${tags}#${id}
+      const atO = i === offNext, atC = i === curNext;
+      const marks = atO || atC
+        ? `<span class="mk">${atO ? '<i class="arrow o"></i>' : ''}${atC ? '<i class="arrow c"></i>' : ''}</span>` : '';
+      const cls = [id === justAdded ? 'new' : '', id === gone ? 'gone' : '', atO ? 'at-o' : '', atC ? 'at-c' : ''].join(' ');
+      return `<div class="schip ${cls}">${marks}#${id}
         <div class="seen"><i class="o ${gotO.has(id) ? 'on' : ''}"></i><i class="c ${gotC.has(id) ? 'on' : ''}"></i></div></div>`;
     }).join('');
+    $('legend').innerHTML =
+      `<span><i class="arrow o"></i>${L('next page starts here (offset)', 'next OFFSET window')}</span>` +
+      `<span><i class="arrow c"></i>${L('bookmark: next page starts here (cursor)', 'next cursor position')}</span>`;
     $('offReq').textContent = 'next → ' + offRequest();
     $('curReq').textContent = 'next → ' + curRequest();
     for (const [c, feed, stats] of [[off, 'offFeed', 'offStats'], [cur, 'curFeed', 'curStats']]) {
@@ -1051,7 +1063,7 @@ Content-Type: application/problem+json
     posts.unshift(id);
     justAdded = id;
     renderPaging();
-    pgSay(L(`New post #${id} arrived at the top. Look at the tags: "next page" now points at a post you've already seen, while the bookmark hasn't moved.`,
+    pgSay(L(`New post #${id} arrived at the top. Look at the arrows: the orange one (page numbers) now points at a post you've already seen, while the blue bookmark hasn't moved.`,
             `INSERT #${id} at the head. The offset window now starts one row earlier in the data (on an already-delivered row). The cursor still points to the first row with id < ${cur.after ?? '∞'}.`));
   }
 
