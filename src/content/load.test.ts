@@ -43,11 +43,24 @@ test("loads the published lesson with the sample and four sections", () => {
   ]);
   const first = opened.lesson.quiz.questions[0];
   expect(first.type === "single" && first.options.map((option) => option.text)).toEqual([
-    "方法（例如 GET）",
-    "响应状态码",
-    "正文",
-    "DNS 的查询结果",
+    "响应里带回的状态码",
+    "请求里标明的方法名",
+    "请求附带的那段正文",
+    "路上查找地址的步骤",
   ]);
+  expect(opened.lesson.furtherReading.href).toBe("https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Overview");
+});
+
+test("keeps single-choice options the same length and varies the correct slot", () => {
+  const opened = openLesson(httpCourse, "http-one-request");
+  if (!("lesson" in opened)) throw new Error("lesson missing");
+  const singles = opened.lesson.quiz.questions.filter((question) => question.type === "single");
+
+  expect(singles.map((question) => question.answer)).toEqual(["B", "C"]);
+  for (const question of singles) {
+    const lengths = question.options.map((option) => [...option.text].length);
+    expect(new Set(lengths).size).toBe(1);
+  }
 });
 
 test("uses one structure and two narration depths", () => {
@@ -64,8 +77,8 @@ test("uses one structure and two narration depths", () => {
   }
 
   const scored = scoreQuiz(lesson.quiz, {
-    q1: "A",
-    q2: "A",
+    q1: "B",
+    q2: "C",
     q3: "动作是方法 GET。目标是 https://example.com/docs。可以没有正文，仍然有 Host: example.com。",
   });
   expect(scored.score).toBe(100);

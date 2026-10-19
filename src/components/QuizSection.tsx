@@ -49,7 +49,9 @@ export function QuizSection({
               >
                 {question.options.map((option) => (
                   <label key={option.id} className="choice">
-                    <RadioGroup.Item value={option.id} />
+                    <RadioGroup.Item className="choice-control" value={option.id}>
+                      <RadioGroup.Indicator className="choice-dot" />
+                    </RadioGroup.Item>
                     <span>
                       {option.id}. {option.text}
                     </span>

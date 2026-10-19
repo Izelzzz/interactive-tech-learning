@@ -57,6 +57,11 @@ export type Lesson = {
     host: string;
   };
   quiz: Quiz;
+  furtherReading: {
+    href: string;
+    title: string;
+    note: CopyText;
+  };
 };
 
 export type Course = {

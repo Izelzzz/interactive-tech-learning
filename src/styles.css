@@ -93,12 +93,20 @@ h1 {
 }
 
 .lesson-header {
+  padding: 0;
+}
+
+.header-bar {
   position: sticky;
   top: 0;
-  z-index: 2;
-  padding: 16px 0 12px;
-  background: rgba(243, 239, 230, 0.92);
-  backdrop-filter: blur(10px);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 0;
+  background: #f3efe6;
+  border-bottom: 1px solid var(--line);
 }
 
 .header-row,
@@ -129,15 +137,21 @@ h1 {
 
 .depth-toggle button,
 .trip-controls button,
-.submit,
-.choice {
-  border: 1px solid var(--line);
-  background: var(--paper);
+.submit {
+  border: 1.5px solid #1c2430;
+  background: #fff;
+  color: #1c2430;
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 8px 16px;
+  min-height: 40px;
 }
 
-.depth-toggle button[data-state="on"],
+.depth-toggle button[data-state="on"] {
+  background: #0a4f47;
+  color: #fff;
+  border-color: #0a4f47;
+}
+
 .wire-part[data-state="on"],
 .trip-step[data-state="on"] {
   background: var(--teal);
@@ -152,12 +166,14 @@ h1 {
   background: #efe8da;
 }
 
-.lesson h1 {
-  font-size: 36px;
+.header-bar h1 {
+  margin: 0;
+  flex: 1 1 180px;
+  font-size: 22px;
 }
 
 .outcome {
-  margin-top: 0;
+  margin: 16px 0 0;
 }
 
 .block {
@@ -167,7 +183,7 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 24px;
   box-shadow: var(--shadow);
-  scroll-margin-top: 168px;
+  scroll-margin-top: 76px;
 }
 
 .block h2 {
@@ -199,13 +215,20 @@ h1 {
 .message-layout,
 .record-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
   gap: 16px;
 }
 
-.message-wire,
-.trip {
-  flex-direction: column;
+.message-layout {
+  grid-template-columns: 1fr;
+}
+
+.record-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.message-wire {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .wire-part,
@@ -239,7 +262,8 @@ h1 {
 
 .trip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .trip-index {
@@ -253,7 +277,16 @@ h1 {
 }
 
 .trip-controls {
-  margin-top: 12px;
+  margin-top: 16px;
+  gap: 16px;
+}
+
+.trip-controls button {
+  min-width: 112px;
+}
+
+.trip-detail p {
+  margin-top: 0;
 }
 
 .trip-controls button:disabled {
@@ -320,11 +353,36 @@ legend {
 }
 
 .choice {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  border-radius: 14px;
-  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  min-height: 48px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 14px;
+}
+
+.choice-control {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0;
+  border: 2px solid #0a4f47;
+  border-radius: 50%;
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.choice-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0a4f47;
 }
 
 textarea {
@@ -363,6 +421,15 @@ textarea {
   font-weight: 700;
 }
 
+.further {
+  margin-top: 28px;
+  color: var(--muted);
+}
+
+.further p {
+  margin: 0 0 8px;
+}
+
 button:focus-visible,
 a:focus-visible,
 textarea:focus-visible,
@@ -379,7 +446,8 @@ textarea:focus-visible,
 
   .message-layout,
   .record-grid,
-  .trip {
+  .trip,
+  .message-wire {
     grid-template-columns: 1fr;
   }
 

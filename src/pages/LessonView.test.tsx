@@ -80,8 +80,8 @@ test("lesson page renders the header and four sections around the sample", () =>
   expect(application).toBeLessThan(quiz);
   expect(html).toContain("GET https://example.com/docs");
   expect(html).toContain("curl https://example.com/docs");
-  expect(html).toContain("打开一个页面，就是发出一次请求");
-  expect(html).not.toContain("一次 HTTP 调用对应一条请求报文");
+  expect(html).toContain("浏览器会发出一条请求");
+  expect(html).not.toContain("一条请求报文");
   expect(html).toContain("它回答「要的东西在哪」");
   expect(html).toContain("报文送到对方");
   expect(html).toContain("在一次 HTTP 请求里，表示「这次要做的动作」的部分是哪一个？");
@@ -91,12 +91,14 @@ test("lesson page renders the header and four sections around the sample", () =>
 test("professional copy replaces narration and quiz explanations only", () => {
   const html = lessonHtml("pro", true);
 
-  expect(html).toContain("一次 HTTP 调用对应一条请求报文");
-  expect(html).not.toContain("打开一个页面，就是发出一次请求");
-  expect(html).toContain("方法标明动作。状态码出现在响应里。");
-  expect(html).not.toContain("「这次要做的动作」写在方法上");
+  expect(html).toContain("一条请求报文");
+  expect(html).not.toContain("浏览器会发出一条请求");
+  expect(html).toContain("方法标明动作。状态码属于响应。");
+  expect(html).not.toContain("动作写在方法上");
   expect(html).toContain("在一次 HTTP 请求里，表示「这次要做的动作」的部分是哪一个？");
-  expect(html).toContain("方法（例如 GET）");
+  expect(html).toContain("请求里标明的方法名");
+  expect(html).toContain("https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Overview");
+  expect(html).toContain("直接问我");
   expect(html).toContain("我的答案");
   expect(html).toContain("得分 75 / 100");
   expect(html).toContain("通过");

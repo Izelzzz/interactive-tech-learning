@@ -13,11 +13,12 @@ export function LessonHeader({
   onCopyDepth: (copyDepth: CopyDepth) => void;
 }) {
   return (
-    <header className="lesson-header">
-      <div className="header-row">
+    <>
+      <div className="header-bar">
         <Link className="back-link" to="/">
           返回目录
         </Link>
+        <h1>{lesson.title}</h1>
         <ToggleGroup.Root
           className="depth-toggle"
           type="single"
@@ -30,16 +31,15 @@ export function LessonHeader({
           <ToggleGroup.Item value="beginner">小白</ToggleGroup.Item>
           <ToggleGroup.Item value="pro">专业</ToggleGroup.Item>
         </ToggleGroup.Root>
+        <nav className="jump-nav" aria-label="四个区块">
+          {lesson.sections.map((section) => (
+            <a key={section.id} href={`#${section.id}`}>
+              {section.jump}
+            </a>
+          ))}
+        </nav>
       </div>
-      <h1>{lesson.title}</h1>
       <p className="outcome">{lesson.outcome}</p>
-      <nav className="jump-nav" aria-label="四个区块">
-        {lesson.sections.map((section) => (
-          <a key={section.id} href={`#${section.id}`}>
-            {section.jump}
-          </a>
-        ))}
-      </nav>
-    </header>
+    </>
   );
 }

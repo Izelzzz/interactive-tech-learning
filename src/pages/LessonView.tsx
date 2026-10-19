@@ -74,6 +74,10 @@ export function LessonView({
         onAnswer={onAnswer}
         onSubmit={onSubmit}
       />
+      <aside className="further">
+        <p>{lesson.furtherReading.note[copyDepth]}</p>
+        <a href={lesson.furtherReading.href}>{lesson.furtherReading.title}</a>
+      </aside>
     </main>
   );
 }
