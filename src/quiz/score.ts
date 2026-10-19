@@ -3,7 +3,7 @@ export type SingleQuestion = {
   type: "single";
   points: number;
   stem: string;
-  options: { id: string; text: string }[];
+  options: { id: string; text: string; note?: string }[];
   answer: string;
   explanation: string;
 };

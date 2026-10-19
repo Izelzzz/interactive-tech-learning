@@ -91,6 +91,15 @@ export function QuizSection({
                 </p>
                 <p className="mt-3 font-medium">解析</p>
                 <p className="mt-1">{question.explanation}</p>
+                {question.type === "single" ? (
+                  <ul className="mt-3 space-y-2">
+                    {question.options.map((option) => (
+                      <li key={option.id}>
+                        <span className="font-medium">{option.id}.</span> {option.note}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {question.type === "short" ? (
                   <p className="mt-3">
                     命中要点：

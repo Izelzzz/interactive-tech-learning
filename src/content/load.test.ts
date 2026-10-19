@@ -5,20 +5,25 @@ import { listPublishedLessons, openLesson, type Course } from "./load";
 
 const httpCourse = course as Course;
 
-const outcome = "学完能说明一次请求由什么组成，并能在样例调用里指出方法、目标与 Host。";
+const lede =
+  "这一课回答「打开一个网址时，客户端到底发出了什么」：请求由哪些部分组成，路上发生了什么，以及同一请求在浏览器记录和 curl 里怎么对上。";
+const goal =
+  "指出方法、目标与 Host；把 DNS/TCP/TLS 归到「路上」而不是请求字段；在浏览器记录与 curl 之间互指同一字段。";
 
 test("lists the published HTTP lesson", () => {
   expect(listPublishedLessons(httpCourse)).toEqual([
-    { courseId: "http", lessonId: "http-one-request", title: "一次 HTTP 请求" },
+    { courseId: "http", lessonId: "http-one-request", title: "读懂一次 HTTP 请求" },
   ]);
 });
 
-test("loads the published lesson with the sample and four sections", () => {
+test("loads the published lesson with the sample and six narrative sections", () => {
   const opened = openLesson(httpCourse, "http-one-request");
   expect("lesson" in opened).toBe(true);
   if (!("lesson" in opened)) return;
 
-  expect(opened.lesson.outcome).toBe(outcome);
+  expect(opened.lesson.title).toBe("读懂一次 HTTP 请求");
+  expect(opened.lesson.lede).toBe(lede);
+  expect(opened.lesson.goal).toBe(goal);
   expect(opened.lesson.sample).toEqual({
     method: "GET",
     url: "https://example.com/docs",
@@ -28,17 +33,33 @@ test("loads the published lesson with the sample and four sections", () => {
     curl: "curl https://example.com/docs",
   });
   expect(opened.lesson.sections.map((section) => section.id)).toEqual([
-    "concept",
-    "interactive",
-    "application",
-    "quiz",
+    "why",
+    "parts",
+    "assemble-lab",
+    "on-the-wire",
+    "apply",
+    "clinic",
   ]);
+  expect(opened.lesson.sections.map((section) => section.jump)).toEqual([
+    "为什么",
+    "组成",
+    "写出",
+    "路上",
+    "对照",
+    "诊所",
+  ]);
+  expect(opened.lesson.why.callout.title).toBe("状态码 ≠ 请求方法");
+  expect(opened.lesson.parts.rule).toBe("正文可以空。Host 仍然要有。");
+  expect(opened.lesson.parts.callout.title).toBe("报文字段 ≠ 路上的步骤");
   expect(opened.lesson.assemble.beats.map((beat) => beat.id)).toEqual(["method", "target", "header", "body"]);
   expect(opened.lesson.trip.stops.map((stop) => stop.id)).toEqual(["compose", "arrive", "respond"]);
+  expect(opened.lesson.trip.prompt).toContain("报文区何时换成响应状态行");
+  expect(opened.lesson.recap.items.length).toBeGreaterThanOrEqual(4);
+  expect(opened.lesson.recap.items.length).toBeLessThanOrEqual(6);
   expect(opened.lesson.quiz.passScore).toBe(60);
   expect(opened.lesson.quiz.questions.map((question) => question.stem)).toEqual([
-    "在一次 HTTP 请求里，表示「这次要做的动作」的部分是哪一个？",
-    "样例「打开 https://example.com/docs」里，方法和目标怎样对应？",
+    "打开 https://example.com/docs 时，有人用 200 描述这次请求的动作。动作实际对应哪一项？",
+    "有人把样例记成「方法是 Host，目标是 GET」。方法和目标怎样才对？",
     "用自己的话写出一条最小 HTTP 请求要交代的三件事。每件事给一个名称，并举一个来自本课样例的例子。样例没有正文时，第三件说明可以没有正文，并举出一个仍然会出现的头。",
   ]);
   const first = opened.lesson.quiz.questions[0];
@@ -60,6 +81,9 @@ test("keeps single-choice options the same length and varies the correct slot", 
   for (const question of singles) {
     const lengths = question.options.map((option) => [...option.text].length);
     expect(new Set(lengths).size).toBe(1);
+    for (const option of question.options) {
+      expect(option.note && option.note.length > 0).toBe(true);
+    }
   }
 });
 
@@ -68,8 +92,8 @@ test("uses one narration and extends the request one field at a time", () => {
   if (!("lesson" in opened)) throw new Error("lesson missing");
   const lesson = opened.lesson;
 
-  expect(typeof lesson.concept.lede).toBe("string");
-  expect(lesson.concept.lede).toContain("方法是请求行开头的动词");
+  expect(lesson.why.good.points.join("")).toContain("GET");
+  expect(lesson.assemble.beats[0].note).toContain("GET 把动作定成取回");
   expect(JSON.stringify(lesson)).not.toContain("beginner");
   expect(JSON.stringify(lesson)).not.toContain("copyDepth");
   const beats = lesson.assemble.beats;

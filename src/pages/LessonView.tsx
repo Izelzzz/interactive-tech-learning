@@ -6,15 +6,15 @@ import { RoundTripTracer } from "@/components/RoundTripTracer";
 import { SampleCode } from "@/components/SampleCode";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Lesson } from "@/content/types";
+import type { Lesson, SectionId } from "@/content/types";
 import { cn } from "@/lib/utils";
 import type { LearningResult } from "@/progress/store";
 import type { Answers } from "@/quiz/score";
 
 const shell = "mx-auto w-full max-w-5xl px-6";
+const prose = "max-w-[46rem] text-[1.0625rem] leading-[1.75] text-slate-700";
 
 export function LessonView({
   lesson,
@@ -45,41 +45,55 @@ export function LessonView({
           <Separator orientation="vertical" className="h-4" />
           <span className="truncate text-sm font-medium">{lesson.title}</span>
           <nav className="ml-auto flex flex-wrap justify-end gap-1">
-            {lesson.sections.map((section, index) => (
+            {lesson.sections.map((section) => (
               <a
                 key={section.id}
                 href={`#${section.id}`}
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-full")}
               >
-                {index + 1} {section.jump}
+                {section.jump}
               </a>
             ))}
           </nav>
         </div>
       </header>
-      <main className={`${shell} space-y-16 py-10`}>
-        <div>
-          <Badge variant="secondary">HTTP · 一次请求</Badge>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight">{lesson.title}</h1>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">{lesson.outcome}</p>
-        </div>
+      <main className={`${shell} space-y-14 py-12`}>
+        <header className="max-w-[46rem]">
+          <Badge variant="secondary">{lesson.eyebrow}</Badge>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight">{lesson.title}</h1>
+          <p className="mt-4 text-lg leading-8 text-slate-600">{lesson.lede}</p>
+          <div className="mt-6 rounded-2xl border border-indigo-100 border-l-4 border-l-indigo-500 bg-white px-5 py-4 shadow-sm">
+            <p className="text-xs font-semibold tracking-wide text-indigo-700">学完你能</p>
+            <p className="mt-2 text-base leading-7">{lesson.goal}</p>
+          </div>
+        </header>
 
-        <section id="concept" className="scroll-mt-28 space-y-6">
-          <SectionLabel index="01" title="概念" lede={lesson.concept.lede} />
-          <SampleCode title={lesson.concept.requestTitle} value={lesson.concept.request}>
-            {lesson.concept.request}
+        <section id="why" className="scroll-mt-32 space-y-6">
+          <SectionHead index="01" title={heading(lesson, "why")} lede={lesson.why.lede} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Compare column={lesson.why.bad} tone="bad" />
+            <Compare column={lesson.why.good} tone="good" />
+          </div>
+          <p className={prose}>{lesson.why.bridge}</p>
+          <Callout title={lesson.why.callout.title} body={lesson.why.callout.body} />
+        </section>
+
+        <section id="parts" className="scroll-mt-32 space-y-6">
+          <SectionHead index="02" title={heading(lesson, "parts")} lede={lesson.parts.lede} />
+          <SampleCode title={lesson.parts.requestTitle} value={lesson.parts.request}>
+            {lesson.parts.request}
           </SampleCode>
-          <Card className="rounded-2xl border border-slate-200 bg-white py-0 shadow-sm ring-0">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>部分</TableHead>
-                  <TableHead>它回答的问题</TableHead>
-                  <TableHead>样例</TableHead>
+                  <TableHead>回答的问题</TableHead>
+                  <TableHead>本课样例</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lesson.concept.rows.map((row) => (
+                {lesson.parts.rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="font-medium">{row.part}</TableCell>
                     <TableCell>{row.question}</TableCell>
@@ -88,31 +102,23 @@ export function LessonView({
                 ))}
               </TableBody>
             </Table>
-          </Card>
-          <div className="grid gap-3 md:grid-cols-3">
-            {lesson.concept.principles.map((principle) => (
-              <Card key={principle.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm ring-0">
-                <CardContent className="space-y-2">
-                  <h3 className="font-semibold">{principle.title}</h3>
-                  <p className="text-sm leading-6 text-slate-600">{principle.body}</p>
-                </CardContent>
-              </Card>
-            ))}
           </div>
-          <div className="rounded-2xl border border-teal-100 border-l-4 border-l-teal-500 bg-teal-50/70 px-4 py-3 text-sm leading-6">
-            {lesson.concept.callout}
-          </div>
+          <p className="text-lg font-medium">{lesson.parts.rule}</p>
+          <Callout title={lesson.parts.callout.title} body={lesson.parts.callout.body} />
         </section>
 
-        <section id="interactive" className="scroll-mt-28 space-y-6">
-          <SectionLabel index="02" title="交互 / 可视化" lede={lesson.assemble.lede} />
-          <RequestAssembler beats={lesson.assemble.beats} initialId={partId} prompt={lesson.assemble.prompt} />
-          <p className="text-sm leading-7 text-muted-foreground">{lesson.trip.lede}</p>
+        <section id="assemble-lab" className="scroll-mt-32 space-y-6">
+          <SectionHead index="03" title={heading(lesson, "assemble-lab")} lede={lesson.assemble.prompt} />
+          <RequestAssembler beats={lesson.assemble.beats} initialId={partId} prompt="" />
+        </section>
+
+        <section id="on-the-wire" className="scroll-mt-32 space-y-6">
+          <SectionHead index="04" title={heading(lesson, "on-the-wire")} lede={lesson.trip.lede} />
           <RoundTripTracer stops={lesson.trip.stops} initialId={tripId} prompt={lesson.trip.prompt} />
         </section>
 
-        <section id="application" className="scroll-mt-28 space-y-6">
-          <SectionLabel index="03" title="应用" lede={lesson.application.lede} />
+        <section id="apply" className="scroll-mt-32 space-y-6">
+          <SectionHead index="05" title={heading(lesson, "apply")} lede={lesson.application.lede} />
           <ApplicationCompare
             intro={lesson.application.intro}
             browserTitle={lesson.application.browserTitle}
@@ -124,28 +130,65 @@ export function LessonView({
           />
         </section>
 
-        <section id="quiz" className="scroll-mt-28 space-y-6">
-          <SectionLabel index="04" title="测验" lede={lesson.quizLede} />
+        <section id="clinic" className="scroll-mt-32 space-y-6">
+          <SectionHead index="06" title={heading(lesson, "clinic")} lede={lesson.clinic.lede} />
           <QuizSection lesson={lesson} answers={answers} result={result} onAnswer={onAnswer} onSubmit={onSubmit} />
+          <div id="recap" className="scroll-mt-32 space-y-4 pt-4">
+            <h2 className="text-[2rem] font-semibold tracking-tight">{lesson.recap.heading}</h2>
+            <ul className="max-w-[46rem] space-y-3">
+              {lesson.recap.items.map((item) => (
+                <li key={item} className="flex gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 shadow-sm">
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-teal-500" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <aside className="max-w-[46rem] rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-6 shadow-sm">
+            <p>{lesson.furtherReading.note}</p>
+            <a className="mt-2 inline-block font-medium text-indigo-700 underline-offset-4 hover:underline" href={lesson.furtherReading.href}>
+              {lesson.furtherReading.title}
+            </a>
+          </aside>
         </section>
-
-        <aside className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-6 shadow-sm">
-          <p>{lesson.furtherReading.note}</p>
-          <a className="mt-2 inline-block font-medium text-indigo-700 underline-offset-4 hover:underline" href={lesson.furtherReading.href}>
-            {lesson.furtherReading.title}
-          </a>
-        </aside>
       </main>
     </div>
   );
 }
 
-function SectionLabel({ index, title, lede }: { index: string; title: string; lede: string }) {
+function heading(lesson: Lesson, id: SectionId) {
+  return lesson.sections.find((section) => section.id === id)?.heading ?? id;
+}
+
+function SectionHead({ index, title, lede }: { index: string; title: string; lede: string }) {
   return (
     <div>
-      <p className="text-xs font-semibold tracking-[0.18em] text-teal-700">{index}</p>
-      <h2 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h2>
-      <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">{lede}</p>
+      <p className="text-xs font-semibold tracking-[0.16em] text-teal-700">{index}</p>
+      <h2 className="mt-2 text-[2rem] leading-tight font-semibold tracking-tight">{title}</h2>
+      <p className={`mt-4 ${prose}`}>{lede}</p>
+    </div>
+  );
+}
+
+function Compare({ column, tone }: { column: { title: string; points: string[] }; tone: "bad" | "good" }) {
+  const accent = tone === "bad" ? "border-t-rose-500" : "border-t-teal-500";
+  return (
+    <div className={`rounded-2xl border border-slate-200 border-t-4 ${accent} bg-white p-5 shadow-sm`}>
+      <h3 className="text-base font-semibold">{column.title}</h3>
+      <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+        {column.points.map((point) => (
+          <li key={point}>{point}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Callout({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="max-w-[46rem] rounded-2xl border border-amber-100 border-l-4 border-l-amber-500 bg-amber-50/80 px-4 py-3 text-sm leading-6">
+      <p className="font-semibold">{title}</p>
+      <p className="mt-1">{body}</p>
     </div>
   );
 }

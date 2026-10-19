@@ -1,6 +1,6 @@
 import type { Quiz } from "../quiz/score";
 
-export type SectionId = "concept" | "interactive" | "application" | "quiz";
+export type SectionId = "why" | "parts" | "assemble-lab" | "on-the-wire" | "apply" | "clinic";
 
 export type LessonSection = {
   id: SectionId;
@@ -19,10 +19,14 @@ export type ConceptRow = {
   sample: string;
 };
 
-export type Principle = {
-  id: string;
+export type Callout = {
   title: string;
   body: string;
+};
+
+export type CompareColumn = {
+  title: string;
+  points: string[];
 };
 
 export type AssembleBeat = {
@@ -58,7 +62,9 @@ export type Lesson = {
   lessonId: string;
   title: string;
   published: boolean;
-  outcome: string;
+  eyebrow: string;
+  lede: string;
+  goal: string;
   sample: {
     method: string;
     url: string;
@@ -68,16 +74,22 @@ export type Lesson = {
     curl: string;
   };
   sections: LessonSection[];
-  concept: {
+  why: {
+    lede: string;
+    bad: CompareColumn;
+    good: CompareColumn;
+    bridge: string;
+    callout: Callout;
+  };
+  parts: {
     lede: string;
     requestTitle: string;
     request: string;
     rows: ConceptRow[];
-    principles: Principle[];
-    callout: string;
+    rule: string;
+    callout: Callout;
   };
   assemble: {
-    lede: string;
     prompt: string;
     beats: AssembleBeat[];
   };
@@ -95,7 +107,13 @@ export type Lesson = {
     curl: string;
     rows: AppRow[];
   };
-  quizLede: string;
+  clinic: {
+    lede: string;
+  };
+  recap: {
+    heading: string;
+    items: string[];
+  };
   quiz: Quiz;
   furtherReading: {
     href: string;

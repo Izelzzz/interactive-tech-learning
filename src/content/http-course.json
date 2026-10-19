@@ -4,9 +4,11 @@
   "lessons": [
     {
       "lessonId": "http-one-request",
-      "title": "一次 HTTP 请求",
+      "title": "读懂一次 HTTP 请求",
       "published": true,
-      "outcome": "学完能说明一次请求由什么组成，并能在样例调用里指出方法、目标与 Host。",
+      "eyebrow": "HTTP · 一次请求",
+      "lede": "这一课回答「打开一个网址时，客户端到底发出了什么」：请求由哪些部分组成，路上发生了什么，以及同一请求在浏览器记录和 curl 里怎么对上。",
+      "goal": "指出方法、目标与 Host；把 DNS/TCP/TLS 归到「路上」而不是请求字段；在浏览器记录与 curl 之间互指同一字段。",
       "sample": {
         "method": "GET",
         "url": "https://example.com/docs",
@@ -16,81 +18,93 @@
         "curl": "curl https://example.com/docs"
       },
       "sections": [
-        { "id": "concept", "jump": "概念", "heading": "概念" },
-        { "id": "interactive", "jump": "交互", "heading": "交互 / 可视化" },
-        { "id": "application", "jump": "应用", "heading": "应用" },
-        { "id": "quiz", "jump": "测验", "heading": "测验" }
+        { "id": "why", "jump": "为什么", "heading": "为什么要把请求拆开看" },
+        { "id": "parts", "jump": "组成", "heading": "第一步：一条请求要交代什么" },
+        { "id": "assemble-lab", "jump": "写出", "heading": "实验：按字段写出这条请求" },
+        { "id": "on-the-wire", "jump": "路上", "heading": "第二步：路上发生了什么" },
+        { "id": "apply", "jump": "对照", "heading": "第三步：浏览器记录和 curl 怎样对上" },
+        { "id": "clinic", "jump": "诊所", "heading": "诊所：这几句把字段认成了什么" }
       ],
-      "concept": {
-        "lede": "先看报文，再记名称。样例 GET https://example.com/docs 写成下面这一条请求。方法是请求行开头的动词。头是附在请求上的说明，写成「名字: 值」。",
+      "why": {
+        "lede": "样例是 GET https://example.com/docs。打开它时，客户端发出一条请求。把整次访问当成拆不开的黑盒，就指不出这条请求里哪一段在干什么。",
+        "bad": {
+          "title": "坏写法",
+          "points": [
+            "只记得打开了一个网址，说不出客户端写下了什么。",
+            "把响应里的 200 当成请求里的动作。",
+            "把 DNS 写成请求的一个字段。"
+          ]
+        },
+        "good": {
+          "title": "好写法",
+          "points": [
+            "方法说动作：GET。",
+            "路径 /docs 加上 Host: example.com 说目标。",
+            "头附带说明。状态码只出现在响应里。"
+          ]
+        },
+        "bridge": "方法、目标、头、正文各管一件事。状态码留到响应的状态行。",
+        "callout": {
+          "title": "状态码 ≠ 请求方法",
+          "body": "200 写在响应的状态行上。GET 写在请求行的开头。"
+        }
+      },
+      "parts": {
+        "lede": "先看完整报文，再对表。样例发出时写成下面这一条。",
         "requestTitle": "请求报文",
         "request": "GET /docs HTTP/1.1\nHost: example.com\n",
         "rows": [
           { "id": "method", "part": "方法", "question": "这次要做什么？", "sample": "GET" },
           { "id": "target", "part": "目标", "question": "要的资源在哪？", "sample": "/docs，主机 example.com" },
           { "id": "header", "part": "头", "question": "还要附带什么说明？", "sample": "Host: example.com" },
-          { "id": "body", "part": "正文", "question": "要不要带一段数据？", "sample": "这条 GET 可以没有正文" }
+          { "id": "body", "part": "正文", "question": "要不要带一段数据？", "sample": "这条 GET 没有正文" }
         ],
-        "principles": [
-          {
-            "id": "path",
-            "title": "先分清报文和路",
-            "body": "DNS 解析地址，TCP 建立连接，TLS 为 HTTPS 加密。三步都在路上，不占方法、目标、头、正文的位置。"
-          },
-          {
-            "id": "method",
-            "title": "方法标明动作",
-            "body": "方法是请求行开头的动词。GET 表示取回资源。状态码写在响应的状态行里，不在请求里。"
-          },
-          {
-            "id": "extra",
-            "title": "头可以在，正文可以空",
-            "body": "头是「名字: 值」。Host 说明主机。正文是附带数据；这条 GET 的正文是空的，请求仍然完整。"
-          }
-        ],
-        "callout": "下一节把这条报文按字段写出来，并追踪它怎么走完一次往返。点播放之后，右侧说明会跟着当前这一步换。"
+        "rule": "正文可以空。Host 仍然要有。",
+        "callout": {
+          "title": "报文字段 ≠ 路上的步骤",
+          "body": "DNS 解析地址，TCP 建立连接，TLS 为 HTTPS 加密。三步都在路上，不占方法、目标、头、正文的位置。"
+        }
       },
       "assemble": {
-        "lede": "先运行组装，再看右侧说明。报文按时间逐字段写上；写到哪一段，右侧就换成这一段。",
-        "prompt": "点「组装请求」。也可以点字段名，标出条会移到那一段。",
+        "prompt": "点播放，按时间写入字段；写到哪一段，右侧换成这一段的说明。也可以点字段名跳转。",
         "beats": [
           {
             "id": "method",
             "label": "方法",
             "text": "GET",
-            "question": "这次要做什么？",
-            "note": "方法写在请求行最前。GET 表示取回资源。",
+            "question": "这一下写的是动作吗？",
+            "note": "GET 把动作定成取回。它不是 200，也不是 DNS。",
             "sample": "GET"
           },
           {
             "id": "target",
             "label": "目标",
             "text": "GET /docs",
-            "question": "要的资源在哪？",
-            "note": "目标在报文里先写成路径 /docs。主机名留给下一行的 Host。",
+            "question": "路径够不够定位主机？",
+            "note": "/docs 只写出路径。主机名还没出现，要等下一行的 Host。",
             "sample": "/docs"
           },
           {
             "id": "header",
             "label": "头",
             "text": "GET /docs HTTP/1.1\nHost: example.com",
-            "question": "还要附带什么说明？",
-            "note": "头写成「名字: 值」。Host 说明这是给 example.com 的请求。HTTP/1.1 是协议版本，写在请求行末尾。",
+            "question": "主机补上了没有？",
+            "note": "Host 补上 example.com。请求行末尾的 HTTP/1.1 是协议版本，不是第四个字段。这一步仍然没有状态码。",
             "sample": "Host: example.com"
           },
           {
             "id": "body",
             "label": "正文",
             "text": "GET /docs HTTP/1.1\nHost: example.com\n",
-            "question": "要不要带一段数据？",
-            "note": "正文在头后面，用空行隔开。这条 GET 的正文是空的，请求仍然完整。",
+            "question": "正文空着，这条请求写完了吗？",
+            "note": "头后面留出空行。正文空着，请求已经写完。Host 仍在。",
             "sample": "（无正文）"
           }
         ]
       },
       "trip": {
-        "lede": "点「追踪往返」。报文包按时间从客户端移到通路，再移到服务端，响应包再移回起点。每到一站，报文区换成这一站才出现的内容。",
-        "prompt": "点某一站会立刻换上这一站的说明，报文包同时移过去。",
+        "lede": "报文离开客户端之后，DNS 把 example.com 解析成地址，TCP 把两端连上，TLS 为 HTTPS 加密。这三步都在路上，不写入方法、路径、Host 或正文。服务端读完请求，才在响应的状态行写下状态码。",
+        "prompt": "观察包从客户端到服务端再回来时，报文区何时换成响应状态行。",
         "stops": [
           {
             "id": "compose",
@@ -99,7 +113,7 @@
             "packet": "GET /docs",
             "title": "请求报文",
             "wire": "GET /docs HTTP/1.1\nHost: example.com",
-            "note": "客户端写下请求行和 Host。方法是 GET，路径是 /docs，头是 Host: example.com。"
+            "note": "这里只有请求行和 Host。状态行还没出现。"
           },
           {
             "id": "arrive",
@@ -108,7 +122,7 @@
             "packet": "在路上",
             "title": "请求报文（在路上）",
             "wire": "GET /docs HTTP/1.1\nHost: example.com\n\n# 通路，不写入字段\nDNS example.com\nTCP 连接\nTLS 加密",
-            "note": "DNS 解析 example.com，TCP 建立连接，TLS 加密 HTTPS。请求里的方法、路径和 Host 保持原样。"
+            "note": "通路上标出 DNS、TCP、TLS。请求行和 Host 一行都没改。"
           },
           {
             "id": "respond",
@@ -117,13 +131,13 @@
             "packet": "200 OK",
             "title": "响应状态行",
             "wire": "HTTP/1.1 200 OK",
-            "note": "服务端返回状态行。200 是状态码，只出现在响应里。"
+            "note": "报文区换成 HTTP/1.1 200 OK。200 到这一站才出现。"
           }
         ]
       },
       "application": {
-        "lede": "同一次调用可以记在浏览器里，也可以写成 curl https://example.com/docs。点表格中的一行，两边同时标出这个字段。",
-        "intro": "标出条会沿当前字段长开。浏览器把目标和 Host 拆成两行；curl 把它们写进同一个 URL，发出的请求仍然是这两行。",
+        "lede": "浏览器记录和 curl https://example.com/docs 写的是同一次调用。curl 省略 -X 时默认 GET，发出的请求行仍以 GET 开头。",
+        "intro": "点表格中的一行，两边同时标出这个字段。",
         "browserTitle": "浏览器请求记录",
         "browser": "GET /docs HTTP/1.1\nHost: example.com",
         "curlTitle": "终端",
@@ -134,7 +148,7 @@
             "field": "方法",
             "browser": "请求行以 GET 开头",
             "curl": "未写 -X 时，curl 默认 GET",
-            "note": "两边的方法都是 GET。curl 把默认方法省在命令之外，发出的请求行仍以 GET 开头。",
+            "note": "两边的方法都是 GET。命令里没写 -X，发出的请求行仍以 GET 开头。",
             "browserLine": 0,
             "curlLine": 1
           },
@@ -143,7 +157,7 @@
             "field": "目标",
             "browser": "路径 /docs",
             "curl": "URL 里的 /docs",
-            "note": "浏览器把目标写成路径 /docs。curl 把同一路径放在 https://example.com/docs 里。",
+            "note": "浏览器把目标写成路径 /docs。curl 把同一路径放在 URL 末尾。",
             "browserLine": 0,
             "curlLine": 0
           },
@@ -158,7 +172,19 @@
           }
         ]
       },
-      "quizLede": "两道单选各 25 分，简答 50 分。满分 100，60 分通过。提交后在原处看到标准答案、解析和得分。",
+      "clinic": {
+        "lede": "下面三题用来核对字段有没有认错。两道单选各 25 分，简答 50 分。提交后每一项都有解析。"
+      },
+      "recap": {
+        "heading": "本课小结",
+        "items": [
+          "方法说动作。样例是 GET。状态码写在响应里。",
+          "目标是路径 /docs，加上头 Host: example.com。",
+          "正文可以空。Host 仍然要有。",
+          "DNS、TCP、TLS 在路上，不占方法、目标、头、正文。",
+          "浏览器记录和 curl 是同一条请求的两种写法。curl 省略 -X 时默认 GET。"
+        ]
+      },
       "quiz": {
         "passScore": 60,
         "questions": [
@@ -166,29 +192,29 @@
             "id": "q1",
             "type": "single",
             "points": 25,
-            "stem": "在一次 HTTP 请求里，表示「这次要做的动作」的部分是哪一个？",
+            "stem": "打开 https://example.com/docs 时，有人用 200 描述这次请求的动作。动作实际对应哪一项？",
             "options": [
-              { "id": "A", "text": "响应里带回的状态码" },
-              { "id": "B", "text": "请求里标明的方法名" },
-              { "id": "C", "text": "请求附带的那段正文" },
-              { "id": "D", "text": "路上查找地址的步骤" }
+              { "id": "A", "text": "响应里带回的状态码", "note": "状态码写在响应的状态行上，不在请求里标明动作。" },
+              { "id": "B", "text": "请求里标明的方法名", "note": "方法写在请求行开头。样例是 GET，它标明这次要取回资源。" },
+              { "id": "C", "text": "请求附带的那段正文", "note": "正文是附带数据。这条 GET 可以没有正文，请求仍然完整。" },
+              { "id": "D", "text": "路上查找地址的步骤", "note": "DNS 在路上查找地址，不占方法、目标、头或正文。" }
             ],
             "answer": "B",
-            "explanation": "方法标明这次要做的动作，样例是 GET。状态码在响应里。正文是附带数据，这条 GET 可以没有。DNS 在路上查地址，不是请求里的动作字段。"
+            "explanation": "动作是请求里的方法，样例是 GET。200 是响应里的状态码。"
           },
           {
             "id": "q2",
             "type": "single",
             "points": 25,
-            "stem": "样例「打开 https://example.com/docs」里，方法和目标怎样对应？",
+            "stem": "有人把样例记成「方法是 Host，目标是 GET」。方法和目标怎样才对？",
             "options": [
-              { "id": "A", "text": "方法为TLS，目标交给DNS" },
-              { "id": "B", "text": "方法Host，目标写成GET" },
-              { "id": "C", "text": "方法GET，目标是/docs" },
-              { "id": "D", "text": "方法POST，目标写成网站根" }
+              { "id": "A", "text": "方法为TLS，目标交给DNS", "note": "TLS 加密通路，DNS 解析主机。两者都在路上，不是方法和目标。" },
+              { "id": "B", "text": "方法Host，目标写成GET", "note": "Host 是头，GET 是方法。这句把两者对调了。" },
+              { "id": "C", "text": "方法GET，目标是/docs", "note": "方法是 GET，目标的路径是 /docs。主机写在 Host: example.com。" },
+              { "id": "D", "text": "方法POST，目标写成网站根", "note": "这条样例不是 POST，目标也不是网站根。" }
             ],
             "answer": "C",
-            "explanation": "打开这个 URL，方法是 GET，目标要能定位路径 /docs。Host 是头，不是方法。TLS 与 DNS 发生在路上。"
+            "explanation": "方法是 GET，目标要能定位路径 /docs。Host 是头。TLS 与 DNS 发生在路上。"
           },
           {
             "id": "q3",

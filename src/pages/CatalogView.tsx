@@ -21,7 +21,7 @@ export function CatalogView({ course }: { course: Course }) {
                   <CardDescription>0{index + 1}</CardDescription>
                   <CardTitle>{lesson.title}</CardTitle>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">概念、交互、应用、测验在同一页。</CardContent>
+                <CardContent className="text-sm text-muted-foreground">为什么、组成、写出、路上、对照、诊所在同一页。</CardContent>
               </Card>
             </Link>
           </li>

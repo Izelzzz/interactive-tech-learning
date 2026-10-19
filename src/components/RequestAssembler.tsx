@@ -129,7 +129,7 @@ export function RequestAssembler({
           <CardTitle>组装这条请求</CardTitle>
           <Badge variant="secondary">{status}</Badge>
         </div>
-        <CardDescription>{prompt}</CardDescription>
+        {prompt ? <CardDescription>{prompt}</CardDescription> : null}
       </CardHeader>
       <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="space-y-3">
@@ -187,12 +187,10 @@ export function RequestAssembler({
           </div>
         </div>
         <aside className="rounded-2xl border border-teal-100 border-l-4 border-l-teal-500 bg-teal-50/70 p-4" aria-live="polite">
-          <p className="text-xs font-medium tracking-wide text-teal-700">这一段</p>
-          <h3 className="mt-1 text-base font-semibold">{beat.label}</h3>
-          <p className="mt-3 text-xs font-medium text-amber-700">它回答什么？</p>
-          <p className="mt-1 text-sm leading-6">{beat.question}</p>
-          <p className="mt-1 text-sm leading-6 text-slate-700">{beat.note}</p>
-          <p className="mt-3 text-xs font-medium text-slate-500">样例里哪一段</p>
+          <p className="text-xs font-medium tracking-wide text-teal-700">写到 · {beat.label}</p>
+          <h3 className="mt-1 text-base font-semibold">{beat.question}</h3>
+          <p className="mt-3 text-sm leading-6 text-slate-700">{beat.note}</p>
+          <p className="mt-3 text-xs font-medium text-slate-500">样例里这一段</p>
           <p className="mt-1 font-mono text-sm">{beat.sample}</p>
         </aside>
       </CardContent>
