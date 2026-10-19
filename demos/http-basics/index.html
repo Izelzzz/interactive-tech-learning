@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP, Step by Step</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efeee8;
+    --text: #1c1c1a;
+    --muted: #64635d;
+    --border: #dcdbd3;
+    --accent: #3b5bdb;
+    --accent-soft: #e5eaff;
+    --ok: #2b8a3e;
+    --ok-soft: #e3f5e6;
+    --bad: #c92a2a;
+    --bad-soft: #fde8e8;
+    --line: #b9b8b0;
+    --m-get: #2b8a3e;
+    --m-post: #1971c2;
+    --m-put: #d9480f;
+    --m-patch: #7048e8;
+    --m-delete: #c92a2a;
+    --m-head: #0c8599;
+    --m-options: #5c5f66;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-2: #282826;
+      --text: #ecebe6;
+      --muted: #a3a29b;
+      --border: #3a3a37;
+      --accent: #7d97ff;
+      --accent-soft: #252c48;
+      --ok: #5fcf75;
+      --ok-soft: #1c3322;
+      --bad: #ff7b7b;
+      --bad-soft: #3d1f1f;
+      --line: #5a5a55;
+      --m-get: #37a24c;
+      --m-post: #3b8fe0;
+      --m-put: #f0703a;
+      --m-patch: #9177f5;
+      --m-delete: #e5484d;
+      --m-head: #22a6b8;
+      --m-options: #868b94;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --surface-2: #282826;
+    --text: #ecebe6;
+    --muted: #a3a29b;
+    --border: #3a3a37;
+    --accent: #7d97ff;
+    --accent-soft: #252c48;
+    --ok: #5fcf75;
+    --ok-soft: #1c3322;
+    --bad: #ff7b7b;
+    --bad-soft: #3d1f1f;
+    --line: #5a5a55;
+    --m-get: #37a24c;
+    --m-post: #3b8fe0;
+    --m-put: #f0703a;
+    --m-patch: #9177f5;
+    --m-delete: #e5484d;
+    --m-head: #22a6b8;
+    --m-options: #868b94;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.1rem; }
+  p { margin: 0; }
+  code, pre { font-family: var(--mono); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 0.95rem; margin-right: auto; }
+  .progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+  .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s ease; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 12px; font-size: 0.85rem; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 48px 0 24px; }
+  .hero p { color: var(--muted); max-width: 640px; margin-top: 12px; font-size: 1.05rem; }
+  .units { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; }
+  .unit {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .unit:hover { border-color: var(--accent); }
+  .unit small { color: var(--muted); display: block; }
+  .unit b { display: block; margin: 2px 0; }
+  .unit .tick { float: right; color: var(--ok); font-weight: 700; visibility: hidden; }
+  .unit.done .tick { visibility: visible; }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin: 24px 0; scroll-margin-top: 70px;
+  }
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .lede { color: var(--muted); margin-bottom: 18px; }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 14px; font-size: 0.9rem;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ---------- unit 1: process ---------- */
+  .timeline { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .timeline button {
+    border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px;
+    padding: 3px 11px; font-size: 0.8rem; color: var(--muted);
+  }
+  .timeline button.visited { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .timeline button.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .stage { background: var(--surface-2); border-radius: 12px; overflow-x: auto; }
+  .stage svg { display: block; width: 100%; min-width: 620px; height: auto; }
+  .node rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; transition: stroke .3s; }
+  .node.active rect { stroke: var(--accent); stroke-width: 2.5; }
+  .node .title { fill: var(--text); font: 600 15px system-ui, sans-serif; }
+  .node .sub { fill: var(--muted); font: 12px system-ui, sans-serif; }
+  .node.pulse rect { animation: pulse 0.9s ease-in-out infinite alternate; }
+  @keyframes pulse { to { stroke: var(--accent); stroke-width: 4; } }
+  .status { fill: var(--accent); font: 600 12.5px var(--mono); }
+  .conn { stroke: var(--line); stroke-width: 2; stroke-dasharray: 5 6; fill: none; transition: stroke .4s; }
+  .conn.tcp { stroke: var(--ok); stroke-dasharray: none; }
+  .conn.tls { stroke: var(--ok); stroke-dasharray: none; stroke-width: 5; }
+  .conn-label { fill: var(--muted); font: 12px var(--mono); }
+  .dnsline { stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 3 5; }
+  .packet-label { fill: #fff; font: 600 12px var(--mono); }
+
+  .explain { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .explain .text h3 { margin-bottom: 6px; }
+  .explain .text .stepno { color: var(--muted); font-size: 0.8rem; }
+  /* code block: header with label + copy, then the code */
+  .codeblock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; }
+  .codeblock-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .codeblock-head .copy { border: 0; background: none; color: var(--muted); font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+  .codeblock-head .copy:hover { background: var(--surface-2); color: var(--text); }
+  .codeblock pre {
+    margin: 0; padding: 12px 14px; flex: 1;
+    font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  }
+  .tldr { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; font-weight: 600; font-size: 0.95rem; }
+  .bigpicture { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; font-size: 0.95rem; }
+  .bigpicture ol { margin: 8px 0 0; padding-left: 22px; }
+  .bigpicture li { margin: 2px 0; }
+  .bigpicture li b { font-family: var(--mono); font-size: 0.85rem; }
+  .u-scheme { color: var(--m-post); } .u-host { color: var(--m-get); } .u-path { color: var(--m-put); }
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  /* ---------- unit 2: methods ---------- */
+  .methods { display: grid; grid-template-columns: 170px 1fr; gap: 20px; }
+  .mlist { display: flex; flex-direction: column; gap: 6px; }
+  .mbtn {
+    display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 12px; font: 600 0.9rem var(--mono); text-align: left;
+  }
+  .mbtn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface-2); }
+  .mbtn.tried .dot { background: var(--ok); }
+  .mbtn[aria-selected="true"] { color: #fff; border-color: transparent; }
+  .mbtn[aria-selected="true"] .dot { background: rgba(255,255,255,.7); }
+  .mname { font: 700 1.4rem var(--mono); }
+  .props { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px; }
+  .prop { font-size: 0.78rem; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--border); color: var(--muted); }
+  .prop.yes { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+  .prop.no { background: var(--surface-2); border-color: transparent; }
+  .lane { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+  .lane-end {
+    flex: none; width: 76px; text-align: center; font-size: 0.8rem; font-weight: 600;
+    border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 0; background: var(--surface);
+  }
+  .lane-track { position: relative; flex: 1; height: 30px; border-top: 2px dashed var(--line); margin-top: 28px; }
+  .lpacket {
+    position: absolute; top: -16px; left: 0; white-space: nowrap;
+    color: #fff; font: 600 11.5px var(--mono); padding: 4px 10px; border-radius: 999px;
+  }
+  .io { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .io pre { min-height: 120px; }
+  .insight { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.9rem; display: none; }
+  .insight.show { display: block; }
+  .db { margin-top: 16px; }
+  .db-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .db-head .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+  td.id { font-family: var(--mono); color: var(--muted); }
+  tr.flash td { animation: flash 1.4s ease-out; }
+  @keyframes flash { from { background: var(--ok-soft); } to { background: transparent; } }
+  tr.removing td { background: var(--bad-soft); text-decoration: line-through; transition: opacity .4s; opacity: .4; }
+
+  /* ---------- unit 3: quiz ---------- */
+  .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; display: none; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--ok-soft); }
+  .feedback.bad { background: var(--bad-soft); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; }
+  .chip:disabled { opacity: .3; cursor: default; }
+  .slots { counter-reset: slot; display: grid; gap: 6px; margin: 14px 0; }
+  .slot { counter-increment: slot; border: 1.5px dashed var(--border); border-radius: 10px; padding: 7px 12px; min-height: 40px; color: var(--muted); font-size: 0.9rem; }
+  .slot::before { content: counter(slot) ". "; color: var(--muted); }
+  .slot.filled { border-style: solid; color: var(--text); }
+  .slot.right { border-color: var(--ok); background: var(--ok-soft); }
+  .slot.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .result { text-align: center; padding: 20px 0; }
+  .result .score { font: 700 3rem system-ui, sans-serif; }
+  .result p { color: var(--muted); margin: 6px 0 16px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
+
+  @media (max-width: 760px) {
+    .units { grid-template-columns: 1fr; }
+    .explain, .io { grid-template-columns: 1fr; }
+    .methods { grid-template-columns: 1fr; }
+    .mlist { flex-direction: row; flex-wrap: wrap; }
+    .mbtn { flex: 1 1 auto; gap: 8px; }
+    section.card { padding: 18px 16px; }
+    .bar { width: 70px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .node.pulse rect, tr.flash td { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">Interactive Tech Learning · HTTP</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 3 units</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="Explanation level">
+      <button data-level="beginner" aria-pressed="true">Beginner</button>
+      <button data-level="advanced" aria-pressed="false">Advanced</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">Lesson</div>
+    <h1>What happens when you open a web page?</h1>
+    <p>Follow one request from your browser to a server and back. Then try each HTTP method against a live mock API and test yourself. Use the <b>Beginner / Advanced</b> switch at the top to change how deep the explanations go.</p>
+    <nav class="units">
+      <a class="unit" href="#process" id="unit-process"><span class="tick">✓</span><small>Unit 1</small><b>The request journey</b><small>Step through 8 stages</small></a>
+      <a class="unit" href="#methods" id="unit-methods"><span class="tick">✓</span><small>Unit 2</small><b>HTTP methods</b><small>Send at least 5 methods</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>Unit 3</small><b>Check yourself</b><small>Finish the quiz</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="process">
+    <div class="section-head">
+      <div><div class="kicker">Unit 1</div><h2>The request journey</h2></div>
+    </div>
+    <div class="bigpicture">
+      <b>The big picture.</b> Opening a web page is like phoning a shop to order something:
+      <ol>
+        <li>Look up the shop's phone number. <b>(DNS)</b></li>
+        <li>Dial and wait until someone picks up. <b>(TCP)</b></li>
+        <li>Check it's really that shop, then switch to a private line. <b>(TLS)</b></li>
+        <li>Say what you want. <b>(HTTP request)</b></li>
+        <li>The shop gets it ready. <b>(server processing)</b></li>
+        <li>They hand it over with a note saying "OK". <b>(HTTP response)</b></li>
+        <li>You unpack it, notice a few missing pieces and ask for those too. <b>(render)</b></li>
+      </ol>
+    </div>
+    <p class="lede">Press <b>Play</b> to watch the whole trip, or click a stage to replay just that part.</p>
+
+    <div class="timeline" id="timeline"></div>
+
+    <div class="stage">
+      <svg viewBox="0 0 800 300" role="img" aria-label="Animation of a browser, DNS resolver and web server exchanging messages">
+        <line class="dnsline" x1="150" y1="180" x2="345" y2="90"></line>
+        <line class="dnsline" x1="650" y1="180" x2="455" y2="90" opacity=".35"></line>
+        <line id="conn" class="conn" x1="175" y1="210" x2="625" y2="210"></line>
+        <text id="connLabel" class="conn-label" x="400" y="240" text-anchor="middle">no connection yet</text>
+
+        <g class="node" id="n-browser" transform="translate(110 210)">
+          <rect x="-65" y="-35" width="130" height="70" rx="12"></rect>
+          <text class="title" y="-3" text-anchor="middle">Browser</text>
+          <text class="sub" y="16" text-anchor="middle">your computer</text>
+        </g>
+        <g class="node" id="n-dns" transform="translate(400 70)">
+          <rect x="-60" y="-32" width="120" height="64" rx="12"></rect>
+          <text class="title" y="-3" text-anchor="middle">DNS</text>
+          <text class="sub" y="15" text-anchor="middle">address book</text>
+        </g>
+        <g class="node" id="n-server" transform="translate(690 210)">
+          <rect x="-65" y="-35" width="130" height="70" rx="12"></rect>
+          <text class="title" y="-3" text-anchor="middle">Server</text>
+          <text class="sub" y="16" text-anchor="middle">example.com</text>
+        </g>
+
+        <text id="s-browser" class="status" x="110" y="270" text-anchor="middle"></text>
+        <text id="s-dns" class="status" x="400" y="125" text-anchor="middle"></text>
+        <text id="s-server" class="status" x="690" y="270" text-anchor="middle"></text>
+
+        <g id="packets"></g>
+      </svg>
+    </div>
+
+    <div class="explain">
+      <div class="text">
+        <div class="stepno" id="stepNo"></div>
+        <h3 id="stepTitle"></h3>
+        <div class="tldr" id="stepTldr"></div>
+        <p id="stepBody"></p>
+      </div>
+      <div class="codeblock"><div class="codeblock-head"><span>On the wire</span><button class="copy">Copy</button></div><pre id="wire"></pre></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="playBtn">▶ Play</button>
+      <button class="btn" id="prevBtn">← Prev</button>
+      <button class="btn" id="nextBtn">Next →</button>
+      <button class="btn" id="replayBtn">↻ Replay step</button>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="methods">
+    <div class="section-head">
+      <div><div class="kicker">Unit 2</div><h2>HTTP methods</h2></div>
+    </div>
+    <p class="lede">The method is the verb of a request: it says <i>what you want to do</i> to a resource. Below is a tiny bookshelf API. Pick a method, press <b>Send</b>, and watch what happens to the server's data. Press Send twice to see which methods are <b>idempotent</b>.</p>
+
+    <div class="methods">
+      <div class="mlist" role="tablist" id="mlist"></div>
+      <div>
+        <div class="mname" id="mName"></div>
+        <p id="mDesc" style="margin-top:6px"></p>
+        <div class="props" id="mProps"></div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="sendBtn">Send request</button>
+          <button class="btn" id="resetDb">Reset data</button>
+        </div>
+
+        <div class="lane">
+          <div class="lane-end">Client</div>
+          <div class="lane-track" id="track"></div>
+          <div class="lane-end">Server</div>
+        </div>
+
+        <div class="io">
+          <div class="codeblock"><div class="codeblock-head"><span>Request</span><button class="copy">Copy</button></div><pre id="reqText"></pre></div>
+          <div class="codeblock"><div class="codeblock-head"><span>Response</span><button class="copy">Copy</button></div><pre id="resText">(press Send)</pre></div>
+        </div>
+        <div class="insight" id="insight"></div>
+
+        <div class="db">
+          <div class="db-head"><span class="label">Server data: /api/books</span></div>
+          <table>
+            <thead><tr><th>id</th><th>title</th><th>read</th></tr></thead>
+            <tbody id="dbBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="quiz">
+    <div class="section-head">
+      <div><div class="kicker">Unit 3</div><h2>Check yourself</h2></div>
+    </div>
+    <div id="quizBox"></div>
+  </section>
+
+  <footer>A demo for interactive-tech-learning. Plain HTML, CSS and JS with no dependencies, so it also works offline.</footer>
+</main>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, reduced ? Math.min(ms, 150) : ms));
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = (s) => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+  /* ---------------- saved progress ---------------- */
+  const KEY = 'itl-http-basics-v1';
+  let saved = { level: 'beginner', visited: [], tried: [], quizDone: false };
+  try { Object.assign(saved, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+  const visited = new Set(saved.visited);
+  const tried = new Set(saved.tried);
+  let level = saved.level === 'advanced' ? 'advanced' : 'beginner';
+
+  function updateProgress() {
+    const done = {
+      process: visited.size >= STEPS.length,
+      methods: tried.size >= 5,
+      quiz: saved.quizDone,
+    };
+    const n = Object.values(done).filter(Boolean).length;
+    $('progressText').textContent = `${n} / 3 units`;
+    $('progressBar').style.width = `${(n / 3) * 100}%`;
+    for (const k in done) $('unit-' + k).classList.toggle('done', done[k]);
+    saved.visited = [...visited]; saved.tried = [...tried];
+    persist();
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    level = b.dataset.level;
+    saved.level = level; persist();
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    renderStepText(current);
+    renderMethod();
+  }));
+  document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+
+  /* =========================================================
+     UNIT 1: the request journey
+     ========================================================= */
+  const STEPS = [
+    {
+      short: 'URL',
+      title: 'Parse the URL',
+      tldr: 'Work out who to contact and what to ask for.',
+      beginner: 'You type https://example.com/index.html and press Enter. The browser splits it into three parts: how to talk (https), who to talk to (example.com) and what to ask for (/index.html).',
+      advanced: 'The URL is parsed into scheme, host, port (443 is implied for https), path and query. Before using the network, the browser checks HSTS rules, its HTTP cache and any service worker. Any of these can answer or change the request.',
+      wireHtml: '<span class="u-scheme">https://</span><span class="u-host">example.com</span><span class="u-path">/index.html</span>\n\nscheme = <span class="u-scheme">https</span>   (port 443)\nhost   = <span class="u-host">example.com</span>\npath   = <span class="u-path">/index.html</span>',
+      async anim(alive) {
+        node('browser', 'pulse'); status('browser', 'parsing URL…');
+        await sleep(1200); if (!alive()) return;
+        status('browser', 'host = example.com'); node('browser', null);
+      },
+    },
+    {
+      short: 'DNS',
+      title: 'DNS lookup',
+      tldr: 'Turn the name example.com into a numeric address.',
+      beginner: 'Computers find each other by number (an IP address), not by name. The browser asks DNS: "What is the address of example.com?" It works like looking up a phone number in your contacts.',
+      advanced: 'The browser checks its own cache, then the OS cache, then asks a recursive resolver (UDP port 53, or DNS-over-HTTPS). If the resolver has no cached answer, it asks the root servers, then the .com servers, then example.com\'s own nameserver for an A/AAAA record. The answer is cached for its TTL.',
+      wire: '→ QUERY   example.com  IN A ?\n← ANSWER  example.com  IN A  93.184.215.14\n          TTL 300 s',
+      async anim(alive) {
+        node('dns', 'active');
+        if (!await packet('browser', 'dns', 'example.com ?', cssVar('--m-post'))) return;
+        node('dns', 'pulse'); await sleep(500); if (!alive()) return;
+        node('dns', 'active');
+        if (!await packet('dns', 'browser', '93.184.215.14', cssVar('--m-get'))) return;
+        status('browser', 'IP = 93.184.215.14'); node('dns', null);
+      },
+    },
+    {
+      short: 'TCP',
+      title: 'TCP handshake',
+      tldr: 'Open a reliable two-way line to the server.',
+      beginner: 'Before talking, the browser and server do a handshake to open a reliable line: "Can you hear me?" "Yes, can you hear me?" "Yes!" After this, nothing gets lost or arrives out of order.',
+      advanced: 'The three-way handshake (SYN → SYN-ACK → ACK) exchanges starting sequence numbers and costs one round trip. HTTP/3 replaces TCP with QUIC over UDP, which combines the transport and TLS handshakes into one.',
+      wire: '→ SYN       seq=1000\n← SYN-ACK   seq=5000  ack=1001\n→ ACK       ack=5001\n\nconnection ESTABLISHED',
+      async anim(alive) {
+        const c = cssVar('--m-options');
+        if (!await packet('browser', 'server', 'SYN', c)) return;
+        if (!await packet('server', 'browser', 'SYN-ACK', c)) return;
+        if (!await packet('browser', 'server', 'ACK', c)) return;
+      },
+    },
+    {
+      short: 'TLS',
+      title: 'TLS handshake (the S in HTTPS)',
+      tldr: 'Prove the server is real and encrypt the line.',
+      beginner: 'The server shows an ID card (its certificate) to prove it really is example.com, and both sides agree on a secret key. From now on everything is scrambled, so nobody in between can read it.',
+      advanced: 'TLS 1.3: the ClientHello carries cipher suites, a key share, SNI (the hostname) and ALPN. The server answers with ServerHello, its certificate and Finished. The client checks the certificate chain against trusted CAs. Both sides derive session keys with ECDHE. This costs one round trip, or zero when resuming a session. ALPN chooses h2 or http/1.1.',
+      wire: '→ ClientHello   SNI=example.com, ALPN=[h2, http/1.1]\n← ServerHello   + Certificate (CN=example.com)\n                + Finished\n→ Finished\n\n🔒 encrypted channel ready',
+      async anim(alive) {
+        const c = cssVar('--m-head');
+        if (!await packet('browser', 'server', 'ClientHello', c)) return;
+        if (!await packet('server', 'browser', 'ServerHello + cert', c)) return;
+        status('browser', 'cert valid ✓');
+        if (!await packet('browser', 'server', 'Finished', c)) return;
+      },
+    },
+    {
+      short: 'Request',
+      title: 'Send the HTTP request',
+      tldr: 'Ask for the page: method + path + headers.',
+      beginner: 'Now the browser asks its real question. The first word is the method. GET means "please give me this." Headers add extra details, such as which browser you are using.',
+      advanced: 'A request has a method, a target, a version, headers and an optional body. HTTP/2 sends the same thing as binary frames with HPACK-compressed headers, multiplexed on a stream. The meaning does not change.',
+      wire: 'GET /index.html HTTP/1.1\nHost: example.com\nUser-Agent: Mozilla/5.0\nAccept: text/html\nAccept-Language: en-US',
+      async anim(alive) {
+        await packet('browser', 'server', 'GET /index.html', cssVar('--m-get'));
+      },
+    },
+    {
+      short: 'Server',
+      title: 'The server does the work',
+      tldr: 'Find the right code, fetch the data, build a reply.',
+      beginner: 'The server reads the request and works out which piece of its code should handle it. That code may look something up in a database. Then it prepares an answer.',
+      advanced: 'A typical path: load balancer or reverse proxy → router matches method + path → middleware (auth, logging, rate limits) → handler → cache or database → response serialisation. The time spent here shows up in TTFB (time to first byte).',
+      wire: 'router   GET /index.html → pageHandler\nauth     anonymous: ok\ndb       SELECT … (3 ms)\nrender   index template → 1.2 KB',
+      async anim(alive) {
+        node('server', 'pulse');
+        for (const s of ['→ router', '→ handler', '→ database', '→ build response']) {
+          status('server', s); await sleep(650); if (!alive()) return;
+        }
+        status('server', 'ready'); node('server', null);
+      },
+    },
+    {
+      short: 'Response',
+      title: 'The HTTP response',
+      tldr: 'Status code + headers + the page itself.',
+      beginner: 'The server replies with a status code (200 means "OK, here you go"), some headers and the body, which is the actual HTML of the page.',
+      advanced: 'A response has a status line, headers and a body. Cache-Control and ETag control caching. Content-Encoding (gzip or br) compresses the body. The connection stays open (keep-alive) so it can be reused.',
+      wire: 'HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\nContent-Length: 1256\nCache-Control: max-age=600\n\n<!doctype html>\n<html> … </html>',
+      async anim(alive) {
+        await packet('server', 'browser', '200 OK · HTML', cssVar('--m-get'));
+      },
+    },
+    {
+      short: 'Render',
+      title: 'Render, then fetch the rest',
+      tldr: 'Draw the page and request the CSS, JS and images it needs.',
+      beginner: 'The browser reads the HTML and finds it needs more files: styles, scripts and images. It asks for them over the same open connection, then draws the page on your screen.',
+      advanced: 'The parser builds the DOM while the preload scanner finds subresources and requests them early. With HTTP/2 these requests share one connection. DOM + CSSOM → render tree → layout → paint → composite.',
+      wire: 'GET /style.css  → 200  text/css\nGET /app.js     → 200  application/javascript\nGET /logo.png   → 200  image/png\n\n(same connection, reused)',
+      async anim(alive) {
+        status('browser', 'parsing HTML…');
+        const c = cssVar('--m-get');
+        const out = [['GET /style.css', 45], ['GET /app.js', 0], ['GET /logo.png', -45]];
+        const reqs = out.map(([l, lift], i) => sleep(i * 220).then(() => alive() && packet('browser', 'server', l, c, lift)));
+        await Promise.all(reqs); if (!alive()) return;
+        const back = [['200 CSS', 45], ['200 JS', 0], ['200 PNG', -45]];
+        await Promise.all(back.map(([l, lift], i) => sleep(i * 220).then(() => alive() && packet('server', 'browser', l, c, lift))));
+        if (!alive()) return;
+        status('browser', 'page painted ✓');
+      },
+    },
+  ];
+
+  const POS = { browser: { x: 110, y: 210 }, server: { x: 690, y: 210 }, dns: { x: 400, y: 70 } };
+  const NS = 'http://www.w3.org/2000/svg';
+  const layer = $('packets');
+  let runId = 0;
+  let current = 0;
+  let playing = false;
+
+  function node(name, state) {
+    const g = $('n-' + name);
+    g.classList.remove('active', 'pulse');
+    if (state) g.classList.add(state);
+  }
+  function status(name, text) { $('s-' + name).textContent = text; }
+
+  function packet(from, to, label, color, lift = 0) {
+    const tok = runId;
+    return new Promise(resolve => {
+      const g = document.createElementNS(NS, 'g');
+      const w = label.length * 7.4 + 22;
+      const rect = document.createElementNS(NS, 'rect');
+      Object.entries({ x: -w / 2, y: -13, width: w, height: 26, rx: 13, fill: color }).forEach(([k, v]) => rect.setAttribute(k, v));
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('class', 'packet-label'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('y', 4.5);
+      t.textContent = label;
+      g.append(rect, t); layer.appendChild(g);
+
+      const a = POS[from], b = POS[to];
+      // start/end a little outside each node box
+      const trim = (from === 'dns' || to === 'dns') ? 0.24 : 0.16;
+      const sx = a.x + (b.x - a.x) * trim, sy = a.y + (b.y - a.y) * trim;
+      const ex = a.x + (b.x - a.x) * (1 - trim), ey = a.y + (b.y - a.y) * (1 - trim);
+      const dur = reduced ? 200 : 1100;
+      const t0 = performance.now();
+      const frame = (now) => {
+        if (tok !== runId) { g.remove(); return resolve(false); }
+        const p = Math.min(1, (now - t0) / dur);
+        const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        const x = sx + (ex - sx) * e;
+        const y = sy + (ey - sy) * e - Math.sin(Math.PI * e) * lift;
+        g.setAttribute('transform', `translate(${x} ${y})`);
+        if (p < 1) requestAnimationFrame(frame);
+        else setTimeout(() => { g.remove(); resolve(tok === runId); }, reduced ? 0 : 120);
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function setConn(i) {
+    // connection state after step i has finished
+    const conn = $('conn'), label = $('connLabel');
+    conn.classList.remove('tcp', 'tls');
+    if (i >= 3) { conn.classList.add('tls'); label.textContent = 'TCP + TLS · encrypted 🔒'; }
+    else if (i >= 2) { conn.classList.add('tcp'); label.textContent = 'TCP connection open'; }
+    else label.textContent = 'no connection yet';
+  }
+
+  function renderTimeline() {
+    $('timeline').innerHTML = '';
+    STEPS.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.textContent = `${i + 1}. ${s.short}`;
+      b.className = (visited.has(i) ? 'visited ' : '') + (i === current ? 'current' : '');
+      b.addEventListener('click', () => { stopPlay(); runStep(i); });
+      $('timeline').appendChild(b);
+    });
+    $('prevBtn').disabled = current === 0;
+    $('nextBtn').disabled = current === STEPS.length - 1;
+  }
+
+  function renderStepText(i) {
+    const s = STEPS[i];
+    $('stepNo').textContent = `Stage ${i + 1} of ${STEPS.length}`;
+    $('stepTitle').textContent = s.title;
+    $('stepTldr').textContent = s.tldr;
+    $('stepBody').textContent = s[level];
+    if (s.wireHtml) $('wire').innerHTML = s.wireHtml; else $('wire').textContent = s.wire;
+  }
+
+  async function runStep(i) {
+    const tok = ++runId;
+    current = i;
+    layer.innerHTML = '';
+    ['browser', 'dns', 'server'].forEach(n => { node(n, null); status(n, ''); });
+    setConn(i - 1);
+    renderStepText(i);
+    renderTimeline();
+    await STEPS[i].anim(() => tok === runId);
+    if (tok !== runId) return false;
+    setConn(i);
+    visited.add(i);
+    renderTimeline();
+    updateProgress();
+    return true;
+  }
+
+  async function play() {
+    playing = true;
+    $('playBtn').textContent = '❚❚ Pause';
+    let i = current === STEPS.length - 1 ? 0 : current;
+    while (playing && i < STEPS.length) {
+      const finished = await runStep(i);
+      if (!finished || !playing) return;
+      await sleep(1100);
+      if (!playing) return;
+      i++;
+    }
+    stopPlay();
+  }
+  function stopPlay() { playing = false; $('playBtn').textContent = '▶ Play'; }
+
+  $('playBtn').addEventListener('click', () => playing ? stopPlay() : play());
+  $('prevBtn').addEventListener('click', () => { stopPlay(); if (current > 0) runStep(current - 1); });
+  $('nextBtn').addEventListener('click', () => { stopPlay(); if (current < STEPS.length - 1) runStep(current + 1); });
+  $('replayBtn').addEventListener('click', () => { stopPlay(); runStep(current); });
+
+  /* =========================================================
+     UNIT 2: methods playground
+     ========================================================= */
+  const METHODS = {
+    GET: {
+      color: '--m-get',
+      beginner: 'Read something. Like opening a book to look at it: you don\'t change anything.',
+      advanced: 'Retrieves a representation of the target resource. Safe and idempotent, and responses are cacheable. A body on a GET has no defined meaning, so don\'t send one.',
+      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
+      req: 'GET /api/books HTTP/1.1\nHost: api.example.com\nAccept: application/json',
+    },
+    POST: {
+      color: '--m-post',
+      beginner: 'Create something new or submit data. Like posting a letter: every letter you send is a new one.',
+      advanced: 'Processes the request body according to the resource\'s own rules, usually by creating a new resource (201 + Location). Neither safe nor idempotent, so a retry can create a duplicate. That is why payment APIs accept an Idempotency-Key header.',
+      props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
+      req: 'POST /api/books HTTP/1.1\nHost: api.example.com\nContent-Type: application/json\n\n{"title": "Neuromancer", "read": false}',
+    },
+    PUT: {
+      color: '--m-put',
+      beginner: 'Replace something completely. Like swapping a whole page in a binder for a new one.',
+      advanced: 'Creates or replaces the target resource with the representation in the body. Idempotent: N identical PUTs leave the same state as one. Any field you leave out is not kept.',
+      props: { Safe: false, Idempotent: true, 'Request body': true, Cacheable: false },
+      req: 'PUT /api/books/1 HTTP/1.1\nHost: api.example.com\nContent-Type: application/json\n\n{"title": "Dune Messiah", "read": false}',
+    },
+    PATCH: {
+      color: '--m-patch',
+      beginner: 'Change just part of something. Like fixing one word with a pen instead of reprinting the page.',
+      advanced: 'Applies a partial change (RFC 5789), for example in JSON Merge Patch or JSON Patch format. It is not guaranteed to be idempotent: an "increment" operation changes the result every time.',
+      props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
+      req: 'PATCH /api/books/2 HTTP/1.1\nHost: api.example.com\nContent-Type: application/merge-patch+json\n\n{"read": true}',
+    },
+    DELETE: {
+      color: '--m-delete',
+      beginner: 'Remove something. Like throwing a page away.',
+      advanced: 'Removes the resource at the target URI. Idempotent: the server state after one DELETE or many is the same, even though later calls may return 404.',
+      props: { Safe: false, Idempotent: true, 'Request body': false, Cacheable: false },
+      req: 'DELETE /api/books/3 HTTP/1.1\nHost: api.example.com',
+    },
+    HEAD: {
+      color: '--m-head',
+      beginner: 'Like GET, but it only asks for the label on the box, not what\'s inside.',
+      advanced: 'The same as GET, but the server must not send a body. Use it to check cheaply whether a resource exists, how big it is (Content-Length) or whether it is still fresh (ETag / Last-Modified).',
+      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
+      req: 'HEAD /api/books HTTP/1.1\nHost: api.example.com',
+    },
+    OPTIONS: {
+      color: '--m-options',
+      beginner: 'Asks the server: "What am I allowed to do here?"',
+      advanced: 'Describes which methods and options the target supports. Before some cross-origin requests, browsers send it automatically as a CORS preflight and read the Access-Control-Allow-* headers in the reply.',
+      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: false },
+      req: 'OPTIONS /api/books HTTP/1.1\nHost: api.example.com\nOrigin: https://app.example.com\nAccess-Control-Request-Method: DELETE',
+    },
+  };
+  const STATUS = { 200: 'OK', 201: 'Created', 204: 'No Content', 404: 'Not Found' };
+  const freshStore = () => [
+    { id: 1, title: 'Dune', read: true },
+    { id: 2, title: 'Hyperion', read: false },
+    { id: 3, title: 'Foundation', read: false },
+  ];
+  let store = freshStore();
+  let nextId = 4;
+  let method = 'GET';
+  let sends = {};
+  let busy = false;
+
+  function renderMethodList() {
+    $('mlist').innerHTML = '';
+    for (const m in METHODS) {
+      const b = document.createElement('button');
+      b.className = 'mbtn' + (tried.has(m) ? ' tried' : '');
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(m === method));
+      b.innerHTML = `<span>${m}</span><span class="dot" title="tried"></span>`;
+      if (m === method) b.style.background = cssVar(METHODS[m].color);
+      b.addEventListener('click', () => { if (busy) return; method = m; renderMethod(); });
+      $('mlist').appendChild(b);
+    }
+  }
+
+  function renderMethod() {
+    const m = METHODS[method];
+    renderMethodList();
+    $('mName').textContent = method;
+    $('mName').style.color = cssVar(m.color);
+    $('mDesc').textContent = m[level];
+    $('mProps').innerHTML = Object.entries(m.props)
+      .map(([k, v]) => `<span class="prop ${v ? 'yes' : 'no'}">${v ? '✓' : '✗'} ${k}</span>`).join('');
+    $('reqText').textContent = m.req;
+    $('resText').textContent = '(press Send)';
+    $('insight').classList.remove('show');
+  }
+
+  function renderDb(flashId) {
+    const rows = [...store].sort((a, b) => a.id - b.id);
+    $('dbBody').innerHTML = rows.length
+      ? rows.map(b => `<tr data-id="${b.id}" class="${b.id === flashId ? 'flash' : ''}"><td class="id">${b.id}</td><td>${esc(b.title)}</td><td>${b.read}</td></tr>`).join('')
+      : '<tr><td colspan="3" style="color:var(--muted)">(empty)</td></tr>';
+  }
+
+  function handle(m) {
+    const before = JSON.stringify(store);
+    const json = { 'Content-Type': 'application/json' };
+    let r;
+    switch (m) {
+      case 'GET':
+        r = { s: 200, h: json, body: [...store].sort((a, b) => a.id - b.id) }; break;
+      case 'POST': {
+        const b = { id: nextId++, title: 'Neuromancer', read: false };
+        store.push(b);
+        r = { s: 201, h: { ...json, Location: `/api/books/${b.id}` }, body: b, flash: b.id }; break;
+      }
+      case 'PUT': {
+        const nb = { id: 1, title: 'Dune Messiah', read: false };
+        const i = store.findIndex(b => b.id === 1);
+        if (i >= 0) { store[i] = nb; r = { s: 200, h: json, body: nb, flash: 1 }; }
+        else { store.push(nb); r = { s: 201, h: { ...json, Location: '/api/books/1' }, body: nb, flash: 1 }; }
+        break;
+      }
+      case 'PATCH': {
+        const b = store.find(b => b.id === 2);
+        if (!b) r = { s: 404, h: json, body: { error: 'book 2 not found' } };
+        else { b.read = true; r = { s: 200, h: json, body: b, flash: 2 }; }
+        break;
+      }
+      case 'DELETE': {
+        const i = store.findIndex(b => b.id === 3);
+        if (i < 0) r = { s: 404, h: json, body: { error: 'book 3 not found' } };
+        else { store.splice(i, 1); r = { s: 204, h: {} }; }
+        break;
+      }
+      case 'HEAD':
+        r = { s: 200, h: { ...json, 'Content-Length': String(JSON.stringify(store).length) } }; break;
+      case 'OPTIONS':
+        r = { s: 204, h: {
+          Allow: 'GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS',
+          'Access-Control-Allow-Origin': 'https://app.example.com',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE',
+        } }; break;
+    }
+    r.changed = before !== JSON.stringify(store);
+    return r;
+  }
+
+  function lanePacket(label, color, dir) {
+    return new Promise(resolve => {
+      const track = $('track');
+      const p = document.createElement('span');
+      p.className = 'lpacket'; p.textContent = label; p.style.background = color;
+      track.appendChild(p);
+      const W = Math.max(0, track.clientWidth - p.offsetWidth);
+      const [from, to] = dir > 0 ? [0, W] : [W, 0];
+      const a = p.animate(
+        [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
+        { duration: reduced ? 200 : 900, easing: 'ease-in-out', fill: 'forwards' }
+      );
+      a.onfinish = () => { p.remove(); resolve(); };
+    });
+  }
+
+  $('sendBtn').addEventListener('click', async () => {
+    if (busy) return;
+    busy = true; $('sendBtn').disabled = true; $('resetDb').disabled = true;
+    const m = method, color = cssVar(METHODS[m].color);
+    $('resText').textContent = '…';
+    $('insight').classList.remove('show');
+
+    await lanePacket(m + ' ' + METHODS[m].req.split(' ')[1], color, 1);
+
+    if (m === 'DELETE') {
+      const row = document.querySelector('#dbBody tr[data-id="3"]');
+      if (row) { row.classList.add('removing'); await sleep(500); }
+    }
+    const r = handle(m);
+    renderDb(r.flash);
+
+    const statusColor = r.s >= 400 ? cssVar('--m-delete') : cssVar('--m-get');
+    await lanePacket(`${r.s} ${STATUS[r.s]}`, statusColor, -1);
+
+    let text = `HTTP/1.1 ${r.s} ${STATUS[r.s]}\n` + Object.entries(r.h).map(([k, v]) => `${k}: ${v}`).join('\n');
+    if (r.body !== undefined) text += '\n\n' + JSON.stringify(r.body, null, 2);
+    else if (m === 'HEAD') text += '\n\n(no body: HEAD only returns headers)';
+    $('resText').textContent = text;
+
+    sends[m] = (sends[m] || 0) + 1;
+    $('insight').textContent = insightFor(m, r, sends[m]);
+    $('insight').classList.add('show');
+
+    tried.add(m);
+    renderMethodList();
+    updateProgress();
+    busy = false; $('sendBtn').disabled = false; $('resetDb').disabled = false;
+  });
+
+  function insightFor(m, r, count) {
+    const p = METHODS[m].props;
+    if (!r.changed && p.Safe) return `Nothing on the server changed. ${m} is a safe method: it only reads.`;
+    if (count === 1 && r.changed) return 'The server\'s data changed. Press Send again to test whether repeating it changes anything more.';
+    if (r.changed) return m === 'POST'
+      ? `You sent POST ${count} times and got ${count} new "Neuromancer" rows. POST is not idempotent.`
+      : `Sending ${m} again changed the data again. It is not idempotent.`;
+    if (m === 'DELETE') return 'This time you got 404, but the server\'s data is the same as after the first DELETE. That is what idempotent means: repeating it doesn\'t change the result.';
+    if (m === 'PATCH') return 'The data didn\'t change this time, because this merge-patch only sets read = true. PATCH in general is not guaranteed to be idempotent; an "increment" patch would change it every time.';
+    return `The server's data is identical to before. Repeating ${m} has no extra effect, so it is idempotent.`;
+  }
+
+  $('resetDb').addEventListener('click', () => {
+    store = freshStore(); nextId = 4; sends = {};
+    renderDb(); renderMethod();
+  });
+
+  /* =========================================================
+     UNIT 3: quiz
+     ========================================================= */
+  const QUIZ = [
+    { q: 'Your app needs to show a user\'s profile without changing anything. Which method?',
+      opts: ['POST', 'GET', 'PUT', 'PATCH'], a: 1,
+      why: 'GET reads data. It is safe (no side effects) and can be cached.' },
+    { q: 'A sign-up form creates a new account. Which method fits best?',
+      opts: ['GET', 'DELETE', 'POST', 'HEAD'], a: 2,
+      why: 'POST submits data so the server can create something new. The server usually replies 201 Created.' },
+    { q: 'Which of these methods is NOT idempotent?',
+      opts: ['PUT', 'DELETE', 'GET', 'POST'], a: 3,
+      why: 'Sending the same POST twice usually creates two resources. You saw this with the duplicate "Neuromancer" rows in Unit 2.' },
+    { q: 'You only want to change a user\'s email address and leave every other field alone. Which method?',
+      opts: ['PATCH', 'PUT', 'POST', 'OPTIONS'], a: 0,
+      why: 'PATCH applies a partial update. PUT would replace the whole user, and any field you left out would be lost.' },
+    { q: 'You type https://example.com into the address bar. Which of these happens FIRST?',
+      opts: ['TLS handshake', 'Send GET /', 'DNS lookup', 'TCP handshake'], a: 2,
+      why: 'The browser needs the server\'s IP address before it can open a connection, so DNS comes first. Then TCP, then TLS, then the HTTP request.' },
+    { q: 'A DELETE succeeds and the server has nothing to send back. Which status code fits?',
+      opts: ['200 OK', '204 No Content', '404 Not Found', '201 Created'], a: 1,
+      why: '204 means "success, and there is no body". 200 with a body would also be valid, but 204 is the precise one.' },
+    { q: 'Why does a browser sometimes send OPTIONS before a cross-origin request on its own?',
+      opts: ['To compress the request', 'To warm up the cache', 'CORS preflight: to ask whether the request is allowed', 'To retry a failed request'], a: 2,
+      why: 'For non-simple cross-origin requests the browser first sends an OPTIONS preflight and checks the Access-Control-Allow-* headers in the reply.' },
+    { type: 'order',
+      q: 'Put the journey in order. Tap the stages from first to last.',
+      items: ['DNS lookup', 'TCP handshake', 'TLS handshake', 'Send HTTP request', 'Server processes', 'Receive response'],
+      why: 'Find the address → open a connection → secure it → ask → server works → answer comes back.' },
+  ];
+  let qi = 0, score = 0;
+
+  function renderQuiz() {
+    const box = $('quizBox');
+    if (qi >= QUIZ.length) {
+      const pct = Math.round((score / QUIZ.length) * 100);
+      box.innerHTML = `<div class="result"><div class="score">${score} / ${QUIZ.length}</div>
+        <p>${pct === 100 ? 'Perfect. You know how HTTP works.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay Units 1 and 2, then try again.'}</p>
+        <button class="btn primary" id="retry">Try again</button></div>`;
+      $('retry').addEventListener('click', () => { qi = 0; score = 0; renderQuiz(); });
+      saved.quizDone = true; updateProgress();
+      return;
+    }
+    const item = QUIZ[qi];
+    box.innerHTML = `<div class="quiz-meta"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>
+      <div class="q">${esc(item.q)}</div><div id="qBody"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="controls"><button class="btn primary" id="qNext" style="display:none">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`;
+    $('qNext').addEventListener('click', () => { qi++; renderQuiz(); });
+    (item.type === 'order' ? renderOrder : renderMC)(item);
+  }
+
+  function reveal(ok, why) {
+    if (ok) score++;
+    const fb = $('fb');
+    fb.className = 'feedback show ' + (ok ? 'good' : 'bad');
+    fb.innerHTML = `<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`;
+    $('qNext').style.display = '';
+    $('qNext').focus();
+  }
+
+  function renderMC(item) {
+    const wrap = document.createElement('div'); wrap.className = 'opts';
+    item.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        wrap.querySelectorAll('.opt').forEach((x, j) => {
+          x.disabled = true;
+          if (j === item.a) x.classList.add('right');
+        });
+        if (i !== item.a) b.classList.add('wrong');
+        reveal(i === item.a, item.why);
+      });
+      wrap.appendChild(b);
+    });
+    $('qBody').appendChild(wrap);
+  }
+
+  function renderOrder(item) {
+    const shuffled = [...item.items];
+    do { shuffled.sort(() => Math.random() - 0.5); } while (shuffled.join() === item.items.join());
+    const picked = [];
+    $('qBody').innerHTML = `<div class="chips" id="chips"></div><div class="slots" id="slots"></div>
+      <div class="controls"><button class="btn" id="oClear">Clear</button><button class="btn primary" id="oCheck" disabled>Check order</button></div>`;
+    const draw = () => {
+      $('chips').innerHTML = ''; $('slots').innerHTML = '';
+      shuffled.forEach(s => {
+        const c = document.createElement('button');
+        c.className = 'chip'; c.textContent = s; c.disabled = picked.includes(s);
+        c.addEventListener('click', () => { picked.push(s); draw(); });
+        $('chips').appendChild(c);
+      });
+      item.items.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'slot' + (picked[i] ? ' filled' : '');
+        d.textContent = picked[i] || '';
+        $('slots').appendChild(d);
+      });
+      $('oCheck').disabled = picked.length !== item.items.length;
+    };
+    $('oClear').addEventListener('click', () => { picked.length = 0; draw(); });
+    $('oCheck').addEventListener('click', () => {
+      const slots = $('slots').children;
+      let ok = true;
+      picked.forEach((s, i) => {
+        const right = s === item.items[i];
+        ok = ok && right;
+        slots[i].classList.add(right ? 'right' : 'wrong');
+        if (!right) slots[i].textContent = `${s}  (should be: ${item.items[i]})`;
+      });
+      $('chips').querySelectorAll('button').forEach(b => b.disabled = true);
+      $('oCheck').disabled = true; $('oClear').disabled = true;
+      reveal(ok, item.why);
+    });
+    draw();
+  }
+
+  document.querySelectorAll('.codeblock .copy').forEach(btn => btn.addEventListener('click', async () => {
+    const text = btn.closest('.codeblock').querySelector('pre').textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; }
+    catch (e) { btn.textContent = 'Copy failed'; }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
+  }));
+
+  /* ---------------- init ---------------- */
+  renderStepText(0);
+  renderTimeline();
+  renderMethod();
+  renderDb();
+  renderQuiz();
+  updateProgress();
+  // Re-tint the selected method button when the colour scheme flips.
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderMethod);
+})();
+</script>
+</body>
+</html>
