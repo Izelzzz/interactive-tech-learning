@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Designing Good APIs</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efeee8;
+    --text: #1c1c1a;
+    --muted: #64635d;
+    --border: #dcdbd3;
+    --accent: #3b5bdb;
+    --accent-soft: #e5eaff;
+    --ok: #2b8a3e;
+    --ok-soft: #e3f5e6;
+    --bad: #c92a2a;
+    --bad-soft: #fde8e8;
+    --warn: #b35c00;
+    --warn-soft: #fff1e0;
+    --line: #b9b8b0;
+    --c-offset: #d9480f;
+    --c-cursor: #1971c2;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-2: #282826;
+      --text: #ecebe6;
+      --muted: #a3a29b;
+      --border: #3a3a37;
+      --accent: #7d97ff;
+      --accent-soft: #252c48;
+      --ok: #5fcf75;
+      --ok-soft: #1c3322;
+      --bad: #ff7b7b;
+      --bad-soft: #3d1f1f;
+      --warn: #ffa94d;
+      --warn-soft: #3a2a17;
+      --line: #5a5a55;
+      --c-offset: #f0703a;
+      --c-cursor: #4dabf7;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --surface-2: #282826;
+    --text: #ecebe6;
+    --muted: #a3a29b;
+    --border: #3a3a37;
+    --accent: #7d97ff;
+    --accent-soft: #252c48;
+    --ok: #5fcf75;
+    --ok-soft: #1c3322;
+    --bad: #ff7b7b;
+    --bad-soft: #3d1f1f;
+    --warn: #ffa94d;
+    --warn-soft: #3a2a17;
+    --line: #5a5a55;
+    --c-offset: #f0703a;
+    --c-cursor: #4dabf7;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  body[data-level="advanced"] .only-beginner, body[data-level="beginner"] .only-advanced { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  code, pre { font-family: var(--mono); }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 0.95rem; margin-right: auto; }
+  .brand a { color: var(--muted); text-decoration: none; font-weight: 500; margin-right: 6px; }
+  .progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+  .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s ease; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 12px; font-size: 0.85rem; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 48px 0 24px; }
+  .hero p { color: var(--muted); max-width: 660px; margin-top: 12px; font-size: 1.05rem; }
+  .units { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 28px; }
+  .unit {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .unit:hover { border-color: var(--accent); }
+  .unit small { color: var(--muted); display: block; }
+  .unit b { display: block; margin: 2px 0; }
+  .unit .tick { float: right; color: var(--ok); font-weight: 700; visibility: hidden; }
+  .unit.done .tick { visibility: visible; }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin: 24px 0; scroll-margin-top: 70px;
+  }
+  .kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .lede { color: var(--muted); margin: 6px 0 18px; }
+  .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 14px; font-size: 0.9rem;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .callout { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; font-size: 0.95rem; }
+  .callout ul { margin: 6px 0 0; padding-left: 20px; }
+  .callout li { margin: 3px 0; }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; display: none; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--ok-soft); }
+  .feedback.bad { background: var(--bad-soft); }
+  .insight { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.92rem; }
+  .prop { display: inline-block; font-size: 0.78rem; border-radius: 999px; padding: 2px 10px; margin: 0 6px 6px 0; }
+  .prop.bad { background: var(--bad-soft); color: var(--bad); }
+
+  .codeblock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; }
+  .codeblock-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .codeblock-head .copy { border: 0; background: none; color: var(--muted); font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+  .codeblock-head .copy:hover { background: var(--surface-2); color: var(--text); }
+  .codeblock pre { margin: 0; padding: 12px 14px; flex: 1; font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px;
+  }
+  .opt.mono { font-family: var(--mono); font-size: 0.9rem; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .75; }
+
+  /* ---------- unit 1: API doctor ---------- */
+  .doctor { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+  .caselist { display: flex; flex-direction: column; gap: 6px; }
+  .casebtn {
+    display: flex; gap: 8px; align-items: center; text-align: left;
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 7px 10px;
+    font: 0.78rem var(--mono); overflow: hidden;
+  }
+  .casebtn span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .casebtn .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+  .casebtn.fixed .dot { background: var(--ok); }
+  .casebtn[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .ep {
+    font: 600 clamp(1rem, 2.6vw, 1.3rem) var(--mono); padding: 18px 16px; background: var(--surface-2);
+    border-radius: 12px; overflow-wrap: anywhere; min-height: 64px;
+  }
+  .tok { display: inline-block; white-space: pre; max-width: 100%; overflow-wrap: anywhere; }
+  .tok.method { color: var(--accent); }
+  .tok.bad { color: var(--bad); text-decoration: underline wavy var(--bad); text-underline-offset: 4px; }
+  .tok.good { color: var(--ok); background: var(--ok-soft); border-radius: 4px; }
+  .ep.leave .tok { animation: tokOut .3s ease-in both; animation-delay: calc(var(--i) * 35ms); }
+  .ep.enter .tok { animation: tokIn .45s cubic-bezier(.2, .8, .3, 1.3) both; animation-delay: calc(var(--i) * 45ms); }
+  @keyframes tokOut { to { opacity: 0; transform: translateY(-14px); } }
+  @keyframes tokIn { from { opacity: 0; transform: translateY(14px); } }
+  .context { margin-top: 10px; font-size: 0.9rem; color: var(--muted); }
+  .symptoms { margin: 12px 0 4px; }
+  .question { font-weight: 600; margin: 10px 0 8px; }
+  .rules { margin-top: 20px; }
+
+  /* ---------- unit 2: status codes ---------- */
+  .families { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .fam { font-size: 0.85rem; padding: 4px 12px; border-radius: 999px; }
+  .fam b { font-family: var(--mono); }
+  .fam.s2 { background: var(--ok-soft); color: var(--ok); }
+  .fam.s4 { background: var(--warn-soft); color: var(--warn); }
+  .fam.s5 { background: var(--bad-soft); color: var(--bad); }
+  .scen-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .scen-nav button { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 2px 11px; font-size: 0.8rem; color: var(--muted); }
+  .scen-nav button.done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .scen-nav button.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .scenario { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+  .codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 14px 0; }
+  .code {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 12px;
+  }
+  .code b { font: 700 1.1rem var(--mono); display: block; }
+  .code small { color: var(--muted); }
+  .code:hover:not(:disabled) { border-color: var(--accent); }
+  .code.right { border-color: var(--ok); background: var(--ok-soft); }
+  .code.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .7; }
+  .code:disabled { cursor: default; }
+  .lane { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+  .lane-end {
+    flex: none; width: 76px; text-align: center; font-size: 0.8rem; font-weight: 600;
+    border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 0; background: var(--surface);
+  }
+  .lane-track { position: relative; flex: 1; height: 30px; border-top: 2px dashed var(--line); margin-top: 28px; }
+  .lpacket {
+    position: absolute; top: -16px; left: 0; white-space: nowrap;
+    color: #fff; font: 600 11.5px var(--mono); padding: 4px 10px; border-radius: 999px;
+  }
+  .io { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .io pre { min-height: 110px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+  .compare .codeblock.badc { border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
+  .compare .codeblock.goodc { border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
+  .compare ul { margin: 0; padding: 0 14px 12px 30px; font-size: 0.85rem; }
+
+  /* ---------- unit 3: pagination ---------- */
+  .server { background: var(--surface-2); border-radius: 12px; padding: 14px 14px 10px; }
+  .strip { display: flex; flex-wrap: wrap; gap: 24px 6px; padding-top: 18px; }
+  .schip {
+    position: relative; min-width: 46px; text-align: center; padding: 6px 6px 4px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; font: 600 0.82rem var(--mono);
+  }
+  .schip.new { animation: slideIn .5s ease-out; border-color: var(--ok); }
+  .schip .seen { display: flex; gap: 3px; justify-content: center; margin-top: 3px; }
+  .schip .seen i { width: 12px; height: 4px; border-radius: 2px; background: var(--surface-2); }
+  .schip .seen i.o.on { background: var(--c-offset); }
+  .schip .seen i.c.on { background: var(--c-cursor); }
+  .schip .tag {
+    position: absolute; top: -19px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    font: 700 0.62rem system-ui, sans-serif; letter-spacing: .03em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; color: #fff;
+  }
+  .schip .tag.o { background: var(--c-offset); }
+  .schip .tag.c { background: var(--c-cursor); }
+  .schip .tag.o + .tag.c { top: -36px; }
+  .schip.gone { animation: fadeOut .5s ease-in forwards; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-20px) scale(.8); } }
+  @keyframes fadeOut { to { opacity: 0; transform: scale(.6); } }
+  .pg-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .pg-col { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .pg-col.off { border-color: color-mix(in srgb, var(--c-offset) 45%, var(--border)); }
+  .pg-col.cur { border-color: color-mix(in srgb, var(--c-cursor) 45%, var(--border)); }
+  .pg-col h3 { display: flex; align-items: center; gap: 8px; }
+  .pg-col h3 i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .pg-col.off h3 i { background: var(--c-offset); }
+  .pg-col.cur h3 i { background: var(--c-cursor); }
+  .pg-req { display: block; margin: 8px 0 10px; font-size: 0.78rem; background: var(--surface-2); padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; }
+  .feed { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
+  .fchip { font: 600 0.8rem var(--mono); padding: 4px 8px; border-radius: 6px; background: var(--surface-2); }
+  .fchip.fresh { animation: pop .35s ease-out both; animation-delay: calc(var(--i) * 90ms); }
+  .fchip.dup { background: var(--bad-soft); color: var(--bad); outline: 1.5px solid var(--bad); }
+  .fchip.dup::after { content: " dup"; font-size: 0.65rem; }
+  .fchip.sep { background: none; color: var(--muted); padding: 4px 2px; animation: none; }
+  @keyframes pop { from { opacity: 0; transform: scale(.5); } }
+  .stats { margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+  .stats b.badn { color: var(--bad); }
+  .stats b.okn { color: var(--ok); }
+
+  /* ---------- unit 4: breaking-change sorter ---------- */
+  .sorter { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 14px; align-items: start; }
+  .bin { border: 2px dashed var(--border); border-radius: 12px; padding: 10px 12px; min-height: 180px; }
+  .bin h3 { font-size: 0.95rem; margin-bottom: 8px; }
+  .bin.safe h3 { color: var(--ok); }
+  .bin.breaking h3 { color: var(--bad); }
+  .bin ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .bin li { font-size: 0.8rem; padding: 6px 8px; border-radius: 6px; background: var(--surface-2); }
+  .bin li.fresh { animation: pop .35s ease-out both; }
+  .bin li.miss { outline: 1.5px solid var(--bad); }
+  .bin li.miss::before { content: "✗ "; color: var(--bad); font-weight: 700; }
+  .bin li.hit::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+  .change-card {
+    border: 1.5px solid var(--border); border-radius: 14px; padding: 18px; background: var(--surface);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .06);
+  }
+  .change-card .count { font-size: 0.8rem; color: var(--muted); }
+  .change-card .what { font-size: 1.05rem; font-weight: 600; margin: 6px 0 10px; }
+  .change-card pre { margin: 0 0 12px; background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; white-space: pre-wrap; }
+  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .choice .safe-btn { border-color: var(--ok); color: var(--ok); }
+  .choice .break-btn { border-color: var(--bad); color: var(--bad); }
+
+  /* ---------- quiz ---------- */
+  .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; }
+  .chip:disabled { opacity: .3; cursor: default; }
+  .slots { counter-reset: slot; display: grid; gap: 6px; margin: 14px 0; }
+  .slot { counter-increment: slot; border: 1.5px dashed var(--border); border-radius: 10px; padding: 7px 12px; min-height: 40px; color: var(--muted); font-size: 0.9rem; }
+  .slot::before { content: counter(slot) ". "; color: var(--muted); }
+  .slot.filled { border-style: solid; color: var(--text); }
+  .slot.right { border-color: var(--ok); background: var(--ok-soft); }
+  .slot.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .result { text-align: center; padding: 20px 0; }
+  .result .score { font: 700 3rem system-ui, sans-serif; }
+  .result p { color: var(--muted); margin: 6px 0 16px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
+
+  @media (max-width: 760px) {
+    .doctor, .io, .compare, .pg-cols { grid-template-columns: 1fr; }
+    .caselist { flex-direction: row; flex-wrap: wrap; }
+    .casebtn { flex: 1 1 140px; }
+    .sorter { grid-template-columns: 1fr 1fr; }
+    .sorter .change-card { grid-column: 1 / -1; order: -1; }
+    .bin { min-height: 80px; }
+    section.card { padding: 18px 16px; }
+    .bar { width: 70px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .ep.leave .tok, .ep.enter .tok, .fchip, .bin li, .schip.new, .schip.gone { animation-duration: 1ms; animation-delay: 0ms; }
+  }
+</style>
+</head>
+<body data-level="beginner">
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.html">← Lessons</a> Designing good APIs</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 units</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="Explanation level">
+      <button data-level="beginner" aria-pressed="true">Beginner</button>
+      <button data-level="advanced" aria-pressed="false">Advanced</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">Lesson 2</div>
+    <h1>How to design an API people love to use</h1>
+    <p class="only-beginner">An API is a menu that one program offers to another. A good menu is easy to read, says clearly what went wrong, handles long lists well and doesn't suddenly change under you. In this lesson you fix badly designed requests and see why the good versions work better.</p>
+    <p class="only-advanced">API design is about the contract you'll have to live with for years: resource modelling, error semantics, pagination that holds up under concurrent writes, and evolving the contract without breaking deployed clients. Each unit below is hands-on.</p>
+    <nav class="units">
+      <a class="unit" href="#urls" id="unit-urls"><span class="tick">✓</span><small>Unit 1</small><b>Name things well</b><small>Fix 5 endpoints</small></a>
+      <a class="unit" href="#status" id="unit-status"><span class="tick">✓</span><small>Unit 2</small><b>Speak clearly</b><small>Answer 5 situations</small></a>
+      <a class="unit" href="#paging" id="unit-paging"><span class="tick">✓</span><small>Unit 3</small><b>Long lists</b><small>Trigger the paging bug</small></a>
+      <a class="unit" href="#compat" id="unit-compat"><span class="tick">✓</span><small>Unit 4</small><b>Change safely</b><small>Sort 6 changes</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>Unit 5</small><b>Check yourself</b><small>Finish the quiz</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="urls">
+    <div class="kicker">Unit 1</div>
+    <h2>Name things well: the API doctor</h2>
+    <p class="lede only-beginner">Each "patient" below is a request from a badly designed API. The red squiggles mark the problems. Pick the healthier version and watch it get fixed.</p>
+    <p class="lede only-advanced">Each case is a real-world design smell. Choose the better contract. Advanced mode adds two harder cases where "pure REST" is not the right answer.</p>
+
+    <div class="doctor">
+      <div class="caselist" id="caselist"></div>
+      <div>
+        <div class="label" id="epLabel">Before</div>
+        <div class="ep" id="ep"></div>
+        <div class="context" id="context"></div>
+        <div class="symptoms" id="symptoms"></div>
+        <div class="question">Which version is better?</div>
+        <div class="opts" id="caseOpts"></div>
+        <div class="feedback" id="caseFb"></div>
+        <div class="controls"><button class="btn primary" id="nextCase" style="display:none">Next patient →</button></div>
+      </div>
+    </div>
+
+    <div class="callout rules only-beginner">
+      <b>The rules in one place</b>
+      <ul>
+        <li>The URL is a <b>noun</b>: the address of a thing (<code>/users/42</code>). The method is the <b>verb</b> (GET, POST, DELETE…).</li>
+        <li>Use plural names for lists: <code>/orders</code>, <code>/orders/17</code>.</li>
+        <li>GET only ever reads. It must never change anything.</li>
+        <li>Use the path for "belongs to" (<code>/users/42/orders</code>), and query parameters for filters (<code>?sort=price</code>).</li>
+        <li>Pick one naming style (lowercase) and stick to it everywhere.</li>
+      </ul>
+    </div>
+    <div class="callout rules only-advanced">
+      <b>Design checklist</b>
+      <ul>
+        <li>Model resources and collections; let HTTP methods carry the semantics (safe, idempotent, cacheable).</li>
+        <li>Give every resource with a unique ID a canonical top-level URL. Nest only for listing (<code>/teams/12/members</code>).</li>
+        <li>State transitions with side effects can be explicit actions: <code>POST /orders/42/cancel</code>, returning 409 on an illegal transition.</li>
+        <li>Composable query parameters: <code>filter</code>, <code>sort=-created_at</code>, <code>limit</code>, <code>cursor</code>. Reject unknown parameters with 400.</li>
+        <li>Write the contract first (OpenAPI) and lint it in CI (e.g. Spectral) so the conventions are enforced, not just remembered.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="status">
+    <div class="kicker">Unit 2</div>
+    <h2>Speak clearly: status codes and errors</h2>
+    <p class="lede only-beginner">Every response starts with a three-digit status code. Programs read it before anything else, so it has to be right. The first digit already tells you a lot:</p>
+    <p class="lede only-advanced">Clients, retries, caches, monitoring and alerting all branch on the status code. Choose the most specific correct code, and return a machine-readable error body (RFC 9457 problem details).</p>
+    <div class="families">
+      <span class="fam s2"><b>2xx</b> it worked</span>
+      <span class="fam s4"><b>4xx</b> the client made a mistake</span>
+      <span class="fam s5"><b>5xx</b> the server broke</span>
+    </div>
+
+    <div class="scen-nav" id="scenNav"></div>
+    <div class="scenario" id="scenText"></div>
+    <div class="context" id="scenReq"></div>
+    <div class="codes" id="codes"></div>
+    <div class="feedback" id="scenFb"></div>
+
+    <div class="lane">
+      <div class="lane-end">Client</div>
+      <div class="lane-track" id="track"></div>
+      <div class="lane-end">Server</div>
+    </div>
+    <div class="codeblock"><div class="codeblock-head"><span>Response</span><button class="copy">Copy</button></div><pre id="scenRes">(pick a status code)</pre></div>
+    <div class="controls"><button class="btn primary" id="nextScen" style="display:none">Next situation →</button></div>
+
+    <h3 style="margin-top:28px">Bad error vs good error</h3>
+    <div class="compare">
+      <div class="codeblock badc">
+        <div class="codeblock-head"><span>✗ Hard to use</span></div>
+        <pre>HTTP/1.1 200 OK
+
+{ "success": false, "msg": "Error" }</pre>
+        <ul class="only-beginner">
+          <li>Says <b>200 OK</b>, so programs think it worked.</li>
+          <li>"Error" doesn't say what went wrong or how to fix it.</li>
+        </ul>
+        <ul class="only-advanced">
+          <li>2xx on failure defeats retries, caches, metrics and alerting.</li>
+          <li>No stable machine-readable type, so clients end up parsing strings.</li>
+          <li>No field-level detail and no correlation ID for support.</li>
+        </ul>
+      </div>
+      <div class="codeblock goodc">
+        <div class="codeblock-head"><span>✓ Easy to use</span></div>
+        <pre class="only-beginner">HTTP/1.1 400 Bad Request
+
+{
+  "error": "email is required",
+  "field": "email"
+}</pre>
+        <pre class="only-advanced">HTTP/1.1 422 Unprocessable Content
+Content-Type: application/problem+json
+
+{
+  "type": "https://api.example.com/problems/validation",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "1 field is invalid",
+  "errors": [{ "pointer": "/email", "detail": "is required" }],
+  "request_id": "req_7Hk2"
+}</pre>
+        <ul class="only-beginner">
+          <li>The status code alone tells the program it failed and why.</li>
+          <li>The message says exactly which field to fix.</li>
+        </ul>
+        <ul class="only-advanced">
+          <li>A stable <code>type</code> URI lets clients branch on the error kind.</li>
+          <li>JSON pointers map errors to form fields; <code>request_id</code> links to your logs.</li>
+          <li>Never leak stack traces or SQL in <code>detail</code>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="paging">
+    <div class="kicker">Unit 3</div>
+    <h2>Long lists: pagination</h2>
+    <p class="lede only-beginner">A feed can have millions of posts, so an API sends them a few at a time ("pages"). There are two common ways to ask for the next page. Watch what happens when a new post arrives while you're scrolling.</p>
+    <p class="lede only-advanced">Offset pagination versus cursor (keyset) pagination on a feed sorted newest-first, with writes happening between page requests. Press <b>Play the classic bug</b>, or drive it yourself.</p>
+
+    <div class="callout only-beginner" style="margin-bottom:14px">
+      <b>Page number (offset)</b> means "skip the first 6 posts, give me the next 3". <b>Cursor</b> works like a bookmark: "give me the 3 posts that come after #7". The coloured tags on the server show where each method's next page will start.
+    </div>
+    <div class="callout only-advanced" style="margin-bottom:14px">
+      <b>Offset</b>: <code>LIMIT 3 OFFSET 6</code>. The database scans and discards 6 rows (O(offset)), and the window shifts whenever rows are inserted or deleted above it.<br>
+      <b>Cursor / keyset</b>: <code>WHERE (created_at, id) &lt; (:ts, :id) ORDER BY created_at DESC, id DESC LIMIT 3</code>. This uses the index and stays stable under writes. Return the cursor opaquely, e.g. base64.
+    </div>
+
+    <div class="server">
+      <div class="label">Server data · newest first</div>
+      <div class="strip" id="strip"></div>
+    </div>
+
+    <div class="pg-cols">
+      <div class="pg-col off">
+        <h3><i></i><span class="only-beginner">Page numbers (offset)</span><span class="only-advanced">Offset pagination</span></h3>
+        <code class="pg-req" id="offReq"></code>
+        <div class="label">You have received</div>
+        <div class="feed" id="offFeed"></div>
+        <div class="stats" id="offStats"></div>
+      </div>
+      <div class="pg-col cur">
+        <h3><i></i><span class="only-beginner">Bookmark (cursor)</span><span class="only-advanced">Cursor pagination</span></h3>
+        <code class="pg-req" id="curReq"></code>
+        <div class="label">You have received</div>
+        <div class="feed" id="curFeed"></div>
+        <div class="stats" id="curStats"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="pgNext">Load next page</button>
+      <button class="btn" id="pgAdd">+ New post arrives</button>
+      <button class="btn" id="pgDel">− A post you've seen is deleted</button>
+      <button class="btn" id="pgPlay">▶ Play the classic bug</button>
+      <button class="btn" id="pgReset">Reset</button>
+    </div>
+    <div class="insight" id="pgInsight"></div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="compat">
+    <div class="kicker">Unit 4</div>
+    <h2>Change safely: breaking or not?</h2>
+    <p class="lede only-beginner">Once apps use your API, you can't just change it, because their code expects the old shape. Decide whether each change is safe to ship or would break apps that already exist.</p>
+    <p class="lede only-advanced">Assume clients are already deployed and you can't force them to upgrade. Classify each change against that contract. Advanced mode adds the subtle cases that cause real incidents.</p>
+
+    <div class="sorter">
+      <div class="bin safe"><h3>✓ Safe to ship</h3><ul id="binSafe"></ul></div>
+      <div class="change-card" id="changeCard"></div>
+      <div class="bin breaking"><h3>⚠ Breaking</h3><ul id="binBreak"></ul></div>
+    </div>
+    <div class="feedback" id="changeFb"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>Golden rule:</b> you can <b>add</b> things, but don't <b>rename, remove or change</b> them. If you really must change something, keep the old version working for a while, tell people well in advance, and only remove it later.
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>Evolving a contract</b>
+      <ul>
+        <li><b>Expand, then contract:</b> add the new field, migrate clients, then remove the old one after a <code>Deprecation</code> header and a <code>Sunset</code> date (RFC 8594).</li>
+        <li><b>Versioning:</b> a URL prefix (<code>/v2</code>) is simple and visible; header or date-based versions (<code>API-Version: 2026-10-01</code>) allow finer-grained changes per endpoint.</li>
+        <li><b>Tolerant reader:</b> tell clients to ignore unknown fields and handle unknown enum values. Then "add" really is safe.</li>
+        <li>Run contract tests (consumer-driven, e.g. Pact) or an OpenAPI diff in CI to catch breaking changes before release.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">Unit 5</div>
+    <h2>Check yourself</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>A demo for interactive-tech-learning. Plain HTML, CSS and JS with no dependencies, so it also works offline. Previous lesson: <a href="../http-basics/index.html">HTTP, step by step</a>.</footer>
+</main>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, reduced ? Math.min(ms, 120) : ms));
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ---------------- saved progress ---------------- */
+  const KEY = 'itl-api-design-v1';
+  let saved = { level: 'beginner', fixed: [], answered: [], sorted: {}, pgDone: false, quizDone: false };
+  try { Object.assign(saved, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+  let level = saved.level === 'advanced' ? 'advanced' : 'beginner';
+  // Pick the beginner or advanced variant of a value.
+  const L = (beginner, advanced) => level === 'advanced' ? advanced : beginner;
+
+  const fixed = new Set(saved.fixed);
+  const answered = new Set(saved.answered);
+  const sorted = saved.sorted || {};
+
+  function updateProgress() {
+    const done = {
+      urls: fixed.size >= 5,
+      status: answered.size >= 5,
+      paging: saved.pgDone,
+      compat: Object.keys(sorted).length >= 6,
+      quiz: saved.quizDone,
+    };
+    const n = Object.values(done).filter(Boolean).length;
+    $('progressText').textContent = `${n} / 5 units`;
+    $('progressBar').style.width = `${(n / 5) * 100}%`;
+    for (const k in done) $('unit-' + k).classList.toggle('done', done[k]);
+    saved.fixed = [...fixed]; saved.answered = [...answered]; saved.sorted = sorted;
+    persist();
+  }
+
+  /* =========================================================
+     UNIT 1: API doctor
+     ========================================================= */
+  const CASES = [
+    {
+      id: 'get-by-id',
+      before: 'GET /getUserById?id=42', bad: ['getUserById', 'id'],
+      after: 'GET /users/42', good: ['users', '42'],
+      symptoms: ['Verb in the URL', 'ID hidden in a query string'],
+      opts: [
+        ['GET /user/get/42', false, 'There\'s still a verb ("get") in the path. The GET method already says "get".'],
+        ['GET /users/42', true],
+        ['POST /users/getById  {"id": 42}', false, 'Reading should use GET. A POST can\'t be cached, bookmarked or safely retried.'],
+      ],
+      rule: 'URLs name things (nouns). The HTTP method is the verb.',
+      beginner: 'Think of the URL as the address on an envelope, and the method as what you want done with it. "/users/42" is the address of user 42, and GET means "show me".',
+      advanced: 'Model resources, not RPC calls. A collection (/users) plus an identifier (/users/42) gives you GET/PUT/PATCH/DELETE with well-known semantics, so caches, gateways and logs understand your API without custom rules.',
+    },
+    {
+      id: 'create',
+      before: 'POST /createNewOrder', bad: ['createNewOrder'],
+      after: 'POST /orders', good: ['orders'],
+      symptoms: ['Verb in the URL', 'One URL per action'],
+      opts: [
+        ['POST /order/new', false, 'Collections are plural, and POST to a collection already means "create". "new" adds nothing.'],
+        ['PUT /createOrder', false, 'PUT means "store this at exactly this URL". You don\'t know the new order\'s URL yet, because the server assigns the ID.'],
+        ['POST /orders', true],
+      ],
+      rule: 'Create something by POSTing to the collection.',
+      beginner: 'It\'s like dropping a form into the "Orders" tray. You hand it to the collection, and the server gives back the new order\'s number.',
+      advanced: 'POST /orders returns 201 Created with a Location: /orders/{id} header and the created representation. Because the server assigns the ID, POST is not idempotent. Accept an Idempotency-Key if clients may retry.',
+    },
+    {
+      id: 'get-delete',
+      before: 'GET /users/42/delete', bad: ['GET', 'delete'],
+      after: 'DELETE /users/42', good: ['DELETE'],
+      symptoms: ['GET that changes data', 'Verb in the URL'],
+      opts: [
+        ['DELETE /users/42', true],
+        ['POST /users/42/delete', false, 'Better than GET, but HTTP already has a method for exactly this: DELETE.'],
+        ['GET /users/delete?id=42', false, 'It\'s still a GET that changes data. A link previewer could delete users just by looking at the link.'],
+      ],
+      rule: 'GET must never change data.',
+      beginner: 'Browsers, search engines and chat-app link previews open GET links on their own. If a GET link deletes things, a bot that only visits your page could delete users.',
+      advanced: 'GET is defined as safe, so intermediaries may prefetch, retry and cache it. Destructive GETs are a classic cause of incidents, for example crawlers following admin links. DELETE is idempotent and never cached.',
+    },
+    {
+      id: 'relationship',
+      before: 'GET /User_Orders?userId=42', bad: ['User_Orders', 'userId'],
+      after: 'GET /users/42/orders', good: ['users', '42', 'orders'],
+      symptoms: ['Inconsistent casing', 'Relationship hidden in a parameter'],
+      opts: [
+        ['GET /users/orders/42', false, 'This reads as "order 42 of users". An ID should come right after the thing it identifies.'],
+        ['GET /users/42/orders', true],
+        ['GET /UserOrders/42', false, 'Mixed case and two names joined together. Keep URLs lowercase and show the relationship with the path.'],
+      ],
+      rule: 'Show relationships with the path, and keep naming consistent.',
+      beginner: 'It works like folders on a computer: user 42\'s folder contains an "orders" folder. Use lowercase everywhere so nobody has to guess.',
+      advanced: 'A sub-collection expresses ownership (/users/42/orders). Pick one convention, such as lowercase plural kebab-case paths and one casing for JSON fields, and enforce it with a linter in CI.',
+    },
+    {
+      id: 'filters',
+      before: 'GET /products?getCheapOnesSortedByPrice=true', bad: ['getCheapOnesSortedByPrice', 'true'],
+      after: 'GET /products?max_price=20&sort=price', good: ['max_price', '20', 'sort', 'price'],
+      symptoms: ['One-off flag', 'Can\'t combine filters'],
+      opts: [
+        ['GET /products/cheap/sorted', false, 'Every new filter would need a new URL, and filters can\'t be combined.'],
+        ['GET /products?max_price=20&sort=price', true],
+        ['POST /products/search  {"cheap": true}', false, 'A search sent by POST loses caching and shareable links. Use it only when the query is too big for a URL.'],
+      ],
+      rule: 'Use query parameters to filter, sort and page.',
+      beginner: 'Query parameters are like filter checkboxes in an online shop: each one is simple, and you can tick several at once.',
+      advanced: 'Small, composable parameters (filter, sort, limit, cursor) beat one-off flags. Document the allowed values, reject unknown ones with 400, and use one sort syntax everywhere, for example sort=-created_at.',
+    },
+    {
+      id: 'action', adv: true,
+      before: 'POST /orders/42/updateStatus', bad: ['updateStatus'],
+      after: 'POST /orders/42/cancel', good: ['cancel'],
+      context: 'Context: cancelling refunds the payment and sends an email, and orders that have already shipped can\'t be cancelled.',
+      symptoms: ['Generic "update" hides side effects'],
+      opts: [
+        ['PATCH /orders/42  {"status": "cancelled"}', false, 'It looks RESTful, but it hides a big side effect (refund and email) behind a field change. It also makes invalid transitions such as shipped → cancelled awkward to reject and to authorise separately.'],
+        ['POST /orders/42/cancel', true],
+        ['DELETE /orders/42', false, 'The order still exists after it\'s cancelled. You need it for history, refunds and support.'],
+      ],
+      rule: 'For real business actions, a named action endpoint is fine.',
+      beginner: 'Cancelling isn\'t just editing a field, so give it its own clear button.',
+      advanced: 'Plain CRUD doesn\'t fit everything. When an operation is a state transition with side effects, POST /orders/{id}/cancel (or a /cancellations sub-collection) is explicit, easy to authorise and audit, and can return 409 Conflict when the transition isn\'t allowed.',
+    },
+    {
+      id: 'nesting', adv: true,
+      before: 'GET /companies/7/departments/3/teams/12/members/99', bad: ['companies', '7', 'departments', '3', 'teams', '12'],
+      after: 'GET /members/99', good: ['members', '99'],
+      symptoms: ['Deep nesting', 'Couples clients to the org chart'],
+      opts: [
+        ['GET /members/99', true],
+        ['GET /companies/7/members/99', false, 'Shorter, but callers still have to know the company. A member already has its own unique ID.'],
+        ['GET /members?company=7&department=3&team=12&id=99', false, 'This just moves the same problem into the query string.'],
+      ],
+      rule: 'Avoid deep nesting. One level is plenty.',
+      beginner: 'If something has its own unique number, give it its own short address.',
+      advanced: 'A resource with a globally unique ID should have a canonical top-level URL. Deep paths tie clients to your hierarchy and break when someone moves teams. Use nesting for listing (/teams/12/members), not for addressing.',
+    },
+  ];
+  let caseIdx = 0;
+  const visibleCases = () => CASES.filter(c => !c.adv || level === 'advanced');
+
+  function tokens(str, marks, cls) {
+    const sp = str.indexOf(' ');
+    const parts = [str.slice(0, sp), ' ', ...str.slice(sp + 1).split(/([\/?&=])/).filter(Boolean)];
+    return parts.map((t, i) => {
+      const c = ['tok', i === 0 ? 'method' : '', marks.includes(t) ? cls : ''].join(' ');
+      return `<span class="${c}" style="--i:${i}">${esc(t)}</span>`;
+    }).join('');
+  }
+
+  function renderCaseList() {
+    const cs = visibleCases();
+    $('caselist').innerHTML = '';
+    cs.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.className = 'casebtn' + (fixed.has(c.id) ? ' fixed' : '');
+      b.setAttribute('aria-current', String(i === caseIdx));
+      b.innerHTML = `<span class="dot"></span><span>${esc(fixed.has(c.id) ? c.after : c.before)}</span>`;
+      b.addEventListener('click', () => { caseIdx = i; renderCase(); });
+      $('caselist').appendChild(b);
+    });
+  }
+
+  function caseFeedback(c) {
+    $('caseFb').className = 'feedback show good';
+    $('caseFb').innerHTML = `<b>${esc(c.rule)}</b> ${esc(c[level])}`;
+  }
+
+  function renderCase() {
+    const cs = visibleCases();
+    if (caseIdx >= cs.length) caseIdx = 0;
+    const c = cs[caseIdx];
+    const isFixed = fixed.has(c.id);
+    renderCaseList();
+    $('ep').className = 'ep';
+    $('ep').innerHTML = isFixed ? tokens(c.after, c.good, 'good') : tokens(c.before, c.bad, 'bad');
+    $('epLabel').textContent = isFixed ? 'After ✓' : 'Before';
+    $('context').textContent = c.context || '';
+    $('context').style.display = c.context ? '' : 'none';
+    $('symptoms').innerHTML = c.symptoms.map(s => `<span class="prop bad">✗ ${esc(s)}</span>`).join('');
+    $('caseFb').className = 'feedback';
+    $('nextCase').style.display = 'none';
+    $('caseOpts').innerHTML = '';
+    c.opts.forEach(([text, ok, why], i) => {
+      const b = document.createElement('button');
+      b.className = 'opt mono'; b.textContent = text;
+      if (isFixed) { b.disabled = true; if (ok) b.classList.add('right'); }
+      b.addEventListener('click', () => chooseFix(c, i, b));
+      $('caseOpts').appendChild(b);
+    });
+    if (isFixed) { caseFeedback(c); $('nextCase').style.display = ''; }
+  }
+
+  async function chooseFix(c, i, btn) {
+    const [, ok, why] = c.opts[i];
+    if (!ok) {
+      btn.classList.add('wrong'); btn.disabled = true;
+      if (!reduced) btn.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 260 });
+      $('caseFb').className = 'feedback show bad';
+      $('caseFb').innerHTML = `<b>Not quite.</b> ${esc(why)} Try another one.`;
+      return;
+    }
+    $('caseOpts').querySelectorAll('.opt').forEach(b => b.disabled = true);
+    btn.classList.add('right');
+    const ep = $('ep');
+    ep.className = 'ep leave';
+    await sleep(320 + ep.children.length * 35);
+    ep.innerHTML = tokens(c.after, c.good, 'good');
+    ep.className = 'ep enter';
+    $('epLabel').textContent = 'After ✓';
+    caseFeedback(c);
+    fixed.add(c.id);
+    renderCaseList();
+    updateProgress();
+    $('nextCase').style.display = '';
+  }
+
+  $('nextCase').addEventListener('click', () => {
+    const cs = visibleCases();
+    const next = cs.findIndex((c, i) => i > caseIdx && !fixed.has(c.id));
+    const any = cs.findIndex(c => !fixed.has(c.id));
+    caseIdx = next >= 0 ? next : any >= 0 ? any : (caseIdx + 1) % cs.length;
+    renderCase();
+  });
+
+  /* =========================================================
+     UNIT 2: status codes
+     ========================================================= */
+  const CODES = {
+    200: ['OK', 'Success. Here is the result.'],
+    201: ['Created', 'Success. Something new was created.'],
+    204: ['No Content', 'Success, and there\'s nothing to send back.'],
+    400: ['Bad Request', 'The request itself is broken or invalid.'],
+    401: ['Unauthorized', 'We don\'t know who you are (no login or a bad login).'],
+    403: ['Forbidden', 'We know who you are, but you\'re not allowed to do this.'],
+    404: ['Not Found', 'That thing doesn\'t exist.'],
+    409: ['Conflict', 'It clashes with the current state, for example a duplicate.'],
+    422: ['Unprocessable Content', 'The request is well-formed but breaks a validation rule.'],
+    429: ['Too Many Requests', 'Slow down. You hit a rate limit.'],
+    500: ['Internal Server Error', 'Something broke on the server.'],
+    503: ['Service Unavailable', 'The server is temporarily down or overloaded.'],
+  };
+  const BEGINNER_CODES = [200, 201, 400, 401, 403, 404, 500];
+  const problem = (code, type, title, detail, extra = '') =>
+    `{\n  "type": "https://api.example.com/problems/${type}",\n  "title": "${title}",\n  "status": ${code},\n  "detail": "${detail}"${extra}\n}`;
+
+  const SCEN = [
+    { id: 'signup', text: 'A new user signs up successfully.', ok: [201], req: 'POST /users  {"email": "ana@example.com"}',
+      why: '201 Created tells the client that something new now exists.',
+      bodyB: '{ "id": 42, "email": "ana@example.com" }',
+      headA: 'Location: /users/42\nContent-Type: application/json',
+      bodyA: () => '{ "id": 42, "email": "ana@example.com", "created_at": "2026-10-19T08:00:00Z" }' },
+    { id: 'missing', text: 'The app asks for user 999, which doesn\'t exist.', ok: [404], req: 'GET /users/999',
+      why: '404 Not Found: the address is fine, but nothing lives there.',
+      bodyB: '{ "error": "user 999 not found" }',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'not-found', 'Resource not found', 'No user with id 999') },
+    { id: 'invalid', text: 'The sign-up form is sent without an email address.', ok: [400], okA: [400, 422], req: 'POST /users  {"name": "Ana"}',
+      why: 'It\'s the client\'s mistake, so 4xx. 400 is the classic choice. In advanced mode, 422 is also accepted: the JSON is fine, but a validation rule fails.',
+      bodyB: '{ "error": "email is required", "field": "email" }',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'validation', 'Validation failed', '1 field is invalid', ',\n  "errors": [{ "pointer": "/email", "detail": "is required" }]') },
+    { id: 'nologin', text: 'The request has no login token at all.', ok: [401], req: 'GET /me',
+      why: '401 means "we don\'t know who you are". The client should log in and try again.',
+      bodyB: '{ "error": "please log in" }',
+      headA: 'WWW-Authenticate: Bearer realm="api"\nContent-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'unauthenticated', 'Authentication required', 'Missing bearer token') },
+    { id: 'crash', text: 'A bug on the server: the database connection crashed.', ok: [500], okA: [500, 503], req: 'GET /orders',
+      why: 'It isn\'t the client\'s fault, so 5xx. In advanced mode, 503 (with Retry-After) is also accepted when the outage is temporary.',
+      bodyB: '{ "error": "something went wrong on our side" }',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'internal', 'Internal error', 'Please retry later', ',\n  "request_id": "req_7Hk2"') },
+    { id: 'forbidden', adv: true, text: 'A normal (non-admin) user tries to delete another user\'s account.', ok: [403], okA: [403, 404], req: 'DELETE /users/7',
+      why: '403: we know who you are, but you\'re not allowed. 404 is also accepted when you don\'t want to reveal that the resource exists.',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'forbidden', 'Not allowed', 'Only admins can delete other users') },
+    { id: 'dupe', adv: true, text: 'Someone signs up with an email address that is already registered.', ok: [409], okA: [409], req: 'POST /users  {"email": "ana@example.com"}',
+      why: '409 Conflict: the request is valid on its own but clashes with existing state.',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'conflict', 'Email already registered', 'ana@example.com is taken') },
+    { id: 'ratelimit', adv: true, text: 'A client sent 120 requests in one minute; the limit is 100.', ok: [429], okA: [429], req: 'GET /search?q=books',
+      why: '429 Too Many Requests, with a Retry-After header so well-behaved clients know when to come back.',
+      headA: 'Retry-After: 30\nRateLimit-Policy: 100;w=60\nContent-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'rate-limited', 'Too many requests', 'Limit is 100 requests per minute') },
+    { id: 'deleted', adv: true, text: 'A DELETE succeeds and there is nothing to return.', ok: [204], okA: [204, 200], req: 'DELETE /users/42',
+      why: '204 No Content is the precise answer. 200 with a body is also fine.',
+      headA: '', bodyA: () => '' },
+  ];
+  let si = 0;
+  const visibleScen = () => SCEN.filter(s => !s.adv || level === 'advanced');
+  const accepted = (s) => L(s.ok, s.okA || s.ok);
+
+  function renderScenNav() {
+    const ss = visibleScen();
+    $('scenNav').innerHTML = '';
+    ss.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.textContent = i + 1;
+      b.className = (answered.has(s.id) ? 'done ' : '') + (i === si ? 'current' : '');
+      b.setAttribute('aria-label', `Situation ${i + 1}`);
+      b.addEventListener('click', () => { si = i; renderScenario(); });
+      $('scenNav').appendChild(b);
+    });
+  }
+
+  function renderScenario() {
+    const ss = visibleScen();
+    if (si >= ss.length) si = 0;
+    const s = ss[si];
+    renderScenNav();
+    $('scenText').textContent = s.text;
+    $('scenReq').innerHTML = `Request: <code>${esc(s.req)}</code>`;
+    $('scenFb').className = 'feedback';
+    $('scenRes').textContent = '(pick a status code)';
+    $('nextScen').style.display = 'none';
+    $('codes').innerHTML = '';
+    for (const code of L(BEGINNER_CODES, Object.keys(CODES).map(Number))) {
+      const b = document.createElement('button');
+      b.className = 'code';
+      b.innerHTML = `<b>${code}</b><small>${CODES[code][0]}</small>`;
+      b.addEventListener('click', () => pickCode(s, code, b));
+      $('codes').appendChild(b);
+    }
+  }
+
+  function responseText(s, code) {
+    const line = `HTTP/1.1 ${code} ${CODES[code][0]}`;
+    if (level === 'beginner') return s.bodyB ? `${line}\n\n${s.bodyB}` : line;
+    const body = s.bodyA(code);
+    return line + (s.headA ? '\n' + s.headA : '') + (body ? '\n\n' + body : '\n\n(no body)');
+  }
+
+  function lanePacket(label, color, dir) {
+    return new Promise(resolve => {
+      const track = $('track');
+      const p = document.createElement('span');
+      p.className = 'lpacket'; p.textContent = label; p.style.background = color;
+      track.appendChild(p);
+      const W = Math.max(0, track.clientWidth - p.offsetWidth);
+      const [from, to] = dir > 0 ? [0, W] : [W, 0];
+      const a = p.animate(
+        [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
+        { duration: reduced ? 150 : 800, easing: 'ease-in-out', fill: 'forwards' }
+      );
+      a.onfinish = () => { p.remove(); resolve(); };
+    });
+  }
+
+  async function pickCode(s, code, btn) {
+    const ok = accepted(s).includes(code);
+    if (!ok) {
+      btn.classList.add('wrong'); btn.disabled = true;
+      $('scenFb').className = 'feedback show bad';
+      $('scenFb').innerHTML = `<b>Not quite.</b> ${code} means: ${esc(CODES[code][1])} Try again.`;
+      return;
+    }
+    $('codes').querySelectorAll('.code').forEach(b => b.disabled = true);
+    btn.classList.add('right');
+    $('scenFb').className = 'feedback show good';
+    $('scenFb').innerHTML = `<b>Correct.</b> ${esc(s.why)}`;
+    $('scenRes').textContent = '…';
+    await lanePacket(s.req.split('  ')[0], cssVar('--accent'), 1);
+    const color = code >= 500 ? cssVar('--bad') : code >= 400 ? cssVar('--warn') : cssVar('--ok');
+    await lanePacket(`${code} ${CODES[code][0]}`, color, -1);
+    $('scenRes').textContent = responseText(s, code);
+    answered.add(s.id);
+    renderScenNav();
+    updateProgress();
+    $('nextScen').style.display = '';
+  }
+
+  $('nextScen').addEventListener('click', () => {
+    const ss = visibleScen();
+    const next = ss.findIndex((s, i) => i > si && !answered.has(s.id));
+    const any = ss.findIndex(s => !answered.has(s.id));
+    si = next >= 0 ? next : any >= 0 ? any : (si + 1) % ss.length;
+    renderScenario();
+  });
+
+  /* =========================================================
+     UNIT 3: pagination
+     ========================================================= */
+  const PAGE = 3;
+  let posts, nextPostId, off, cur, pgBusy = false, justAdded = null;
+  const newClient = () => ({ received: [], dups: 0, startTop: null, pages: 0, shown: 0 });
+
+  function pgReset() {
+    posts = Array.from({ length: 12 }, (_, i) => 12 - i);   // newest first
+    nextPostId = 13;
+    off = { ...newClient(), offset: 0 };
+    cur = { ...newClient(), after: null };
+    justAdded = null;
+    renderPaging();
+    pgSay(L('Press "Load next page" a couple of times, then add a new post and load again.', 'Load a page, mutate the data, then load the next page and compare both strategies.'));
+  }
+
+  const cursorToken = (id) => btoa(JSON.stringify({ id })).replace(/=+$/, '');
+  function offRequest() {
+    return L(`GET /posts?page=${off.pages + 1}`, `GET /posts?offset=${off.offset}&limit=${PAGE}`);
+  }
+  function curRequest() {
+    if (cur.after === null) return L('GET /posts', `GET /posts?limit=${PAGE}`);
+    return L(`GET /posts?after=${cur.after}`, `GET /posts?cursor=${cursorToken(cur.after)}&limit=${PAGE}`);
+  }
+
+  function missed(c) {
+    if (c.startTop === null || !c.received.length) return [];
+    const got = new Set(c.received);
+    const lowest = Math.min(...c.received);
+    return posts.filter(id => id <= c.startTop && id >= lowest && !got.has(id));
+  }
+
+  function renderPaging(gone) {
+    const offNext = off.offset < posts.length ? off.offset : -1;
+    const curNext = cur.after === null ? 0 : posts.findIndex(id => id < cur.after);
+    const gotO = new Set(off.received), gotC = new Set(cur.received);
+    $('strip').innerHTML = posts.map((id, i) => {
+      const tags = (i === offNext ? `<span class="tag o">${L('next page', 'offset')}</span>` : '') +
+                   (i === curNext ? `<span class="tag c">${L('bookmark', 'cursor')}</span>` : '');
+      return `<div class="schip ${id === justAdded ? 'new' : ''} ${id === gone ? 'gone' : ''}">${tags}#${id}
+        <div class="seen"><i class="o ${gotO.has(id) ? 'on' : ''}"></i><i class="c ${gotC.has(id) ? 'on' : ''}"></i></div></div>`;
+    }).join('');
+    $('offReq').textContent = 'next → ' + offRequest();
+    $('curReq').textContent = 'next → ' + curRequest();
+    for (const [c, feed, stats] of [[off, 'offFeed', 'offStats'], [cur, 'curFeed', 'curStats']]) {
+      const seen = new Set();
+      $(feed).innerHTML = c.received.map((id, i) => {
+        const sep = i > 0 && i % PAGE === 0 ? '<span class="fchip sep">|</span>' : '';
+        const dup = seen.has(id); seen.add(id);
+        const fresh = i >= c.shown ? 'fresh' : '';
+        return `${sep}<span class="fchip ${dup ? 'dup' : ''} ${fresh}" style="--i:${i - c.shown}">#${id}</span>`;
+      }).join('') || '<span class="stats">nothing yet</span>';
+      c.shown = c.received.length;
+      const m = missed(c).length;
+      $(stats).innerHTML = `Pages: ${c.pages} · Duplicates: <b class="${c.dups ? 'badn' : 'okn'}">${c.dups}</b> · Missed: <b class="${m ? 'badn' : 'okn'}">${m}</b>`;
+    }
+  }
+
+  function pgSay(text) { $('pgInsight').textContent = text; }
+
+  function loadNext() {
+    const prevAfter = cur.after;
+    const before = { od: off.dups, om: missed(off).length };
+    // offset
+    const oPage = posts.slice(off.offset, off.offset + PAGE);
+    if (off.startTop === null) off.startTop = posts[0];
+    oPage.forEach(id => { if (off.received.includes(id)) off.dups++; off.received.push(id); });
+    off.offset += oPage.length;
+    if (oPage.length) off.pages++;
+    // cursor
+    const start = cur.after === null ? 0 : posts.findIndex(id => id < cur.after);
+    const cPage = start < 0 ? [] : posts.slice(start, start + PAGE);
+    if (cur.startTop === null) cur.startTop = posts[0];
+    cPage.forEach(id => { if (cur.received.includes(id)) cur.dups++; cur.received.push(id); });
+    if (cPage.length) { cur.after = cPage[cPage.length - 1]; cur.pages++; }
+    justAdded = null;
+    renderPaging();
+
+    const newDups = off.dups - before.od, newMiss = missed(off).length - before.om;
+    if (newDups > 0) {
+      pgSay(L(`Offset showed you ${newDups} post(s) twice! The new post pushed everything down one place, so "skip ${off.offset - oPage.length}" now lands on a post you've already seen. The bookmark doesn't care what's added above it.`,
+              `Duplicate: the insert shifted every row down, so OFFSET ${off.offset - oPage.length} re-read a row from the previous window. The keyset predicate (id < ${prevAfter ?? '∞'}) is anchored to a value, not a position.`));
+      saved.pgDone = true; updateProgress();
+    } else if (newMiss > 0) {
+      pgSay(L(`Offset silently skipped ${newMiss} post(s)! A post you'd already seen was deleted, everything moved up one place, and "skip" jumped over a post you never saw. Nobody notices this bug.`,
+              `Skip: the delete shifted rows up, so the next OFFSET window started one row too late. Missed rows are worse than duplicates because nobody notices them. Keyset pagination is immune to this.`));
+      saved.pgDone = true; updateProgress();
+    } else if (!oPage.length && !cPage.length) {
+      pgSay('That was the last page. Press Reset to start over.');
+    } else {
+      pgSay(L('Both methods returned the same posts. Now try adding or deleting a post, then load the next page.', 'No writes since the last page, so both strategies agree. Mutate the data and load again.'));
+    }
+  }
+
+  function addPost() {
+    const id = nextPostId++;
+    posts.unshift(id);
+    justAdded = id;
+    renderPaging();
+    pgSay(L(`New post #${id} arrived at the top. Look at the tags: "next page" now points at a post you've already seen, while the bookmark hasn't moved.`,
+            `INSERT #${id} at the head. The offset window now starts one row earlier in the data (on an already-delivered row). The cursor still points to the first row with id < ${cur.after ?? '∞'}.`));
+  }
+
+  async function delPost() {
+    const seenByBoth = posts.find(id => off.received.includes(id));
+    const victim = seenByBoth ?? posts[0];
+    if (victim === undefined) return;
+    renderPaging(victim);
+    await sleep(450);
+    posts = posts.filter(id => id !== victim);
+    justAdded = null;
+    renderPaging();
+    pgSay(L(`Post #${victim} (which you'd already seen) was deleted, and everything after it moved up one place. Load the next page and count carefully…`,
+            `DELETE #${victim} from the already-delivered range. Every row behind it shifts up one position, so the next OFFSET window will skip a row.`));
+  }
+
+  async function lock(fn) {
+    if (pgBusy) return;
+    pgBusy = true;
+    document.querySelectorAll('#paging .controls .btn').forEach(b => b.disabled = true);
+    try { await fn(); } finally {
+      pgBusy = false;
+      document.querySelectorAll('#paging .controls .btn').forEach(b => b.disabled = false);
+    }
+  }
+
+  $('pgNext').addEventListener('click', () => lock(async () => loadNext()));
+  $('pgAdd').addEventListener('click', () => lock(async () => addPost()));
+  $('pgDel').addEventListener('click', () => lock(delPost));
+  $('pgReset').addEventListener('click', () => lock(async () => pgReset()));
+  $('pgPlay').addEventListener('click', () => lock(async () => {
+    pgReset(); await sleep(500);
+    loadNext(); pgSay(L('Step 1: both clients load page 1.', 'Step 1: both clients fetch the first window.')); await sleep(1800);
+    addPost(); await sleep(2600);
+    loadNext();
+  }));
+
+  /* =========================================================
+     UNIT 4: breaking-change sorter
+     ========================================================= */
+  const CHANGES = [
+    { id: 'add-field', text: 'Add a new optional field "nickname" to the user response.', code: '{ "id": 42, "name": "Ana", "nickname": "ana_b" }', breaking: false,
+      beginner: 'Old apps just ignore a field they don\'t know about. Adding is safe.',
+      advanced: 'Safe for tolerant readers. That is why you should document "ignore unknown fields" and avoid strict deserialisation in your SDKs.' },
+    { id: 'rename', text: 'Rename the field "name" to "fullName".', code: '- "name": "Ana"\n+ "fullName": "Ana"', breaking: true,
+      beginner: 'Every app that reads "name" now gets nothing. Rename by adding the new field and keeping the old one for a while.',
+      advanced: 'A rename is a remove plus an add. Expand/contract: ship both fields, mark "name" deprecated, and remove it after the sunset date.' },
+    { id: 'new-endpoint', text: 'Add a new endpoint GET /users/42/badges.', code: 'GET /users/42/badges → 200', breaking: false,
+      beginner: 'Nobody used it before, so nothing that already works can break.',
+      advanced: 'Purely additive. Make sure it follows your existing conventions so you don\'t have to "fix" it later, which would be a breaking change.' },
+    { id: 'type', text: 'Change "price" from a number to a string.', code: '- "price": 9.99\n+ "price": "9.99"', breaking: true,
+      beginner: 'Apps doing maths with the price would break or give wrong results. A type change is never safe.',
+      advanced: 'A type change breaks typed clients at deserialisation and dynamic ones at runtime (string concatenation instead of addition). Add "price_decimal" instead.' },
+    { id: 'remove-endpoint', text: 'Remove the old endpoint GET /reports/legacy.', code: 'GET /reports/legacy → 404', breaking: true,
+      beginner: 'Any app still calling it suddenly gets errors. Warn people first, and only remove it once nobody uses it any more.',
+      advanced: 'Check the access logs for remaining callers, send Deprecation and Sunset headers, then return 410 Gone (not a silent 404) after the sunset date.' },
+    { id: 'optional-param', text: 'Add an optional query parameter ?sort=… to GET /posts.', code: 'GET /posts?sort=-created_at', breaking: false,
+      beginner: 'If an app doesn\'t send it, nothing changes. Safe.',
+      advanced: 'Safe as long as the default (no parameter) behaves exactly as before.' },
+    { id: 'required', adv: true, text: 'Make the optional request field "phone" required.', code: 'POST /users  {"email": "…"}  → now 422', breaking: true,
+      advanced: 'Requests from existing clients that omit "phone" now fail. Making request validation stricter is breaking; making it looser is safe.' },
+    { id: 'enum', adv: true, text: 'Add a new value "refunded" to the "status" enum in responses.', code: '"status": "paid" | "shipped" | "refunded"', breaking: true,
+      advanced: 'This is often breaking in practice: an exhaustive switch or strict enum deserialiser crashes on the unknown value. It is only safe if the contract told clients from day one to handle unknown values.' },
+    { id: 'page-size', adv: true, text: 'Change the default page size from 50 to 20.', code: 'GET /posts → 20 items (was 50)', breaking: true,
+      advanced: 'A behavioural break: clients that assumed one call returns everything (or ≤ 50 items) silently lose data. Defaults are part of the contract.' },
+    { id: 'header', adv: true, text: 'Start returning a new response header X-Request-Id.', code: 'X-Request-Id: req_7Hk2', breaking: false,
+      advanced: 'Safe. Clients ignore headers they don\'t know, and it helps support and tracing.' },
+  ];
+  let lastSorted = null;
+  const visibleChanges = () => CHANGES.filter(c => !c.adv || level === 'advanced');
+
+  function renderBins() {
+    const vis = visibleChanges();
+    const li = (c) => `<li class="${sorted[c.id] ? 'hit' : 'miss'} ${c.id === lastSorted ? 'fresh' : ''}">${esc(c.text)}</li>`;
+    $('binSafe').innerHTML = vis.filter(c => c.id in sorted && !c.breaking).map(li).join('');
+    $('binBreak').innerHTML = vis.filter(c => c.id in sorted && c.breaking).map(li).join('');
+  }
+
+  function renderChange() {
+    const vis = visibleChanges();
+    const left = vis.filter(c => !(c.id in sorted));
+    renderBins();
+    const card = $('changeCard');
+    card.style.cssText = '';
+    if (!left.length) {
+      const right = vis.filter(c => sorted[c.id]).length;
+      card.innerHTML = `<div class="count">All sorted</div><div class="what">${right} / ${vis.length} correct</div>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:12px">${right === vis.length ? 'You have a good sense for compatibility.' : 'The ones marked ✗ in the bins are worth another look.'}</p>
+        <button class="btn" id="sortAgain">Sort again</button>`;
+      $('sortAgain').addEventListener('click', () => {
+        vis.forEach(c => delete sorted[c.id]);
+        updateProgress(); $('changeFb').className = 'feedback'; renderChange();
+      });
+      return;
+    }
+    const c = left[0];
+    card.innerHTML = `<div class="count">Change ${vis.length - left.length + 1} of ${vis.length}</div>
+      <div class="what">${esc(c.text)}</div><pre>${esc(c.code)}</pre>
+      <div class="choice"><button class="btn safe-btn" data-b="0">✓ Safe</button><button class="btn break-btn" data-b="1">⚠ Breaking</button></div>`;
+    card.querySelectorAll('.choice button').forEach(b => b.addEventListener('click', () => sortChange(c, b.dataset.b === '1')));
+  }
+
+  async function sortChange(c, saysBreaking) {
+    const correct = saysBreaking === c.breaking;
+    const card = $('changeCard');
+    card.querySelectorAll('button').forEach(b => b.disabled = true);
+    $('changeFb').className = 'feedback show ' + (correct ? 'good' : 'bad');
+    $('changeFb').innerHTML = `<b>${correct ? 'Correct' : 'Not quite'}: it's ${c.breaking ? 'breaking' : 'safe'}.</b> ${esc(c[level] || c.advanced)}`;
+    const bin = c.breaking ? $('binBreak') : $('binSafe');
+    const cr = card.getBoundingClientRect(), br = bin.getBoundingClientRect();
+    const dx = (br.left + br.width / 2) - (cr.left + cr.width / 2);
+    const dy = (br.top + 40) - (cr.top + cr.height / 2);
+    if (!reduced) {
+      await card.animate([
+        { transform: 'none', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(.25) rotate(${c.breaking ? 8 : -8}deg)`, opacity: 0 },
+      ], { duration: 550, easing: 'cubic-bezier(.5,0,.75,0)' }).finished;
+    }
+    sorted[c.id] = correct;
+    lastSorted = c.id;
+    updateProgress();
+    renderChange();
+    if (!reduced) $('changeCard').animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 300 });
+  }
+
+  /* =========================================================
+     UNIT 5: quiz
+     ========================================================= */
+  const QUIZ_BEGINNER = [
+    { q: 'Which request is the best way to fetch order 17?',
+      opts: ['GET /getOrder?id=17', 'GET /orders/17', 'POST /orders/17/get', 'GET /order-17'], a: 1,
+      why: 'The URL names the thing (/orders/17), and the GET method says "read it".' },
+    { q: 'A form is sent with a required field missing. Which status code?',
+      opts: ['200 OK', '400 Bad Request', '404 Not Found', '500 Internal Server Error'], a: 1,
+      why: 'It\'s the client\'s mistake (4xx), and the request itself is invalid: 400.' },
+    { q: 'Why must a GET request never delete or change data?',
+      opts: ['GET is slower than POST', 'Browsers, bots and link previews open GET links automatically', 'GET requests can\'t contain an ID', 'Servers block GET requests'], a: 1,
+      why: 'Lots of software follows GET links by itself. If one deletes data, a bot could delete things just by visiting.' },
+    { q: 'Which of these changes would break apps that already use your API?',
+      opts: ['Adding an optional field', 'Adding a new endpoint', 'Renaming a field', 'Adding an optional query parameter'], a: 2,
+      why: 'Apps that read the old field name suddenly get nothing. Adding things is safe; renaming or removing them is not.' },
+    { q: '4xx vs 5xx: whose fault is it?',
+      opts: ['4xx client, 5xx server', '4xx server, 5xx client', 'Both mean the server', 'Both mean the client'], a: 0,
+      why: '4xx: the request was wrong, so fix the request. 5xx: the server failed, and the same request might work later.' },
+    { q: 'An infinite social feed gets new posts all the time. Which pagination avoids showing you the same post twice?',
+      opts: ['Page numbers (offset)', 'Cursor / bookmark', 'Sending everything at once', 'Random order'], a: 1,
+      why: 'A cursor says "after post #7", so new posts at the top don\'t shift what you get next.' },
+    { type: 'order',
+      q: 'You need to rename a field without breaking anyone. Put the steps in order.',
+      items: ['Add the new field next to the old one', 'Tell everyone the old field will go away', 'Wait until apps have switched', 'Remove the old field'],
+      why: 'Add first, announce, give people time, and remove last.' },
+  ];
+  const QUIZ_ADVANCED = [
+    { q: 'The JSON is well-formed but "email" has an invalid format. What is the most precise status code?',
+      opts: ['400 Bad Request', '409 Conflict', '422 Unprocessable Content', '500 Internal Server Error'], a: 2,
+      why: '422 means the syntax is fine but the semantic validation failed. Many APIs use 400 for both; whichever you choose, be consistent.' },
+    { q: 'What should a 429 response include so clients can back off correctly?',
+      opts: ['Location', 'Retry-After', 'ETag', 'Allow'], a: 1,
+      why: 'Retry-After (and ideally the RateLimit headers) tells clients exactly when to retry, instead of hammering you with exponential guesses.' },
+    { q: 'You paginate with a cursor on created_at. Why add id as a tie-breaker?',
+      opts: ['It makes cursors shorter', 'Rows with identical timestamps could be skipped or repeated', 'HTTP requires it', 'It makes JSON parsing faster'], a: 1,
+      why: 'The keyset must be unique and totally ordered. (created_at, id) guarantees there is exactly one "next" row.' },
+    { q: 'Why does OFFSET 100000 get slow in SQL?',
+      opts: ['The database must walk and discard all the skipped rows', 'Offsets are stored as strings', 'HTTP limits large numbers', 'Indexes can\'t be used with ORDER BY'], a: 0,
+      why: 'OFFSET is O(n): rows are produced and thrown away. Keyset pagination seeks straight to the right place in the index.' },
+    { q: 'What is the standard format for machine-readable HTTP error bodies?',
+      opts: ['RFC 9457 problem details (application/problem+json)', 'SOAP Fault', 'text/plain stack traces', 'JSON-RPC error objects'], a: 0,
+      why: 'Problem details give you type, title, status, detail and instance, plus your own extension members.' },
+    { q: 'Adding a new value to a response enum is risky because…',
+      opts: ['Clients with exhaustive switches or strict deserialisers may crash', 'Enums aren\'t valid JSON', 'It changes the URL', 'It doubles the payload size'], a: 0,
+      why: 'It is only additive for clients that were told to handle unknown values. State that rule in your contract from day one.' },
+    { q: 'Cancelling an order refunds the payment and is illegal after shipping. Which design communicates this best?',
+      opts: ['PATCH /orders/42 {"status":"cancelled"}', 'POST /orders/42/cancel, returning 409 if it is already shipped', 'DELETE /orders/42', 'GET /orders/42/cancel'], a: 1,
+      why: 'An explicit action makes the side effects visible, is easy to authorise and audit, and 409 expresses the illegal state transition.' },
+    { type: 'order',
+      q: 'Retire a field with expand/contract. Put the steps in order.',
+      items: ['Ship the new field alongside the old one', 'Send Deprecation + Sunset headers', 'Monitor usage of the old field', 'Remove the field after the sunset date'],
+      why: 'Expand → announce → observe → contract. Never remove anything you can\'t prove is unused.' },
+  ];
+  let QUIZ = QUIZ_BEGINNER;
+  let qi = 0, score = 0;
+
+  function renderQuiz() {
+    const box = $('quizBox');
+    if (qi >= QUIZ.length) {
+      const pct = Math.round((score / QUIZ.length) * 100);
+      box.innerHTML = `<div class="result"><div class="score">${score} / ${QUIZ.length}</div>
+        <p>${pct === 100 ? 'Perfect. You\'re ready to design APIs.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay the units, then try again.'}</p>
+        <button class="btn primary" id="retry">Try again</button></div>`;
+      $('retry').addEventListener('click', () => { qi = 0; score = 0; renderQuiz(); });
+      saved.quizDone = true; updateProgress();
+      return;
+    }
+    const item = QUIZ[qi];
+    box.innerHTML = `<div class="quiz-meta"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>
+      <div class="q">${esc(item.q)}</div><div id="qBody"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="controls"><button class="btn primary" id="qNext" style="display:none">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`;
+    $('qNext').addEventListener('click', () => { qi++; renderQuiz(); });
+    (item.type === 'order' ? renderOrder : renderMC)(item);
+  }
+
+  function reveal(ok, why) {
+    if (ok) score++;
+    const fb = $('fb');
+    fb.className = 'feedback show ' + (ok ? 'good' : 'bad');
+    fb.innerHTML = `<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`;
+    $('qNext').style.display = '';
+    $('qNext').focus();
+  }
+
+  function renderMC(item) {
+    const wrap = document.createElement('div'); wrap.className = 'opts';
+    item.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        wrap.querySelectorAll('.opt').forEach((x, j) => {
+          x.disabled = true;
+          if (j === item.a) x.classList.add('right');
+        });
+        if (i !== item.a) b.classList.add('wrong');
+        reveal(i === item.a, item.why);
+      });
+      wrap.appendChild(b);
+    });
+    $('qBody').appendChild(wrap);
+  }
+
+  function renderOrder(item) {
+    const shuffled = [...item.items];
+    do { shuffled.sort(() => Math.random() - 0.5); } while (shuffled.join() === item.items.join());
+    const picked = [];
+    $('qBody').innerHTML = `<div class="chips" id="chips"></div><div class="slots" id="slots"></div>
+      <div class="controls"><button class="btn" id="oClear">Clear</button><button class="btn primary" id="oCheck" disabled>Check order</button></div>`;
+    const draw = () => {
+      $('chips').innerHTML = ''; $('slots').innerHTML = '';
+      shuffled.forEach(s => {
+        const c = document.createElement('button');
+        c.className = 'chip'; c.textContent = s; c.disabled = picked.includes(s);
+        c.addEventListener('click', () => { picked.push(s); draw(); });
+        $('chips').appendChild(c);
+      });
+      item.items.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'slot' + (picked[i] ? ' filled' : '');
+        d.textContent = picked[i] || '';
+        $('slots').appendChild(d);
+      });
+      $('oCheck').disabled = picked.length !== item.items.length;
+    };
+    $('oClear').addEventListener('click', () => { picked.length = 0; draw(); });
+    $('oCheck').addEventListener('click', () => {
+      const slots = $('slots').children;
+      let ok = true;
+      picked.forEach((s, i) => {
+        const right = s === item.items[i];
+        ok = ok && right;
+        slots[i].classList.add(right ? 'right' : 'wrong');
+        if (!right) slots[i].textContent = `${s}  (should be: ${item.items[i]})`;
+      });
+      $('chips').querySelectorAll('button').forEach(b => b.disabled = true);
+      $('oCheck').disabled = true; $('oClear').disabled = true;
+      reveal(ok, item.why);
+    });
+    draw();
+  }
+
+  /* ---------------- shared ---------------- */
+  document.querySelectorAll('.codeblock .copy').forEach(btn => btn.addEventListener('click', async () => {
+    const text = btn.closest('.codeblock').querySelector('pre').textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; }
+    catch (e) { btn.textContent = 'Copy failed'; }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
+  }));
+
+  function applyLevel() {
+    document.body.dataset.level = level;
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+    renderCase();
+    renderScenario();
+    renderPaging();
+    $('changeFb').className = 'feedback';
+    renderChange();
+    QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
+    qi = 0; score = 0;
+    renderQuiz();
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.level === level) return;
+    level = b.dataset.level;
+    saved.level = level; persist();
+    applyLevel();
+  }));
+
+  /* ---------------- init ---------------- */
+  pgReset();
+  applyLevel();
+  updateProgress();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive Tech Lessons</title>
+<style>
+  :root { --bg: #f6f5f1; --surface: #fff; --text: #1c1c1a; --muted: #64635d; --border: #dcdbd3; --accent: #3b5bdb; color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #141413; --surface: #1e1e1c; --text: #ecebe6; --muted: #a3a29b; --border: #3a3a37; --accent: #7d97ff; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #141413; --surface: #1e1e1c; --text: #ecebe6; --muted: #a3a29b; --border: #3a3a37; --accent: #7d97ff; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 56px 16px; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); letter-spacing: -0.02em; margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .lessons { display: grid; gap: 14px; }
+  a.lesson { display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
+  a.lesson:hover { border-color: var(--accent); }
+  .num { font-size: 0.8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+  .lesson h2 { margin: 2px 0 4px; font-size: 1.25rem; }
+  .lesson p { margin: 0; color: var(--muted); }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Interactive tech lessons</h1>
+    <p class="sub">Every lesson has Beginner and Advanced explanations, animations you can control, and a quiz at the end.</p>
+    <div class="lessons">
+      <a class="lesson" href="http-basics/index.html">
+        <div class="num">Lesson 1</div>
+        <h2>HTTP, step by step</h2>
+        <p>Follow a request from DNS to the rendered page, try every HTTP method against a mock API, and test yourself.</p>
+      </a>
+      <a class="lesson" href="api-design/index.html">
+        <div class="num">Lesson 2</div>
+        <h2>Designing good APIs</h2>
+        <p>Fix badly named endpoints, choose the right status codes, see why cursor pagination wins, and learn which changes break clients.</p>
+      </a>
+    </div>
+  </main>
+</body>
+</html>
