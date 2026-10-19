@@ -88,13 +88,16 @@ export function RoundTripTracer({
 
   const shown = stops.find((stop) => stop.id === shownId) ?? stops[0];
   const wireLines = shown.wire.split("\n");
+  const lastAt = stops.at(-1)?.at ?? 0;
+  const arrived = !playing && lastAt > 0 && at >= lastAt - 0.05;
+  const tripStatus = playing ? "移动中" : arrived ? "已到达" : "待追踪";
 
   return (
     <Card className="rounded-2xl border border-slate-200 bg-white shadow-[0_10px_30px_-18px_rgba(15,23,42,0.35)] ring-0">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>追踪一次往返</CardTitle>
-          <Badge variant="secondary">{playing ? "移动中" : "待追踪"}</Badge>
+          <Badge variant="secondary">{tripStatus}</Badge>
         </div>
         <CardDescription>{prompt}</CardDescription>
       </CardHeader>
@@ -124,9 +127,9 @@ export function RoundTripTracer({
             重置
           </Button>
         </div>
-        <div ref={stageRef} data-testid="trip-stage" className="relative px-2 py-8">
-          <div className="absolute top-1/2 right-8 left-8 h-px -translate-y-1/2 bg-slate-200" />
-          <div className="relative grid grid-cols-3 gap-3">
+        <div ref={stageRef} data-testid="trip-stage" className="relative px-2 pt-10 pb-2">
+          <div className="absolute top-5 right-10 left-10 h-px bg-slate-200" />
+          <div className="relative z-20 grid grid-cols-3 gap-3">
             {stops.map((stop) => {
               const status = nodeStatus(at, stop.at);
               return (
@@ -135,7 +138,7 @@ export function RoundTripTracer({
                   type="button"
                   data-node
                   data-lit={status === "当前" ? "true" : "false"}
-                  className="rounded-2xl border border-slate-200 bg-white px-3 py-4 text-center shadow-sm data-[lit=true]:border-cyan-400 data-[lit=true]:shadow-[0_0_0_3px_rgba(34,211,238,0.2)]"
+                  className="relative z-20 rounded-2xl border border-slate-200 bg-white px-3 py-4 text-center shadow-sm data-[lit=true]:border-cyan-400 data-[lit=true]:shadow-[0_0_0_3px_rgba(34,211,238,0.2)]"
                   onClick={() => {
                     seeking.current = true;
                     setShownId(stop.id);
@@ -153,8 +156,8 @@ export function RoundTripTracer({
           <div
             data-testid="trip-packet"
             data-at={at}
-            className="absolute top-1/2 z-10 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 px-3 py-1 text-xs font-semibold text-white shadow-md"
-            style={{ left, transform: "translate(-50%, -50%)", transition: "none" }}
+            className="pointer-events-none absolute z-10 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 px-3 py-1 text-xs font-semibold text-white shadow-md"
+            style={{ left, top: 20, transform: "translate(-50%, -50%)", transition: "none" }}
           >
             {packet}
           </div>

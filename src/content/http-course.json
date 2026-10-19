@@ -127,7 +127,7 @@
         "browserTitle": "浏览器请求记录",
         "browser": "GET /docs HTTP/1.1\nHost: example.com",
         "curlTitle": "终端",
-        "curl": "curl https://example.com/docs\n\nGET /docs HTTP/1.1\nHost: example.com",
+        "curl": "curl https://example.com/docs\nGET /docs HTTP/1.1\nHost: example.com",
         "rows": [
           {
             "id": "method",
@@ -136,7 +136,7 @@
             "curl": "未写 -X 时，curl 默认 GET",
             "note": "两边的方法都是 GET。curl 把默认方法省在命令之外，发出的请求行仍以 GET 开头。",
             "browserLine": 0,
-            "curlLine": 2
+            "curlLine": 1
           },
           {
             "id": "target",
@@ -154,7 +154,7 @@
             "curl": "URL 的主机 example.com",
             "note": "浏览器单独写 Host: example.com。curl 从 URL 取出 example.com，发出时带上同一个头。",
             "browserLine": 1,
-            "curlLine": 3
+            "curlLine": 2
           }
         ]
       },
