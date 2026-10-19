@@ -1,16 +1,57 @@
 import type { Quiz } from "../quiz/score";
 
-export type CopyText = {
-  beginner: string;
-  pro: string;
-};
-
 export type SectionId = "concept" | "interactive" | "application" | "quiz";
 
 export type LessonSection = {
   id: SectionId;
   jump: string;
   heading: string;
+};
+
+export type FieldId = "method" | "target" | "header" | "body";
+export type TripId = "compose" | "arrive" | "respond";
+export type AppFieldId = "method" | "target" | "host";
+
+export type ConceptRow = {
+  id: FieldId;
+  part: string;
+  question: string;
+  sample: string;
+};
+
+export type Principle = {
+  id: string;
+  title: string;
+  body: string;
+};
+
+export type AssembleBeat = {
+  id: FieldId;
+  label: string;
+  text: string;
+  question: string;
+  note: string;
+  sample: string;
+};
+
+export type TripStop = {
+  id: TripId;
+  label: string;
+  at: number;
+  packet: string;
+  title: string;
+  wire: string;
+  note: string;
+};
+
+export type AppRow = {
+  id: AppFieldId;
+  field: string;
+  browser: string;
+  curl: string;
+  note: string;
+  browserLine: number;
+  curlLine: number;
 };
 
 export type Lesson = {
@@ -28,39 +69,38 @@ export type Lesson = {
   };
   sections: LessonSection[];
   concept: {
-    lead: CopyText;
-    points: { id: string; title: string; body: CopyText }[];
-    journey: CopyText;
+    lede: string;
+    requestTitle: string;
+    request: string;
+    rows: ConceptRow[];
+    principles: Principle[];
+    callout: string;
   };
-  messageCaption: CopyText;
-  messageParts: {
-    id: "method" | "target" | "header" | "body";
-    label: string;
-    solves: CopyText;
-    sample: string;
-  }[];
-  roundTripCaption: CopyText;
-  roundTrip: {
-    id: "compose" | "arrive" | "respond";
-    label: string;
-    body: CopyText;
-  }[];
-  applicationIntro: CopyText;
-  browserRecord: {
-    text: string;
-    marks: { label: string; value: string }[];
-  }[];
-  curlRecord: {
-    command: string;
-    methodLabel: string;
-    target: string;
-    host: string;
+  assemble: {
+    lede: string;
+    prompt: string;
+    beats: AssembleBeat[];
   };
+  trip: {
+    lede: string;
+    prompt: string;
+    stops: TripStop[];
+  };
+  application: {
+    lede: string;
+    intro: string;
+    browserTitle: string;
+    browser: string;
+    curlTitle: string;
+    curl: string;
+    rows: AppRow[];
+  };
+  quizLede: string;
   quiz: Quiz;
   furtherReading: {
     href: string;
     title: string;
-    note: CopyText;
+    note: string;
   };
 };
 

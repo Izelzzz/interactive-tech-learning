@@ -8,66 +8,36 @@ test("reads an unsubmitted lesson as not completed", () => {
     lessonId: "http-one-request",
     quizCompleted: false,
   });
-  expect(store.readCopyDepth("http-one-request")).toBeNull();
 });
 
-test("stores copy depth separately from the submitted result", () => {
+test("a later submission replaces score and pass state", () => {
   const store = createMemoryStore();
-  store.writeCopyDepth("http-one-request", "pro");
   store.writeResult({
     lessonId: "http-one-request",
     quizCompleted: true,
     score: 25,
     passed: false,
-    copyDepth: "beginner",
     answers: { q1: "A" },
     hits: [],
   });
+  store.writeResult({
+    lessonId: "http-one-request",
+    quizCompleted: true,
+    score: 75,
+    passed: true,
+    answers: { q1: "B", q3: "GET /docs Host" },
+    hits: ["action", "target", "extra"],
+  });
 
-  expect(store.readCopyDepth("http-one-request")).toBe("pro");
   expect(store.readResult("http-one-request")).toMatchObject({
-    lessonId: "http-one-request",
-    quizCompleted: true,
-    score: 25,
-    passed: false,
-    copyDepth: "beginner",
-    answers: { q1: "A" },
-    hits: [],
-  });
-});
-
-test("a later submission replaces score, pass state, and submit-time copy depth", () => {
-  const store = createMemoryStore();
-  store.writeResult({
-    lessonId: "http-one-request",
-    quizCompleted: true,
-    score: 25,
-    passed: false,
-    copyDepth: "beginner",
-    answers: { q1: "A" },
-    hits: [],
-  });
-  store.writeResult({
-    lessonId: "http-one-request",
     quizCompleted: true,
     score: 75,
     passed: true,
-    copyDepth: "pro",
-    answers: { q1: "A", q3: "GET /docs Host" },
-    hits: ["action", "target", "extra"],
-  });
-
-  const result = store.readResult("http-one-request");
-  expect(result).toMatchObject({
-    quizCompleted: true,
-    score: 75,
-    passed: true,
-    copyDepth: "pro",
     hits: ["action", "target", "extra"],
   });
 });
 
-test("round-trips the same fields through a storage-backed store", () => {
+test("round-trips the stored result through a storage-backed store", () => {
   const memory = new Map<string, string>();
   const storage = {
     getItem: (key: string) => memory.get(key) ?? null,
@@ -76,26 +46,25 @@ test("round-trips the same fields through a storage-backed store", () => {
     },
   };
   const writing = createLocalStorageStore(storage);
-  writing.writeCopyDepth("http-one-request", "pro");
   writing.writeResult({
     lessonId: "http-one-request",
     quizCompleted: true,
     score: 60,
     passed: true,
-    copyDepth: "pro",
     answers: { q3: "方法" },
     hits: ["action"],
   });
 
   const reading = createLocalStorageStore(storage);
-  expect(reading.readCopyDepth("http-one-request")).toBe("pro");
-  expect(reading.readResult("http-one-request")).toMatchObject({
+  expect(reading.readResult("http-one-request")).toEqual({
     lessonId: "http-one-request",
     quizCompleted: true,
     score: 60,
     passed: true,
-    copyDepth: "pro",
+    answers: { q3: "方法" },
+    hits: ["action"],
   });
+  expect(JSON.stringify([...memory.values()])).not.toContain("copyDepth");
 });
 
 test("keeps the session result when storage writes fail", () => {
@@ -113,8 +82,7 @@ test("keeps the session result when storage writes fail", () => {
     quizCompleted: true,
     score: 100,
     passed: true,
-    copyDepth: "beginner",
-    answers: { q1: "A" },
+    answers: { q1: "B" },
     hits: ["action", "target", "extra"],
   });
 

@@ -16,15 +16,15 @@ const lesson = opened.lesson;
 
 const noop = () => {};
 
-function lessonHtml(copyDepth: "beginner" | "pro", quizCompleted: boolean) {
+function lessonHtml(quizCompleted: boolean) {
   return renderToStaticMarkup(
     <MemoryRouter>
       <LessonView
         lesson={lesson}
-        copyDepth={copyDepth}
         answers={{ q1: "B", q3: "我的答案" }}
-        messagePart="target"
-        roundTripStep="arrive"
+        partId="target"
+        tripId="arrive"
+        fieldId="host"
         result={
           quizCompleted
             ? {
@@ -32,16 +32,12 @@ function lessonHtml(copyDepth: "beginner" | "pro", quizCompleted: boolean) {
                 quizCompleted: true,
                 score: 75,
                 passed: true,
-                copyDepth,
                 answers: { q1: "B", q3: "我的答案" },
                 hits: ["action"],
               }
             : { lessonId: lesson.lessonId, quizCompleted: false }
         }
-        onCopyDepth={noop}
         onAnswer={noop}
-        onMessagePart={noop}
-        onRoundTrip={noop}
         onSubmit={noop}
       />
     </MemoryRouter>,
@@ -60,8 +56,8 @@ test("catalog links to the published lesson", () => {
   expect(html).toContain("一次 HTTP 请求");
 });
 
-test("lesson page renders the header and four sections around the sample", () => {
-  const html = lessonHtml("beginner", false);
+test("lesson page renders one voice, the sample, and four sections", () => {
+  const html = lessonHtml(false);
   const concept = html.indexOf('id="concept"');
   const interactive = html.indexOf('id="interactive"');
   const application = html.indexOf('id="application"');
@@ -80,29 +76,28 @@ test("lesson page renders the header and four sections around the sample", () =>
   expect(application).toBeLessThan(quiz);
   expect(html).toContain("GET https://example.com/docs");
   expect(html).toContain("curl https://example.com/docs");
-  expect(html).toContain("浏览器会发出一条请求");
-  expect(html).not.toContain("一条请求报文");
-  expect(html).toContain("它回答「要的东西在哪」");
-  expect(html).toContain("报文送到对方");
+  expect(html).toContain("方法是请求行开头的动词");
+  expect(html).toContain("目标在报文里先写成路径 /docs");
+  expect(html).toContain("请求里的方法、路径和 Host 保持原样");
+  expect(html).toContain("curl 从 URL 取出 example.com");
   expect(html).toContain("在一次 HTTP 请求里，表示「这次要做的动作」的部分是哪一个？");
   expect(html).toContain("我的答案");
+  expect(html).toContain("组装请求");
+  expect(html).toContain("追踪往返");
+  expect(html).not.toContain("小白");
+  expect(html).not.toContain("copyDepth");
 });
 
-test("professional copy replaces narration and quiz explanations only", () => {
-  const html = lessonHtml("pro", true);
+test("submitted quiz shows the score, the answer, and the hit", () => {
+  const html = lessonHtml(true);
 
-  expect(html).toContain("一条请求报文");
-  expect(html).not.toContain("浏览器会发出一条请求");
-  expect(html).toContain("方法标明动作。状态码属于响应。");
-  expect(html).not.toContain("动作写在方法上");
-  expect(html).toContain("在一次 HTTP 请求里，表示「这次要做的动作」的部分是哪一个？");
-  expect(html).toContain("请求里标明的方法名");
   expect(html).toContain("https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Overview");
   expect(html).toContain("直接问我");
-  expect(html).toContain("我的答案");
+  expect(html).toContain("请求里标明的方法名");
   expect(html).toContain("得分 75 / 100");
   expect(html).toContain("通过");
   expect(html).toContain("标准答案");
   expect(html).toContain("命中要点");
   expect(html).toContain("动作");
+  expect(html).toContain("方法标明这次要做的动作");
 });

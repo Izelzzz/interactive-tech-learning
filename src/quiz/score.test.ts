@@ -14,7 +14,7 @@ const quiz: Quiz = {
         { id: "B", text: "状态码" },
       ],
       answer: "A",
-      explanation: { beginner: "小白解析一", pro: "专业解析一" },
+      explanation: "方法标明动作。",
     },
     {
       id: "q2",
@@ -26,7 +26,7 @@ const quiz: Quiz = {
         { id: "B", text: "TLS" },
       ],
       answer: "A",
-      explanation: { beginner: "小白解析二", pro: "专业解析二" },
+      explanation: "方法是 GET，目标定位 /docs。",
     },
     {
       id: "q3",
@@ -34,7 +34,7 @@ const quiz: Quiz = {
       points: 50,
       stem: "三件事",
       reference: "参考答案",
-      explanation: { beginner: "小白解析三", pro: "专业解析三" },
+      explanation: "三件事是方法、目标和头或正文。",
       rubric: [
         { id: "action", label: "动作", points: 16, phrases: ["方法", "GET", "动作", "要做什么", "动词"] },
         {

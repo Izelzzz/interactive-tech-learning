@@ -23,9 +23,11 @@ function LessonRoute({ store }: { store: ResultStore }) {
   const opened = openLesson(course, lessonId);
   if ("error" in opened) {
     return (
-      <main className="catalog">
-        <p>{opened.error.message}</p>
-        <Link to="/">返回目录</Link>
+      <main className="mx-auto max-w-xl px-6 py-16">
+        <p className="text-base">{opened.error.message}</p>
+        <Link to="/" className="mt-4 inline-block text-sm font-medium underline-offset-4 hover:underline">
+          返回目录
+        </Link>
       </main>
     );
   }

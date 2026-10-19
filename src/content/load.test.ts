@@ -33,8 +33,8 @@ test("loads the published lesson with the sample and four sections", () => {
     "application",
     "quiz",
   ]);
-  expect(opened.lesson.messageParts.map((part) => part.id)).toEqual(["method", "target", "header", "body"]);
-  expect(opened.lesson.roundTrip.map((step) => step.id)).toEqual(["compose", "arrive", "respond"]);
+  expect(opened.lesson.assemble.beats.map((beat) => beat.id)).toEqual(["method", "target", "header", "body"]);
+  expect(opened.lesson.trip.stops.map((stop) => stop.id)).toEqual(["compose", "arrive", "respond"]);
   expect(opened.lesson.quiz.passScore).toBe(60);
   expect(opened.lesson.quiz.questions.map((question) => question.stem)).toEqual([
     "在一次 HTTP 请求里，表示「这次要做的动作」的部分是哪一个？",
@@ -63,17 +63,22 @@ test("keeps single-choice options the same length and varies the correct slot", 
   }
 });
 
-test("uses one structure and two narration depths", () => {
+test("uses one narration and extends the request one field at a time", () => {
   const opened = openLesson(httpCourse, "http-one-request");
   if (!("lesson" in opened)) throw new Error("lesson missing");
   const lesson = opened.lesson;
 
-  expect(lesson.concept.lead.beginner).not.toBe(lesson.concept.lead.pro);
-  expect(lesson.messageCaption.beginner).not.toBe(lesson.messageCaption.pro);
-  expect(lesson.roundTripCaption.beginner).not.toBe(lesson.roundTripCaption.pro);
+  expect(typeof lesson.concept.lede).toBe("string");
+  expect(lesson.concept.lede).toContain("方法是请求行开头的动词");
+  expect(JSON.stringify(lesson)).not.toContain("beginner");
+  expect(JSON.stringify(lesson)).not.toContain("copyDepth");
+  const beats = lesson.assemble.beats;
+  for (let index = 1; index < beats.length; index += 1) {
+    expect(beats[index].text.startsWith(beats[index - 1].text)).toBe(true);
+  }
   for (const question of lesson.quiz.questions) {
-    expect(question.explanation.beginner).not.toBe(question.explanation.pro);
-    expect(question.stem.length).toBeGreaterThan(0);
+    expect(typeof question.explanation).toBe("string");
+    expect(question.explanation.length).toBeGreaterThan(0);
   }
 
   const scored = scoreQuiz(lesson.quiz, {

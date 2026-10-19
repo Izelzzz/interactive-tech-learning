@@ -1,7 +1,3 @@
-export type CopyDepth = "beginner" | "pro";
-
-export type Explanation = Record<CopyDepth, string>;
-
 export type SingleQuestion = {
   id: string;
   type: "single";
@@ -9,7 +5,7 @@ export type SingleQuestion = {
   stem: string;
   options: { id: string; text: string }[];
   answer: string;
-  explanation: Explanation;
+  explanation: string;
 };
 
 export type RubricPoint = {
@@ -25,7 +21,7 @@ export type ShortQuestion = {
   points: number;
   stem: string;
   reference: string;
-  explanation: Explanation;
+  explanation: string;
   rubric: RubricPoint[];
 };
 

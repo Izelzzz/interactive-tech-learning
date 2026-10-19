@@ -1,18 +1,15 @@
-import type { Answers, CopyDepth } from "../quiz/score";
+import type { Answers } from "../quiz/score";
 
 export type StoredResult = {
   lessonId: string;
   quizCompleted: true;
   score: number;
   passed: boolean;
-  copyDepth: CopyDepth;
   answers: Answers;
   hits: string[];
 };
 
-export type LearningResult =
-  | { lessonId: string; quizCompleted: false }
-  | StoredResult;
+export type LearningResult = { lessonId: string; quizCompleted: false } | StoredResult;
 
 export type KeyValueStorage = {
   getItem: (key: string) => string | null;
@@ -22,13 +19,10 @@ export type KeyValueStorage = {
 export type ResultStore = {
   readResult: (lessonId: string) => LearningResult;
   writeResult: (result: StoredResult) => void;
-  readCopyDepth: (lessonId: string) => CopyDepth | null;
-  writeCopyDepth: (lessonId: string, copyDepth: CopyDepth) => void;
 };
 
 type MemoryState = {
   results: Map<string, StoredResult>;
-  depths: Map<string, CopyDepth>;
 };
 
 function readPersisted<T>(storage: KeyValueStorage, key: string): T | null {
@@ -41,8 +35,15 @@ function readPersisted<T>(storage: KeyValueStorage, key: string): T | null {
   }
 }
 
-function isCopyDepth(value: unknown): value is CopyDepth {
-  return value === "beginner" || value === "pro";
+function toStored(value: StoredResult): StoredResult {
+  return {
+    lessonId: value.lessonId,
+    quizCompleted: true,
+    score: value.score,
+    passed: value.passed,
+    answers: value.answers ?? {},
+    hits: value.hits ?? [],
+  };
 }
 
 function isStoredResult(value: unknown, lessonId: string): value is StoredResult {
@@ -59,36 +60,16 @@ function createStore(state: MemoryState, persist?: KeyValueStorage): ResultStore
       if (!persist) return { lessonId, quizCompleted: false };
       const parsed = readPersisted<unknown>(persist, resultKey(lessonId));
       if (!isStoredResult(parsed, lessonId)) return { lessonId, quizCompleted: false };
-      state.results.set(lessonId, parsed);
-      return parsed;
+      const stored = toStored(parsed);
+      state.results.set(lessonId, stored);
+      return stored;
     },
     writeResult(result) {
-      state.results.set(result.lessonId, result);
+      const stored = toStored(result);
+      state.results.set(result.lessonId, stored);
       if (!persist) return;
       try {
-        persist.setItem(resultKey(result.lessonId), JSON.stringify(result));
-      } catch {
-        return;
-      }
-    },
-    readCopyDepth(lessonId) {
-      const cached = state.depths.get(lessonId);
-      if (cached) return cached;
-      if (!persist) return null;
-      try {
-        const raw = persist.getItem(depthKey(lessonId));
-        if (!isCopyDepth(raw)) return null;
-        state.depths.set(lessonId, raw);
-        return raw;
-      } catch {
-        return null;
-      }
-    },
-    writeCopyDepth(lessonId, copyDepth) {
-      state.depths.set(lessonId, copyDepth);
-      if (!persist) return;
-      try {
-        persist.setItem(depthKey(lessonId), copyDepth);
+        persist.setItem(resultKey(result.lessonId), JSON.stringify(stored));
       } catch {
         return;
       }
@@ -97,17 +78,13 @@ function createStore(state: MemoryState, persist?: KeyValueStorage): ResultStore
 }
 
 export function createMemoryStore(): ResultStore {
-  return createStore({ results: new Map(), depths: new Map() });
+  return createStore({ results: new Map() });
 }
 
 export function createLocalStorageStore(storage: KeyValueStorage): ResultStore {
-  return createStore({ results: new Map(), depths: new Map() }, storage);
+  return createStore({ results: new Map() }, storage);
 }
 
 function resultKey(lessonId: string): string {
   return `itl:v1:result:${lessonId}`;
-}
-
-function depthKey(lessonId: string): string {
-  return `itl:v1:copyDepth:${lessonId}`;
 }

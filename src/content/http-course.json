@@ -22,144 +22,143 @@
         { "id": "quiz", "jump": "测验", "heading": "测验" }
       ],
       "concept": {
-        "lead": {
-          "beginner": "打开网页时，浏览器会发出一条请求。这条请求说清四件事就够了。样例是 GET https://example.com/docs。",
-          "pro": "一次调用写成一条请求报文，里面有方法、请求目标、首部、正文。样例是 GET https://example.com/docs。"
-        },
-        "points": [
+        "lede": "先看报文，再记名称。样例 GET https://example.com/docs 写成下面这一条请求。方法是请求行开头的动词。头是附在请求上的说明，写成「名字: 值」。",
+        "requestTitle": "请求报文",
+        "request": "GET /docs HTTP/1.1\nHost: example.com\n",
+        "rows": [
+          { "id": "method", "part": "方法", "question": "这次要做什么？", "sample": "GET" },
+          { "id": "target", "part": "目标", "question": "要的资源在哪？", "sample": "/docs，主机 example.com" },
+          { "id": "header", "part": "头", "question": "还要附带什么说明？", "sample": "Host: example.com" },
+          { "id": "body", "part": "正文", "question": "要不要带一段数据？", "sample": "这条 GET 可以没有正文" }
+        ],
+        "principles": [
+          {
+            "id": "path",
+            "title": "先分清报文和路",
+            "body": "DNS 解析地址，TCP 建立连接，TLS 为 HTTPS 加密。三步都在路上，不占方法、目标、头、正文的位置。"
+          },
           {
             "id": "method",
-            "title": "方法",
-            "body": {
-              "beginner": "方法是这次要做的动作。打开页面用 GET，也就是去取回这一页。",
-              "pro": "方法标明动作。样例的方法是 GET。"
-            }
+            "title": "方法标明动作",
+            "body": "方法是请求行开头的动词。GET 表示取回资源。状态码写在响应的状态行里，不在请求里。"
+          },
+          {
+            "id": "extra",
+            "title": "头可以在，正文可以空",
+            "body": "头是「名字: 值」。Host 说明主机。正文是附带数据；这条 GET 的正文是空的，请求仍然完整。"
+          }
+        ],
+        "callout": "下一节把这条报文按字段写出来，并追踪它怎么走完一次往返。点播放之后，右侧说明会跟着当前这一步换。"
+      },
+      "assemble": {
+        "lede": "先运行组装，再看右侧说明。报文按时间逐字段写上；写到哪一段，右侧就换成这一段。",
+        "prompt": "点「组装请求」。也可以点字段名，标出条会移到那一段。",
+        "beats": [
+          {
+            "id": "method",
+            "label": "方法",
+            "text": "GET",
+            "question": "这次要做什么？",
+            "note": "方法写在请求行最前。GET 表示取回资源。",
+            "sample": "GET"
           },
           {
             "id": "target",
-            "title": "目标",
-            "body": {
-              "beginner": "目标说明要取的东西在哪。样例要找到主机 example.com，以及路径 /docs。",
-              "pro": "请求目标定位资源。样例定位主机 example.com 与路径 /docs。"
-            }
+            "label": "目标",
+            "text": "GET /docs",
+            "question": "要的资源在哪？",
+            "note": "目标在报文里先写成路径 /docs。主机名留给下一行的 Host。",
+            "sample": "/docs"
           },
           {
             "id": "header",
-            "title": "头",
-            "body": {
-              "beginner": "头是附在请求旁边的说明。样例写着 Host: example.com。Host 就是主机名。",
-              "pro": "首部携带说明。样例包含 Host: example.com。"
-            }
+            "label": "头",
+            "text": "GET /docs HTTP/1.1\nHost: example.com",
+            "question": "还要附带什么说明？",
+            "note": "头写成「名字: 值」。Host 说明这是给 example.com 的请求。HTTP/1.1 是协议版本，写在请求行末尾。",
+            "sample": "Host: example.com"
           },
           {
             "id": "body",
-            "title": "正文",
-            "body": {
-              "beginner": "正文是附带的数据。这条 GET 可以不带正文。",
-              "pro": "正文是附带的数据。样例这条 GET 可以没有正文。"
-            }
+            "label": "正文",
+            "text": "GET /docs HTTP/1.1\nHost: example.com\n",
+            "question": "要不要带一段数据？",
+            "note": "正文在头后面，用空行隔开。这条 GET 的正文是空的，请求仍然完整。",
+            "sample": "（无正文）"
           }
-        ],
-        "journey": {
-          "beginner": "请求送出前，中间会找地址、连上线，需要时再加密。本课先看请求本身，这段路放在下面的往返里。",
-          "pro": "报文到达对方前，中间会解析地址、建立连接，需要时做 TLS。TLS 就是这段路上的加密。本课先看请求报文。"
-        }
+        ]
       },
-      "messageCaption": {
-        "beginner": "点一个部分，马上看到它负责什么，以及样例里的那一段。",
-        "pro": "点选方法、请求目标、首部或正文，对照样例里的字段。"
-      },
-      "messageParts": [
-        {
-          "id": "method",
-          "label": "方法",
-          "solves": {
-            "beginner": "它回答「这次要做什么」。样例这一段是 GET。",
-            "pro": "方法标明动作。样例报文对应 GET。"
+      "trip": {
+        "lede": "点「追踪往返」。报文包按时间从客户端移到通路，再移到服务端，响应包再移回起点。每到一站，报文区换成这一站才出现的内容。",
+        "prompt": "点某一站会立刻换上这一站的说明，报文包同时移过去。",
+        "stops": [
+          {
+            "id": "compose",
+            "label": "客户端组成请求",
+            "at": 0,
+            "packet": "GET /docs",
+            "title": "请求报文",
+            "wire": "GET /docs HTTP/1.1\nHost: example.com",
+            "note": "客户端写下请求行和 Host。方法是 GET，路径是 /docs，头是 Host: example.com。"
           },
-          "sample": "GET"
-        },
-        {
-          "id": "target",
-          "label": "目标",
-          "solves": {
-            "beginner": "它回答「要的东西在哪」。样例要找到 example.com 上的 /docs。",
-            "pro": "请求目标定位资源。样例对应主机 example.com 与路径 /docs。"
+          {
+            "id": "arrive",
+            "label": "请求在路上",
+            "at": 1,
+            "packet": "在路上",
+            "title": "请求报文（在路上）",
+            "wire": "GET /docs HTTP/1.1\nHost: example.com\n\n# 通路，不写入字段\nDNS example.com\nTCP 连接\nTLS 加密",
+            "note": "DNS 解析 example.com，TCP 建立连接，TLS 加密 HTTPS。请求里的方法、路径和 Host 保持原样。"
           },
-          "sample": "example.com/docs"
-        },
-        {
-          "id": "header",
-          "label": "头",
-          "solves": {
-            "beginner": "它是附带说明。样例这一段是 Host: example.com。Host 就是主机名。",
-            "pro": "首部携带说明。样例对应 Host: example.com。"
-          },
-          "sample": "Host: example.com"
-        },
-        {
-          "id": "body",
-          "label": "正文",
-          "solves": {
-            "beginner": "它是附带的数据。这条 GET 可以没有正文。",
-            "pro": "正文是附带数据。这条 GET 可以没有正文。"
-          },
-          "sample": "无正文"
-        }
-      ],
-      "roundTripCaption": {
-        "beginner": "按三步看：写好请求，报文送到对方，对方再返回结果。",
-        "pro": "按三步看：客户端组成请求，请求报文到达服务端，服务端返回响应。"
-      },
-      "roundTrip": [
-        {
-          "id": "compose",
-          "label": "客户端组成请求",
-          "body": {
-            "beginner": "先写好这条请求：动作是 GET，目标是 example.com 上的 /docs，头是 Host: example.com。",
-            "pro": "客户端组成请求：方法 GET，请求目标定位 example.com 的 /docs，首部含 Host: example.com。"
+          {
+            "id": "respond",
+            "label": "服务端返回响应",
+            "at": 2,
+            "packet": "200 OK",
+            "title": "响应状态行",
+            "wire": "HTTP/1.1 200 OK",
+            "note": "服务端返回状态行。200 是状态码，只出现在响应里。"
           }
-        },
-        {
-          "id": "arrive",
-          "label": "请求报文到达服务端",
-          "body": {
-            "beginner": "报文送到对方。送到之前，中间会找地址、连上线，需要时再加密。",
-            "pro": "请求报文到达服务端。途中会解析地址、建立连接，需要时做 TLS。"
-          }
-        },
-        {
-          "id": "respond",
-          "label": "服务端返回响应",
-          "body": {
-            "beginner": "对方按这条请求返回结果。本课先看清发出去的请求。",
-            "pro": "服务端返回响应。本课先看清请求报文怎么组成。"
-          }
-        }
-      ],
-      "applicationIntro": {
-        "beginner": "同一次打开 https://example.com/docs。左边是浏览器记下的请求，右边是 curl https://example.com/docs。两处都标出动作、目标和 Host。",
-        "pro": "同一次调用 GET https://example.com/docs。左边是浏览器请求记录，右边是 curl https://example.com/docs。两处标出方法、请求目标与 Host。"
+        ]
       },
-      "browserRecord": [
-        {
-          "text": "GET /docs HTTP/1.1",
-          "marks": [
-            { "label": "方法", "value": "GET" },
-            { "label": "目标", "value": "/docs" }
-          ]
-        },
-        {
-          "text": "Host: example.com",
-          "marks": [{ "label": "Host", "value": "example.com" }]
-        }
-      ],
-      "curlRecord": {
-        "command": "curl https://example.com/docs",
-        "methodLabel": "GET",
-        "target": "https://example.com/docs",
-        "host": "example.com"
+      "application": {
+        "lede": "同一次调用可以记在浏览器里，也可以写成 curl https://example.com/docs。点表格中的一行，两边同时标出这个字段。",
+        "intro": "标出条会沿当前字段长开。浏览器把目标和 Host 拆成两行；curl 把它们写进同一个 URL，发出的请求仍然是这两行。",
+        "browserTitle": "浏览器请求记录",
+        "browser": "GET /docs HTTP/1.1\nHost: example.com",
+        "curlTitle": "终端",
+        "curl": "curl https://example.com/docs\n\nGET /docs HTTP/1.1\nHost: example.com",
+        "rows": [
+          {
+            "id": "method",
+            "field": "方法",
+            "browser": "请求行以 GET 开头",
+            "curl": "未写 -X 时，curl 默认 GET",
+            "note": "两边的方法都是 GET。curl 把默认方法省在命令之外，发出的请求行仍以 GET 开头。",
+            "browserLine": 0,
+            "curlLine": 2
+          },
+          {
+            "id": "target",
+            "field": "目标",
+            "browser": "路径 /docs",
+            "curl": "URL 里的 /docs",
+            "note": "浏览器把目标写成路径 /docs。curl 把同一路径放在 https://example.com/docs 里。",
+            "browserLine": 0,
+            "curlLine": 0
+          },
+          {
+            "id": "host",
+            "field": "Host",
+            "browser": "Host: example.com",
+            "curl": "URL 的主机 example.com",
+            "note": "浏览器单独写 Host: example.com。curl 从 URL 取出 example.com，发出时带上同一个头。",
+            "browserLine": 1,
+            "curlLine": 3
+          }
+        ]
       },
+      "quizLede": "两道单选各 25 分，简答 50 分。满分 100，60 分通过。提交后在原处看到标准答案、解析和得分。",
       "quiz": {
         "passScore": 60,
         "questions": [
@@ -175,10 +174,7 @@
               { "id": "D", "text": "路上查找地址的步骤" }
             ],
             "answer": "B",
-            "explanation": {
-              "beginner": "动作写在方法上，样例就是 GET。状态码要等对方返回才有。正文是附带的数据。找地址发生在路上。",
-              "pro": "方法标明动作。状态码属于响应。正文是附带数据，样例 GET 可以没有正文。DNS 负责找地址，不是请求里的动作字段。"
-            }
+            "explanation": "方法标明这次要做的动作，样例是 GET。状态码在响应里。正文是附带数据，这条 GET 可以没有。DNS 在路上查地址，不是请求里的动作字段。"
           },
           {
             "id": "q2",
@@ -192,10 +188,7 @@
               { "id": "D", "text": "方法POST，目标写成网站根" }
             ],
             "answer": "C",
-            "explanation": {
-              "beginner": "打开这个页面，动作是 GET，要找的是 /docs。Host 是头里的主机名，不是方法。加密和找地址发生在路上。",
-              "pro": "这次调用的方法是 GET，目标要能定位 /docs。Host 是首部。TLS 与 DNS 发生在路程中，不是方法或目标。"
-            }
+            "explanation": "打开这个 URL，方法是 GET，目标要能定位路径 /docs。Host 是头，不是方法。TLS 与 DNS 发生在路上。"
           },
           {
             "id": "q3",
@@ -203,10 +196,7 @@
             "points": 50,
             "stem": "用自己的话写出一条最小 HTTP 请求要交代的三件事。每件事给一个名称，并举一个来自本课样例的例子。样例没有正文时，第三件说明可以没有正文，并举出一个仍然会出现的头。",
             "reference": "1. 动作：方法，样例是 GET。\n2. 目标：哪个资源，样例是 https://example.com/docs（或路径 /docs 加上主机 example.com）。\n3. 附带信息：头或正文。样例 GET 可以没有正文，仍然带有 Host: example.com。",
-            "explanation": {
-              "beginner": "三件事是动作、目标、附带说明。样例的动作是 GET，目标是 example.com 上的 /docs。可以没有正文，仍然要带 Host: example.com。",
-              "pro": "最小请求交代方法、请求目标，以及首部或正文。样例方法是 GET，目标定位 example.com 与 /docs。正文可以缺省，首部仍有 Host: example.com。"
-            },
+            "explanation": "三件事是方法、目标和头或正文。样例方法是 GET，目标是 https://example.com/docs。正文可以没有，Host: example.com 仍然在。",
             "rubric": [
               {
                 "id": "action",
@@ -233,10 +223,7 @@
       "furtherReading": {
         "href": "https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Guides/Overview",
         "title": "MDN：HTTP 概述",
-        "note": {
-          "beginner": "想核对这几个词，读 MDN 的 HTTP 概述。还有疑问，直接问我就行。",
-          "pro": "想核对报文怎么定义，读 MDN 的 HTTP 概述。还有疑问，直接问我就行。"
-        }
+        "note": "字段怎么定义，以 MDN 的 HTTP 概述为准。读完仍有疑问，直接问我。"
       }
     }
   ]
