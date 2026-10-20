@@ -839,7 +839,7 @@
       rows.forEach(r => tbody.appendChild(trOf(r)));
       rows.forEach(r => {
         const tr = trOf(r), dy = first.get(r) - tr.getBoundingClientRect().top;
-        if (dy) tr.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: dur(650), easing: 'ease-in-out' });
+        if (dy) tr.animate([{ transform: `translateY(${dy}px)` }, { transform: '无' }], { duration: dur(650), easing: 'ease-in-out' });
       });
       $('qbCap').textContent = L(`ORDER BY ${qs.order} ${qs.dir}：行已排好序，${qs.dir === 'ASC' ? '从小到大' : '从大到小'}。`,
                                  `ORDER BY ${qs.order} ${qs.dir}：这里展示的是稳定排序；数据库只保证按列出的键排序。`);
@@ -892,7 +892,7 @@
   /* =========================================================
      UNIT 2: JOINs
      ========================================================= */
-  let joinType = 'INNER', joinFilter = 'none';
+  let joinType = 'INNER', joinFilter = '无';
   const JOIN_TYPES = [
     { v: 'INNER', label: 'INNER JOIN' },
     { v: 'LEFT', label: 'LEFT JOIN' },
@@ -900,7 +900,7 @@
     { v: 'FULL', label: 'FULL OUTER JOIN', adv: true },
   ];
   const JOIN_FILTERS = [
-    { v: 'none', label: '无', txt: true },
+    { v: '无', label: '无', txt: true },
     { v: 'where', label: 'WHERE o.amount > 50' },
     { v: 'on', label: 'ON … AND o.amount > 50' },
   ];
@@ -1017,16 +1017,20 @@
     }[joinType];
     let extra = '', kind = '';
     if (joinFilter === 'where' && joinType !== 'INNER') {
-      extra = joinType === 'LEFT' || joinType === 'FULL'
+      extra = joinType === 'LEFT'
         ? ' 加上 WHERE o.amount > 50 后，用 NULL 补齐的行无法通过过滤（NULL > 50 不是 TRUE），订单都很小的顾客也一样。外连接变成了 INNER JOIN。把条件挪进 ON，才能保留每一位顾客。'
-        : ' WHERE 在连接之后执行，所以它会去掉小额订单，这里正符合预期：过滤条件作用在被保留的那一侧。';
+        : joinType === 'FULL'
+          ? '加上 WHERE o.amount > 50 后，amount 为 NULL 的行都无法通过过滤（NULL > 50 不为 TRUE）：Gus 和 Hana 消失了，订单金额都很小的客户也消失了。而没有匹配客户、金额大于 50 的订单（比如订单 10）保留了下来。FULL JOIN 现在的行为等同于 RIGHT JOIN。把条件移到 ON 里就能保留每一行。'
+          : ' WHERE 在连接之后执行，所以它会去掉小额订单，这里正符合预期：过滤条件作用在被保留的那一侧。';
       kind = joinType === 'RIGHT' ? '' : 'bad';
     } else if (joinFilter === 'on' && joinType !== 'INNER') {
       extra = joinType === 'RIGHT'
         ? ' 现在条件成了被保留一侧匹配规则的一部分：小额订单仍会保留，只是没有对应的顾客。'
-        : ' 条件放在 ON 里时，它只决定哪些订单算作匹配。每位顾客都会保留；只有小额订单的 Dev 和 Fay 现在得到的是 NULL 行。';
+        : joinType === 'FULL'
+          ? '条件放在 ON 里时，它只决定哪些订单算作匹配。每个客户都会保留，Dev 和 Fay 得到 NULL 行，而小额订单则单独出现，客户列为 NULL。'
+          : ' 条件放在 ON 里时，它只决定哪些订单算作匹配。每位顾客都会保留；只有小额订单的 Dev 和 Fay 现在得到的是 NULL 行。';
       kind = 'good';
-    } else if (joinFilter !== 'none') {
+    } else if (joinFilter !== '无') {
       extra = ' 对 INNER JOIN 来说，条件放在 ON 里还是 WHERE 里，结果都一样。';
     }
     $('joinInsight').className = 'insight ' + kind;
@@ -1038,13 +1042,13 @@
   /* =========================================================
      UNIT 3: GROUP BY
      ========================================================= */
-  const gs = { by: 'status', agg: 'COUNT(*)', where: false, having: 'none' };
+  const gs = { by: 'status', agg: 'COUNT(*)', where: false, having: '无' };
   const AGGS = [
     { v: 'COUNT(*)' }, { v: 'SUM(amount)' }, { v: 'AVG(amount)' },
     { v: 'COUNT(rating)', adv: true }, { v: 'AVG(rating)', adv: true },
   ];
   const HAVINGS = [
-    { v: 'none', label: '无', txt: true },
+    { v: '无', label: '无', txt: true },
     { v: 'COUNT(*) >= 2', label: 'COUNT(*) >= 2' },
     { v: 'SUM(amount) > 100', label: 'SUM(amount) > 100' },
   ];
@@ -1059,12 +1063,12 @@
       case 'AVG(rating)': { const v = vals('rating'); return v.length ? round2(v.reduce((a, b) => a + b, 0) / v.length) : null; }
     }
   }
-  const havingPass = (rows) => gs.having === 'none' ? true
+  const havingPass = (rows) => gs.having === '无' ? true
     : gs.having === 'COUNT(*) >= 2' ? rows.length >= 2 : aggregate('SUM(amount)', rows) > 100;
 
   function groupSql() {
     return `SELECT ${gs.by}, ${gs.agg}\nFROM orders` + (gs.where ? `\nWHERE status <> 'refunded'` : '') +
-      `\nGROUP BY ${gs.by}` + (gs.having !== 'none' ? `\nHAVING ${gs.having}` : '') + ';';
+      `\nGROUP BY ${gs.by}` + (gs.having !== '无' ? `\nHAVING ${gs.having}` : '') + ';';
   }
 
   function chipHTML(o) {
@@ -1125,7 +1129,7 @@
     });
     const anims = moves.map(({ el, first }, i) => {
       const last = el.getBoundingClientRect();
-      return el.animate([{ transform: `translate(${first.left - last.left}px, ${first.top - last.top}px)` }, { transform: 'none' }],
+      return el.animate([{ transform: `translate(${first.left - last.left}px, ${first.top - last.top}px)` }, { transform: '无' }],
         { duration: dur(700), delay: reduced ? 0 : i * 45, easing: 'ease-in-out', fill: 'backwards' }).finished;
     });
     await Promise.all(anims); if (!alive()) return;
@@ -1141,28 +1145,28 @@
     await sleep(900); if (!alive()) return;
 
     let kept = groups;
-    if (gs.having !== 'none') {
+    if (gs.having !== '无') {
       kept = groups.filter(g => havingPass(g.rows));
       groups.forEach((g, i) => $('gbBuckets').querySelector(`[data-k="${i}"]`).classList.add(havingPass(g.rows) ? 'kept' : 'dropped'));
       $('gbCap').textContent = L(`HAVING ${gs.having}：不满足条件的桶被整个丢弃。${groups.length} 个桶中剩下 ${kept.length} 个。`, `HAVING ${gs.having}：淘汰了 ${groups.length - kept.length} 组。`);
       await sleep(800); if (!alive()) return;
     }
     $('gbRes').innerHTML = tableHTML([gs.by, gs.agg], kept.map(g => [g.k, g.v]), { cls: 'o', rowCls: () => 'pop' });
-    if (!gs.having || gs.having === 'none') $('gbCap').textContent = L(`完成：${kept.length} 个桶变成了 ${kept.length} 行结果。`, `${kept.length} 组，输出 ${kept.length} 行。`);
+    if (!gs.having || gs.having === '无') $('gbCap').textContent = L(`完成：${kept.length} 个桶变成了 ${kept.length} 行结果。`, `${kept.length} 组，输出 ${kept.length} 行。`);
 
     const notes = [];
     notes.push(L(`进去 ${rows.length} 笔订单，出来 ${kept.length} 行：每个桶一行。`, `${rows.length} 行输入被压缩成 ${kept.length} 行输出。`));
     if (gs.by === 'customer_id') notes.push(L('订单 10 没有顾客，所以它单独进了一个桶：NULL。', 'GROUP BY 把所有 NULL 视为同一组，尽管 NULL = NULL 并不是 TRUE。'));
     if (gs.agg === 'COUNT(rating)') notes.push('COUNT(rating) 会跳过 NULL。在全部订单上，COUNT(*) 是 11，而 COUNT(rating) 是 7，因为有 4 笔订单还没有评分。');
     if (gs.agg === 'AVG(rating)') notes.push('AVG(rating) 除以的是非 NULL 评分的个数。如果一个桶的评分全是 NULL，结果是 NULL 而不是 0。只有当缺失的评分确实等于 0 时，才用 COALESCE(rating, 0)。');
-    if (gs.having !== 'none' && gs.where) notes.push(L('WHERE 在分组前移除了行，HAVING 在分组后移除了整个桶。', '行级过滤优先用 WHERE：它在聚合开始之前就缩小了输入。HAVING 用于针对聚合结果的条件。'));
-    else if (gs.having !== 'none') notes.push(L('HAVING 能用 COUNT 或 SUM，因为它在桶建好之后才执行。WHERE 做不到。', 'HAVING 能看到聚合值，因为它在 GROUP BY 之后执行。在 WHERE 里写聚合函数会报错。'));
+    if (gs.having !== '无' && gs.where) notes.push(L('WHERE 在分组前移除了行，HAVING 在分组后移除了整个桶。', '行级过滤优先用 WHERE：它在聚合开始之前就缩小了输入。HAVING 用于针对聚合结果的条件。'));
+    else if (gs.having !== '无') notes.push(L('HAVING 能用 COUNT 或 SUM，因为它在桶建好之后才执行。WHERE 做不到。', 'HAVING 能看到聚合值，因为它在 GROUP BY 之后执行。在 WHERE 里写聚合函数会报错。'));
     $('gbInsight').className = 'insight good';
     $('gbInsight').innerHTML = notes.map(n => `<p>${esc(n)}</p>`).join('');
     $('gbRun').disabled = false;
 
     groupsRun.add(groupSql());
-    if (gs.having !== 'none') saved.groupHaving = true;
+    if (gs.having !== '无') saved.groupHaving = true;
     updateProgress();
   }
   $('gbRun').addEventListener('click', () => { runGroup().finally(() => { $('gbRun').disabled = false; }); });
@@ -1384,21 +1388,47 @@
     const input = $('injInput').value;
     pills($('injPresets'), INJ_PRESETS.map(p => ({ label: p, v: p })), it => it.v === input, it => { $('injInput').value = it.v; renderInj(); });
     pills($('injMode'), [{ v: 'concat', label: '拼接字符串', txt: true }, { v: 'param', label: '参数化', txt: true }], it => it.v === injMode, it => { injMode = it.v; renderInj(); });
-    let rows = [], msg, kind = '';
+    let rows = [], msg, kind = '', dropped = false;
     if (injMode === 'concat') {
       $('injCode').textContent = 'const sql =\n  "SELECT * FROM customers WHERE name = \'"\n  + name + "\'";\ndb.query(sql);';
       const sql = `SELECT * FROM customers WHERE name = '${input}';`;
       $('injSent').textContent = sql;
-      const always = /'\s*OR\s+'?(\w+)'?\s*=\s*'?(\w+)'?/i.exec(input);
-      if (!input.includes("'")) {
+      // The first quote in the input closes the SQL string; everything after it is parsed as SQL.
+      const q = input.indexOf("'");
+      const name = q < 0 ? input : input.slice(0, q);
+      const rest = q < 0 ? '' : input.slice(q + 1);
+      const byName = () => CUSTOMERS.filter(c => c.name === name);
+      // a SQL literal: 'text' (with '' as an escaped quote) or a number
+      const literal = (t) => {
+        const m = /^'((?:[^']|'')*)'$/.exec(t.trim());
+        if (m) return m[1].replace(/''/g, "'");
+        return /^\d+$/.test(t.trim()) ? t.trim() : null;
+      };
+      const or = /^\s*OR\s+(.*?)\s*=\s*(.*)$/is.exec(rest);
+      let orLeft = null, orRight = null;
+      if (or) {
+        const comment = /^(.*?)\s*(--|#)/s.exec(or[2]);
+        orLeft = literal(or[1]);
+        orRight = literal(comment ? comment[1] : or[2] + "'");   // the page appends a closing quote
+      }
+      if (q < 0) {
         rows = CUSTOMERS.filter(c => c.name === input);
         msg = rows.length ? '普通输入可以正常工作。危险在于输入变成了 SQL 文本的一部分。' : '没有叫这个名字的顾客。';
-      } else if (/;\s*DROP\s+TABLE/i.test(input)) {
+      } else if (/^\s*;\s*DROP\s+TABLE/i.test(rest)) {
+        dropped = true;
         msg = '引号结束了字符串，分号结束了语句，DROP TABLE 作为第二条语句执行。customers 表会被删除。-- 把后面的内容变成了注释。';
         kind = 'bad';
-      } else if (always && always[1] === always[2]) {
+      } else if (/^\s*(--|#)/.test(rest)) {
+        rows = byName();
+        msg = '引号闭合了字符串，-- 把查询的其余部分变成了注释。名字后面的任何检查（例如 AND password = …）都被悄悄跳过了。登录验证就是这样被绕过的。';
+        kind = 'bad';
+      } else if (orLeft !== null && orRight !== null && orLeft === orRight) {
         rows = CUSTOMERS.slice();
-        msg = "输入闭合了字符串并加上了 OR '1'='1'，它对每一行都是 TRUE。所有顾客的数据都泄露了。同样的手法还能绕过登录检查。";
+        msg = '输入闭合了字符串，并加上了一个对每一行都为 TRUE 的 OR 比较。所有客户的数据都泄露了。同样的手法可以绕过登录检查。';
+        kind = 'bad';
+      } else if (orLeft !== null && orRight !== null) {
+        rows = byName();
+        msg = '注入的 OR 是合法的 SQL，但这个比较恰好为假，所以只返回名字完全匹配的行。攻击者只要换一个永远为真的比较就行了。';
         kind = 'bad';
       } else {
         msg = '语法错误：输入里的引号提前结束了字符串。像 O’Brien 这样无辜的名字会让查询出错，攻击者也能借此试探。';
@@ -1412,7 +1442,7 @@
         : '整个输入被当作一个普通的值来比较。引号和关键字没有任何特殊含义，所以既不会泄露也不会出错。结果是 0 行，因为没有顾客叫这个名字。';
       kind = 'good';
     }
-    $('injRes').innerHTML = /DROP\s+TABLE/i.test(input) && injMode === 'concat'
+    $('injRes').innerHTML = dropped
       ? `<tbody><tr class="cut"><td style="font-family:inherit">${esc('customers：表已被删除')}</td></tr></tbody>`
       : tableHTML(['id', 'name', 'city'], rows.map(c => [c.id, c.name, c.city]), { cls: 'c', rowCls: () => (kind === 'bad' ? 'pop nullrow' : 'pop') });
     $('injInsight').className = 'insight ' + kind;
@@ -1582,7 +1612,7 @@
       if (WHERES[qs.table][qs.where].adv) qs.where = 0;
       qs.offset = 0;
       if (joinType === 'RIGHT' || joinType === 'FULL') joinType = 'LEFT';
-      joinFilter = 'none';
+      joinFilter = '无';
       if (AGGS.find(a => a.v === gs.agg).adv) gs.agg = 'COUNT(*)';
     }
     renderQB(); showFrom();

@@ -1017,14 +1017,18 @@
     }[joinType];
     let extra = '', kind = '';
     if (joinFilter === 'where' && joinType !== 'INNER') {
-      extra = joinType === 'LEFT' || joinType === 'FULL'
+      extra = joinType === 'LEFT'
         ? ' With WHERE o.amount > 50, the NULL-padded rows fail the filter (NULL > 50 is not TRUE), and so do customers whose orders are all small. The outer join has turned into an INNER JOIN. Move the condition into ON to keep every customer.'
-        : ' The WHERE runs after the join, so it removes small orders, as you would expect here: the filter is on the preserved side.';
+        : joinType === 'FULL'
+          ? ' With WHERE o.amount > 50, every row with a NULL amount fails the filter (NULL > 50 is not TRUE): Gus and Hana disappear, and so do customers whose orders are all small. Unmatched orders over 50, like order 10, survive. The FULL JOIN now behaves like a RIGHT JOIN. Move the condition into ON to keep every row.'
+          : ' The WHERE runs after the join, so it removes small orders, as you would expect here: the filter is on the preserved side.';
       kind = joinType === 'RIGHT' ? '' : 'bad';
     } else if (joinFilter === 'on' && joinType !== 'INNER') {
       extra = joinType === 'RIGHT'
         ? ' Now the condition is part of the match on the preserved side: small orders are still kept, just without a customer.'
-        : ' With the condition in ON, it only decides which orders count as a match. Every customer is kept; Dev and Fay, who only have small orders, now get NULL rows.';
+        : joinType === 'FULL'
+          ? ' With the condition in ON, it only decides which orders count as a match. Every customer is kept, Dev and Fay get NULL rows, and the small orders now appear on their own with a NULL customer.'
+          : ' With the condition in ON, it only decides which orders count as a match. Every customer is kept; Dev and Fay, who only have small orders, now get NULL rows.';
       kind = 'good';
     } else if (joinFilter !== 'none') {
       extra = ' For INNER JOIN, a condition in ON or in WHERE gives the same result.';
@@ -1384,21 +1388,47 @@
     const input = $('injInput').value;
     pills($('injPresets'), INJ_PRESETS.map(p => ({ label: p, v: p })), it => it.v === input, it => { $('injInput').value = it.v; renderInj(); });
     pills($('injMode'), [{ v: 'concat', label: 'string concatenation', txt: true }, { v: 'param', label: 'parameterized', txt: true }], it => it.v === injMode, it => { injMode = it.v; renderInj(); });
-    let rows = [], msg, kind = '';
+    let rows = [], msg, kind = '', dropped = false;
     if (injMode === 'concat') {
       $('injCode').textContent = 'const sql =\n  "SELECT * FROM customers WHERE name = \'"\n  + name + "\'";\ndb.query(sql);';
       const sql = `SELECT * FROM customers WHERE name = '${input}';`;
       $('injSent').textContent = sql;
-      const always = /'\s*OR\s+'?(\w+)'?\s*=\s*'?(\w+)'?/i.exec(input);
-      if (!input.includes("'")) {
+      // The first quote in the input closes the SQL string; everything after it is parsed as SQL.
+      const q = input.indexOf("'");
+      const name = q < 0 ? input : input.slice(0, q);
+      const rest = q < 0 ? '' : input.slice(q + 1);
+      const byName = () => CUSTOMERS.filter(c => c.name === name);
+      // a SQL literal: 'text' (with '' as an escaped quote) or a number
+      const literal = (t) => {
+        const m = /^'((?:[^']|'')*)'$/.exec(t.trim());
+        if (m) return m[1].replace(/''/g, "'");
+        return /^\d+$/.test(t.trim()) ? t.trim() : null;
+      };
+      const or = /^\s*OR\s+(.*?)\s*=\s*(.*)$/is.exec(rest);
+      let orLeft = null, orRight = null;
+      if (or) {
+        const comment = /^(.*?)\s*(--|#)/s.exec(or[2]);
+        orLeft = literal(or[1]);
+        orRight = literal(comment ? comment[1] : or[2] + "'");   // the page appends a closing quote
+      }
+      if (q < 0) {
         rows = CUSTOMERS.filter(c => c.name === input);
         msg = rows.length ? 'Works for normal input. The danger is that the input becomes part of the SQL text.' : 'No customer has that name.';
-      } else if (/;\s*DROP\s+TABLE/i.test(input)) {
+      } else if (/^\s*;\s*DROP\s+TABLE/i.test(rest)) {
+        dropped = true;
         msg = 'The quote closes the string, the semicolon ends the statement, and DROP TABLE runs as a second statement. The customers table would be deleted. The -- turns the rest into a comment.';
         kind = 'bad';
-      } else if (always && always[1] === always[2]) {
+      } else if (/^\s*(--|#)/.test(rest)) {
+        rows = byName();
+        msg = 'The quote closed the string and -- turned the rest of the query into a comment. Any check that came after the name, such as AND password = …, is silently skipped. That is how logins get bypassed.';
+        kind = 'bad';
+      } else if (orLeft !== null && orRight !== null && orLeft === orRight) {
         rows = CUSTOMERS.slice();
-        msg = "The input closed the string and added OR '1'='1', which is TRUE for every row. Every customer leaks. The same trick can bypass a login check.";
+        msg = 'The input closed the string and added an OR comparison that is TRUE for every row. Every customer leaks. The same trick can bypass a login check.';
+        kind = 'bad';
+      } else if (orLeft !== null && orRight !== null) {
+        rows = byName();
+        msg = 'The injected OR is valid SQL, but this comparison happens to be false, so only exact name matches come back. An attacker just picks a comparison that is always true.';
         kind = 'bad';
       } else {
         msg = 'Syntax error: the quote in the input ended the string early. Innocent names like O\'Brien break the query, and an attacker can probe it.';
@@ -1412,7 +1442,7 @@
         : 'The whole input is compared as one plain value. Quotes and keywords have no special meaning, so nothing leaks and nothing breaks. 0 rows, because no customer has that name.';
       kind = 'good';
     }
-    $('injRes').innerHTML = /DROP\s+TABLE/i.test(input) && injMode === 'concat'
+    $('injRes').innerHTML = dropped
       ? `<tbody><tr class="cut"><td style="font-family:inherit">${esc('customers: table dropped')}</td></tr></tbody>`
       : tableHTML(['id', 'name', 'city'], rows.map(c => [c.id, c.name, c.city]), { cls: 'c', rowCls: () => (kind === 'bad' ? 'pop nullrow' : 'pop') });
     $('injInsight').className = 'insight ' + kind;

@@ -1075,9 +1075,13 @@ Content-Type: application/problem+json
   }
 
   async function delPost() {
-    const seenByBoth = posts.find(id => off.received.includes(id));
-    const victim = seenByBoth ?? posts[0];
-    if (victim === undefined) return;
+    // only delete a post the reader has actually seen, or the lesson's claim below is false
+    const victim = posts.find(id => off.received.includes(id));
+    if (victim === undefined) {
+      pgSay(L('先加载一页，这样才会有一条你已经看过的帖子。',
+              '先至少加载一页：删除必须命中已经返回过的范围内的一行。'));
+      return;
+    }
     renderPaging(victim);
     await sleep(450);
     posts = posts.filter(id => id !== victim);

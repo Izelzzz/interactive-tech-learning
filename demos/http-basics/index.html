@@ -679,6 +679,7 @@
   let runId = 0;
   let current = 0;
   let playing = false;
+  let playRun = 0;
 
   function node(name, state) {
     const g = $('n-' + name);
@@ -691,13 +692,14 @@
     const tok = runId;
     return new Promise(resolve => {
       const g = document.createElementNS(NS, 'g');
-      const w = label.length * 7.4 + 22;
       const rect = document.createElementNS(NS, 'rect');
-      Object.entries({ x: -w / 2, y: -13, width: w, height: 26, rx: 13, fill: color }).forEach(([k, v]) => rect.setAttribute(k, v));
       const t = document.createElementNS(NS, 'text');
       t.setAttribute('class', 'packet-label'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('y', 4.5);
       t.textContent = label;
       g.append(rect, t); layer.appendChild(g);
+      // size the pill to the rendered label (CJK glyphs are wider than mono ASCII)
+      const w = (t.getComputedTextLength() || label.length * 7.4) + 22;
+      Object.entries({ x: -w / 2, y: -13, width: w, height: 26, rx: 13, fill: color }).forEach(([k, v]) => rect.setAttribute(k, v));
 
       const a = POS[from], b = POS[to];
       // start/end a little outside each node box
@@ -796,19 +798,21 @@
   }
 
   async function play() {
+    const run = ++playRun;
+    const still = () => playing && run === playRun;
     playing = true;
     $('playBtn').textContent = '❚❚ Pause';
     let i = current === STEPS.length - 1 ? 0 : current;
-    while (playing && i < STEPS.length) {
+    while (still() && i < STEPS.length) {
       const finished = await runStep(i);
-      if (!finished || !playing) return;
+      if (!finished || !still()) return;
       await sleep(1100);
-      if (!playing) return;
+      if (!still()) return;
       i++;
     }
-    stopPlay();
+    if (run === playRun) stopPlay();
   }
-  function stopPlay() { playing = false; $('playBtn').textContent = '▶ Play'; }
+  function stopPlay() { playing = false; playRun++; $('playBtn').textContent = '▶ Play'; }
 
   $('playBtn').addEventListener('click', () => playing ? stopPlay() : play());
   $('prevBtn').addEventListener('click', () => { stopPlay(); if (current > 0) runStep(current - 1); });
@@ -826,7 +830,7 @@
       spec: 'RFC 9110 §9.3.1',
       beginner: 'Read something. Like opening a book to look at it: you don\'t change anything.',
       advanced: 'Retrieves a representation of the target resource. Safe and idempotent, and responses are cacheable. A body on a GET has no defined meaning, so don\'t send one.',
-      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
+      props: { safe: true, idempotent: true, body: false, cacheable: true },
       req: 'GET /api/books HTTP/1.1\nHost: api.example.com\nAccept: application/json',
     },
     POST: {
@@ -836,7 +840,7 @@
       spec: 'RFC 9110 §9.3.3',
       beginner: 'Create something new or submit data. Like posting a letter: every letter you send is a new one.',
       advanced: 'Processes the request body according to the resource\'s own rules, usually by creating a new resource (201 + Location). Neither safe nor idempotent, so a retry can create a duplicate. That is why payment APIs accept an Idempotency-Key header.',
-      props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
+      props: { safe: false, idempotent: false, body: true, cacheable: false },
       req: 'POST /api/books HTTP/1.1\nHost: api.example.com\nContent-Type: application/json\n\n{"title": "Neuromancer", "read": false}',
     },
     PUT: {
@@ -846,7 +850,7 @@
       spec: 'RFC 9110 §9.3.4',
       beginner: 'Replace something completely. Like swapping a whole page in a binder for a new one.',
       advanced: 'Creates or replaces the target resource with the representation in the body. Idempotent: N identical PUTs leave the same state as one. Any field you leave out is not kept.',
-      props: { Safe: false, Idempotent: true, 'Request body': true, Cacheable: false },
+      props: { safe: false, idempotent: true, body: true, cacheable: false },
       req: 'PUT /api/books/1 HTTP/1.1\nHost: api.example.com\nContent-Type: application/json\n\n{"title": "Dune Messiah", "read": false}',
     },
     PATCH: {
@@ -856,7 +860,7 @@
       spec: 'RFC 5789',
       beginner: 'Change just part of something. Like fixing one word with a pen instead of reprinting the page.',
       advanced: 'Applies a partial change (RFC 5789), for example in JSON Merge Patch or JSON Patch format. It is not guaranteed to be idempotent: an "increment" operation changes the result every time.',
-      props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
+      props: { safe: false, idempotent: false, body: true, cacheable: false },
       req: 'PATCH /api/books/2 HTTP/1.1\nHost: api.example.com\nContent-Type: application/merge-patch+json\n\n{"read": true}',
     },
     DELETE: {
@@ -866,7 +870,7 @@
       spec: 'RFC 9110 §9.3.5',
       beginner: 'Remove something. Like throwing a page away.',
       advanced: 'Removes the resource at the target URI. Idempotent: the server state after one DELETE or many is the same, even though later calls may return 404.',
-      props: { Safe: false, Idempotent: true, 'Request body': false, Cacheable: false },
+      props: { safe: false, idempotent: true, body: false, cacheable: false },
       req: 'DELETE /api/books/3 HTTP/1.1\nHost: api.example.com',
     },
     HEAD: {
@@ -876,7 +880,7 @@
       spec: 'RFC 9110 §9.3.2',
       beginner: 'Like GET, but it only asks for the label on the box, not what\'s inside.',
       advanced: 'The same as GET, but the server must not send a body. Use it to check cheaply whether a resource exists, how big it is (Content-Length) or whether it is still fresh (ETag / Last-Modified).',
-      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
+      props: { safe: true, idempotent: true, body: false, cacheable: true },
       req: 'HEAD /api/books HTTP/1.1\nHost: api.example.com',
     },
     OPTIONS: {
@@ -886,10 +890,11 @@
       spec: 'RFC 9110 §9.3.7',
       beginner: 'Asks the server: "What am I allowed to do here?"',
       advanced: 'Describes which methods and options the target supports. Before some cross-origin requests, browsers send it automatically as a CORS preflight and read the Access-Control-Allow-* headers in the reply.',
-      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: false },
+      props: { safe: true, idempotent: true, body: false, cacheable: false },
       req: 'OPTIONS /api/books HTTP/1.1\nHost: api.example.com\nOrigin: https://app.example.com\nAccess-Control-Request-Method: DELETE',
     },
   };
+  const PROP_LABEL = { safe: 'Safe', idempotent: 'Idempotent', body: 'Request body', cacheable: 'Cacheable' };
   const STATUS = { 200: 'OK', 201: 'Created', 204: 'No Content', 404: 'Not Found' };
   const freshStore = () => [
     { id: 1, title: 'Dune', read: true },
@@ -924,7 +929,7 @@
     $('mName').style.color = cssVar(m.color);
     $('mDesc').textContent = m[level];
     $('mProps').innerHTML = Object.entries(m.props)
-      .map(([k, v]) => `<span class="prop ${v ? 'yes' : 'no'}">${v ? '✓' : '✗'} ${k}</span>`).join('');
+      .map(([k, v]) => `<span class="prop ${v ? 'yes' : 'no'}">${v ? '✓' : '✗'} ${PROP_LABEL[k]}</span>`).join('');
     $('mMeta').innerHTML = `Typical responses: <b>${m.typical}</b> &nbsp;·&nbsp; Spec: ${m.spec}`;
     $('reqText').textContent = L(stripHeaders(m.req), m.req);
     if (lastRes && lastRes.m === method) renderResponse();
@@ -1057,7 +1062,7 @@
 
   function insightFor(m, r, count) {
     const p = METHODS[m].props;
-    if (!r.changed && p.Safe) return `Nothing on the server changed. ${m} is a safe method: it only reads.`;
+    if (!r.changed && p.safe) return `Nothing on the server changed. ${m} is a safe method: it only reads.`;
     if (count === 1 && r.changed) return 'The server\'s data changed. Press Send again to test whether repeating it changes anything more.';
     if (r.changed) return m === 'POST'
       ? `You sent POST ${count} times and got ${count} new "Neuromancer" rows. POST is not idempotent.`

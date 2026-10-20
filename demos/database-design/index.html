@@ -1038,7 +1038,13 @@ CREATE TABLE orders (
     saved.raced = true; updateProgress();
   }
   $('raceBtn').addEventListener('click', runRace);
-  $('whoSel').addEventListener('change', () => { updateRaceSql(); buildGrid(); buildTree(); });
+  $('whoSel').addEventListener('change', () => {
+    raceId++;   // cancel a race that is still animating for the previous name
+    updateRaceSql(); buildGrid(); buildTree();
+    $('scanCount').textContent = '0'; $('treeCount').textContent = '0';
+    $('raceInsight').className = 'insight';
+    $('raceInsight').textContent = L('Press "Run the search" to start both searches together.', 'Run both plans for the new value.');
+  });
 
   const QCARDS = {
     beginner: [

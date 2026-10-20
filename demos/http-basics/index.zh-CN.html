@@ -679,6 +679,7 @@
   let runId = 0;
   let current = 0;
   let playing = false;
+  let playRun = 0;
 
   function node(name, state) {
     const g = $('n-' + name);
@@ -691,13 +692,14 @@
     const tok = runId;
     return new Promise(resolve => {
       const g = document.createElementNS(NS, 'g');
-      const w = label.length * 7.4 + 22;
       const rect = document.createElementNS(NS, 'rect');
-      Object.entries({ x: -w / 2, y: -13, width: w, height: 26, rx: 13, fill: color }).forEach(([k, v]) => rect.setAttribute(k, v));
       const t = document.createElementNS(NS, 'text');
       t.setAttribute('class', 'packet-label'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('y', 4.5);
       t.textContent = label;
       g.append(rect, t); layer.appendChild(g);
+      // size the pill to the rendered label (CJK glyphs are wider than mono ASCII)
+      const w = (t.getComputedTextLength() || label.length * 7.4) + 22;
+      Object.entries({ x: -w / 2, y: -13, width: w, height: 26, rx: 13, fill: color }).forEach(([k, v]) => rect.setAttribute(k, v));
 
       const a = POS[from], b = POS[to];
       // start/end a little outside each node box
@@ -796,19 +798,21 @@
   }
 
   async function play() {
+    const run = ++playRun;
+    const still = () => playing && run === playRun;
     playing = true;
     $('playBtn').textContent = '❚❚ 暂停';
     let i = current === STEPS.length - 1 ? 0 : current;
-    while (playing && i < STEPS.length) {
+    while (still() && i < STEPS.length) {
       const finished = await runStep(i);
-      if (!finished || !playing) return;
+      if (!finished || !still()) return;
       await sleep(1100);
-      if (!playing) return;
+      if (!still()) return;
       i++;
     }
-    stopPlay();
+    if (run === playRun) stopPlay();
   }
-  function stopPlay() { playing = false; $('playBtn').textContent = '▶ 播放'; }
+  function stopPlay() { playing = false; playRun++; $('playBtn').textContent = '▶ 播放'; }
 
   $('playBtn').addEventListener('click', () => playing ? stopPlay() : play());
   $('prevBtn').addEventListener('click', () => { stopPlay(); if (current > 0) runStep(current - 1); });
@@ -826,7 +830,7 @@
       spec: 'RFC 9110 §9.3.1',
       beginner: '读取东西。就像翻开一本书看看：什么都不改变。',
       advanced: '获取目标资源的表示。安全且幂等，响应可以缓存。GET 的请求体没有定义的语义，不要发送。',
-      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
+      props: { safe: true, idempotent: true, body: false, cacheable: true },
       req: 'GET /api/books HTTP/1.1\nHost: api.example.com\nAccept: application/json',
     },
     POST: {
@@ -836,7 +840,7 @@
       spec: 'RFC 9110 §9.3.3',
       beginner: '创建新东西或提交数据。就像寄信：每寄出一封都是一封新信。',
       advanced: '按照资源自身的规则处理请求体，通常是创建一个新资源（201 + Location）。既不安全也不幂等，所以重试可能产生重复数据。这就是支付类 API 支持 Idempotency-Key 请求头的原因。',
-      props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
+      props: { safe: false, idempotent: false, body: true, cacheable: false },
       req: 'POST /api/books HTTP/1.1\nHost: api.example.com\nContent-Type: application/json\n\n{"title": "Neuromancer", "read": false}',
     },
     PUT: {
@@ -846,7 +850,7 @@
       spec: 'RFC 9110 §9.3.4',
       beginner: '整体替换。就像把活页夹里的一整页换成新的一页。',
       advanced: '用请求体中的表示创建或替换目标资源。幂等：N 次相同的 PUT 和一次的结果一样。没有写的字段不会被保留。',
-      props: { Safe: false, Idempotent: true, 'Request body': true, Cacheable: false },
+      props: { safe: false, idempotent: true, body: true, cacheable: false },
       req: 'PUT /api/books/1 HTTP/1.1\nHost: api.example.com\nContent-Type: application/json\n\n{"title": "Dune Messiah", "read": false}',
     },
     PATCH: {
@@ -856,7 +860,7 @@
       spec: 'RFC 5789',
       beginner: '只改一部分。就像用笔改掉一个字，而不是重印整页。',
       advanced: '对资源做部分修改（RFC 5789），例如使用 JSON Merge Patch 或 JSON Patch 格式。它不保证幂等：像“加一”这样的操作每次都会改变结果。',
-      props: { Safe: false, Idempotent: false, 'Request body': true, Cacheable: false },
+      props: { safe: false, idempotent: false, body: true, cacheable: false },
       req: 'PATCH /api/books/2 HTTP/1.1\nHost: api.example.com\nContent-Type: application/merge-patch+json\n\n{"read": true}',
     },
     DELETE: {
@@ -866,7 +870,7 @@
       spec: 'RFC 9110 §9.3.5',
       beginner: '删除东西。就像把一页纸扔掉。',
       advanced: '删除目标 URI 上的资源。幂等：执行一次或多次 DELETE 后服务器状态相同，即使之后的调用可能返回 404。',
-      props: { Safe: false, Idempotent: true, 'Request body': false, Cacheable: false },
+      props: { safe: false, idempotent: true, body: false, cacheable: false },
       req: 'DELETE /api/books/3 HTTP/1.1\nHost: api.example.com',
     },
     HEAD: {
@@ -876,7 +880,7 @@
       spec: 'RFC 9110 §9.3.2',
       beginner: '和 GET 一样，但只问箱子上的标签，不要箱子里的东西。',
       advanced: '和 GET 相同，但服务器不能返回响应体。用来低成本地检查资源是否存在、有多大（Content-Length），或是否仍然新鲜（ETag / Last-Modified）。',
-      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: true },
+      props: { safe: true, idempotent: true, body: false, cacheable: true },
       req: 'HEAD /api/books HTTP/1.1\nHost: api.example.com',
     },
     OPTIONS: {
@@ -886,10 +890,11 @@
       spec: 'RFC 9110 §9.3.7',
       beginner: '问服务器：“我在这里可以做什么？”',
       advanced: '描述目标支持哪些方法和选项。发起某些跨域请求之前，浏览器会自动发送它作为 CORS 预检，并读取响应中的 Access-Control-Allow-* 头。',
-      props: { Safe: true, Idempotent: true, 'Request body': false, Cacheable: false },
+      props: { safe: true, idempotent: true, body: false, cacheable: false },
       req: 'OPTIONS /api/books HTTP/1.1\nHost: api.example.com\nOrigin: https://app.example.com\nAccess-Control-Request-Method: DELETE',
     },
   };
+  const PROP_LABEL = { safe: '安全', idempotent: '幂等', body: '请求体', cacheable: '可缓存' };
   const STATUS = { 200: 'OK', 201: 'Created', 204: 'No Content', 404: 'Not Found' };
   const freshStore = () => [
     { id: 1, title: 'Dune', read: true },
@@ -924,7 +929,7 @@
     $('mName').style.color = cssVar(m.color);
     $('mDesc').textContent = m[level];
     $('mProps').innerHTML = Object.entries(m.props)
-      .map(([k, v]) => `<span class="prop ${v ? 'yes' : 'no'}">${v ? '✓' : '✗'} ${({ Safe: '安全', Idempotent: '幂等', 'Request body': '请求体', Cacheable: '可缓存' })[k]}</span>`).join('');
+      .map(([k, v]) => `<span class="prop ${v ? 'yes' : 'no'}">${v ? '✓' : '✗'} ${PROP_LABEL[k]}</span>`).join('');
     $('mMeta').innerHTML = `常见响应：<b>${m.typical}</b> &nbsp;·&nbsp; 规范：${m.spec}`;
     $('reqText').textContent = L(stripHeaders(m.req), m.req);
     if (lastRes && lastRes.m === method) renderResponse();
@@ -1057,7 +1062,7 @@
 
   function insightFor(m, r, count) {
     const p = METHODS[m].props;
-    if (!r.changed && p.Safe) return `服务器上什么都没变。${m} 是安全方法：它只读取。`;
+    if (!r.changed && p.safe) return `服务器上什么都没变。${m} 是安全方法：它只读取。`;
     if (count === 1 && r.changed) return '服务器的数据变了。再点一次“发送请求”，看看重复发送会不会带来更多变化。';
     if (r.changed) return m === 'POST'
       ? `你发送了 ${count} 次 POST，得到了 ${count} 条新的 “Neuromancer” 记录。POST 不是幂等的。`

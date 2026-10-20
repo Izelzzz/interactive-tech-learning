@@ -932,6 +932,8 @@ NoStarvation ==                   \* liveness
     });
   }
 
+  // space between the story sentence and the checker's reason (none in Chinese)
+  const STORY_SEP = ' ';
   function renderSpec() {
     const box = $('impls');
     box.innerHTML = '';
@@ -947,7 +949,7 @@ NoStarvation ==                   \* liveness
         ? (m.ok ? L('Correct, as it should be.', 'Satisfies every clause on all 121 inputs.') : L('Wrong, but the spec lets it through!', 'Wrong program, yet no clause is violated.'))
         : L(`Caught: ${fmtList(cx.a)} gives ${fmtList(cx.b)}, ${cx.clause.failB}.`, `Counterexample: ${fmtList(cx.a)} ↦ ${fmtList(cx.b)} (${cx.clause.fail}).`);
       div.innerHTML = `<span class="nm">${esc(m.name)}</span><span class="pill ${pass ? 'pass' : 'fail'}">${pass ? L('passes', 'meets spec') : L('fails', 'violates')}</span>
-        <code>${esc(m.code)}</code><span class="why">${esc(L(m.story + ' ', '') + why)}</span>`;
+        <code>${esc(m.code)}</code><span class="why">${esc(L(m.story + STORY_SEP, '') + why)}</span>`;
       box.appendChild(div);
     });
     const n = specSel.size;

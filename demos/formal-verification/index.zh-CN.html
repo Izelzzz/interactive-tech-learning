@@ -932,6 +932,8 @@ NoStarvation ==                   \* 活性
     });
   }
 
+  // space between the story sentence and the checker's reason (none in Chinese)
+  const STORY_SEP = '';
   function renderSpec() {
     const box = $('impls');
     box.innerHTML = '';
@@ -947,7 +949,7 @@ NoStarvation ==                   \* 活性
         ? (m.ok ? L('正确，理应如此。', '在全部 121 个输入上满足每一条子句。') : L('是错的，但规约放过了它！', '程序是错的，却没有违反任何子句。'))
         : L(`被抓到了：${fmtList(cx.a)} 得到 ${fmtList(cx.b)}，${cx.clause.failB}。`, `反例：${fmtList(cx.a)} ↦ ${fmtList(cx.b)}（${cx.clause.fail}）。`);
       div.innerHTML = `<span class="nm">${esc(m.name)}</span><span class="pill ${pass ? 'pass' : 'fail'}">${pass ? L('通过', '满足规约') : L('失败', '违反规约')}</span>
-        <code>${esc(m.code)}</code><span class="why">${esc(L(m.story, '') + why)}</span>`;
+        <code>${esc(m.code)}</code><span class="why">${esc(L(m.story + STORY_SEP, '') + why)}</span>`;
       box.appendChild(div);
     });
     const n = specSel.size;

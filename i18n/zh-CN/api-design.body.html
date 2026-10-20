@@ -1,0 +1,238 @@
+
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.zh-CN.html">← 课程</a> 设计好用的 API</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 单元</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="讲解深度">
+      <button data-level="beginner" aria-pressed="true">小白</button>
+      <button data-level="advanced" aria-pressed="false">进阶</button>
+    </div>
+    <a class="lang-switch" href="index.html" lang="en" hreflang="en">English</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">第 2 课</div>
+    <h1>如何设计一个让人用得舒服的 API</h1>
+    <p class="only-beginner">API 就是一个程序提供给另一个程序的“菜单”。好的菜单一看就懂，出错时说得清楚，长列表也能处理好，而且不会突然变样。在这一课里，你会动手修复设计糟糕的请求，并看到好的版本为什么更好用。</p>
+    <p class="only-advanced">API 设计关乎一份你要维护很多年的契约：资源建模、错误语义、在并发写入下依然可靠的分页，以及在不破坏已部署客户端的前提下演进契约。下面每个单元都需要动手操作。</p>
+    <nav class="units">
+      <a class="unit" href="#urls" id="unit-urls"><span class="tick">✓</span><small>第 1 单元</small><b>好好起名</b><small>修复 5 个端点</small></a>
+      <a class="unit" href="#status" id="unit-status"><span class="tick">✓</span><small>第 2 单元</small><b>说清楚</b><small>回答 5 个情境</small></a>
+      <a class="unit" href="#paging" id="unit-paging"><span class="tick">✓</span><small>第 3 单元</small><b>长列表</b><small>触发分页 bug</small></a>
+      <a class="unit" href="#compat" id="unit-compat"><span class="tick">✓</span><small>第 4 单元</small><b>安全地变更</b><small>给 6 个变更分类</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>第 5 单元</small><b>自我检测</b><small>完成测验</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="urls">
+    <div class="kicker">第 1 单元</div>
+    <h2>好好起名：API 诊所</h2>
+    <p class="lede only-beginner">下面每位“病人”都是一个设计糟糕的 API 请求，红色波浪线标出了问题所在。选出更健康的版本，看它被修好。</p>
+    <p class="lede only-advanced">每个案例都是真实世界里常见的设计坏味道，选出更好的契约。进阶模式额外增加两个难题，在这些情况下“纯 REST”并不是正确答案。</p>
+
+    <div class="doctor">
+      <div class="caselist" id="caselist"></div>
+      <div>
+        <div class="label" id="epLabel">修复前</div>
+        <div class="ep" id="ep"></div>
+        <div class="context" id="context"></div>
+        <div class="symptoms" id="symptoms"></div>
+        <div class="question">哪个版本更好？</div>
+        <div class="opts" id="caseOpts"></div>
+        <div class="feedback" id="caseFb"></div>
+        <div class="controls"><button class="btn primary" id="nextCase" style="display:none">下一位病人 →</button></div>
+      </div>
+    </div>
+
+    <div class="callout rules only-beginner">
+      <b>规则汇总</b>
+      <ul>
+        <li>URL 是<b>名词</b>：某个东西的地址（<code>/users/42</code>）。方法才是<b>动词</b>（GET、POST、DELETE…）。</li>
+        <li>列表用复数名：<code>/orders</code>、<code>/orders/17</code>。</li>
+        <li>GET 只能读取，绝不能修改任何东西。</li>
+        <li>用路径表示“属于”（<code>/users/42/orders</code>），用查询参数表示筛选（<code>?sort=price</code>）。</li>
+        <li>选定一种命名风格（小写），处处坚持。</li>
+      </ul>
+    </div>
+    <div class="callout rules only-advanced">
+      <b>设计检查清单</b>
+      <ul>
+        <li>围绕资源和集合建模，让 HTTP 方法承载语义（安全、幂等、可缓存）。</li>
+        <li>每个拥有唯一 ID 的资源都应有一个规范的顶层 URL。嵌套只用于列表（<code>/teams/12/members</code>）。</li>
+        <li>带副作用的状态转换可以做成显式动作：<code>POST /orders/42/cancel</code>，非法转换时返回 409。</li>
+        <li>可组合的查询参数：<code>filter</code>、<code>sort=-created_at</code>、<code>limit</code>、<code>cursor</code>。对未知参数返回 400。</li>
+        <li>契约先行（OpenAPI），并在 CI 里做 lint（例如 Spectral），让约定被强制执行，而不是靠记忆。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="status">
+    <div class="kicker">第 2 单元</div>
+    <h2>说清楚：状态码与错误</h2>
+    <p class="lede only-beginner">每个响应都以一个三位数的状态码开头。程序最先读取的就是它，所以它必须正确。光看第一位数字就能知道很多：</p>
+    <p class="lede only-advanced">客户端、重试、缓存、监控和告警都会根据状态码做判断。选择最具体、最正确的状态码，并返回机器可读的错误响应体（RFC 9457 问题详情）。</p>
+    <div class="families">
+      <span class="fam s2"><b>2xx</b> 成功了</span>
+      <span class="fam s4"><b>4xx</b> 客户端出错了</span>
+      <span class="fam s5"><b>5xx</b> 服务器出故障了</span>
+    </div>
+
+    <div class="scen-nav" id="scenNav"></div>
+    <div class="scenario" id="scenText"></div>
+    <div class="context" id="scenReq"></div>
+    <div class="codes" id="codes"></div>
+    <div class="feedback" id="scenFb"></div>
+
+    <div class="lane">
+      <div class="lane-end">客户端</div>
+      <div class="lane-track" id="track"></div>
+      <div class="lane-end">服务器</div>
+    </div>
+    <div class="codeblock"><div class="codeblock-head"><span>响应</span><button class="copy">复制</button></div><pre id="scenRes">（请选择一个状态码）</pre></div>
+    <div class="controls"><button class="btn primary" id="nextScen" style="display:none">下一个情境 →</button></div>
+
+    <h3 style="margin-top:28px">糟糕的错误 vs 好的错误</h3>
+    <div class="compare">
+      <div class="codeblock badc">
+        <div class="codeblock-head"><span>✗ 难以使用</span></div>
+        <pre>HTTP/1.1 200 OK
+
+{ "success": false, "msg": "Error" }</pre>
+        <ul class="only-beginner">
+          <li>写着 <b>200 OK</b>，所以程序以为成功了。</li>
+          <li>“Error” 既没说哪里错了，也没说怎么改。</li>
+        </ul>
+        <ul class="only-advanced">
+          <li>失败时返回 2xx，会让重试、缓存、指标和告警全部失效。</li>
+          <li>没有稳定的机器可读类型，客户端只能去解析字符串。</li>
+          <li>没有字段级别的细节，也没有供客服排查的关联 ID。</li>
+        </ul>
+      </div>
+      <div class="codeblock goodc">
+        <div class="codeblock-head"><span>✓ 好用</span></div>
+        <pre class="only-beginner">HTTP/1.1 400 Bad Request
+
+{
+  "error": "email is required",
+  "field": "email"
+}</pre>
+        <pre class="only-advanced">HTTP/1.1 422 Unprocessable Content
+Content-Type: application/problem+json
+
+{
+  "type": "https://api.example.com/problems/validation",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "1 field is invalid",
+  "errors": [{ "pointer": "/email", "detail": "is required" }],
+  "request_id": "req_7Hk2"
+}</pre>
+        <ul class="only-beginner">
+          <li>光看状态码，程序就知道失败了以及失败的原因。</li>
+          <li>错误信息准确指出要修改哪个字段。</li>
+        </ul>
+        <ul class="only-advanced">
+          <li>稳定的 <code>type</code> URI 让客户端可以按错误类型分支处理。</li>
+          <li>JSON pointer 把错误对应到表单字段；<code>request_id</code> 关联到你的日志。</li>
+          <li>绝不要在 <code>detail</code> 里泄露堆栈信息或 SQL。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="paging">
+    <div class="kicker">第 3 单元</div>
+    <h2>长列表：分页</h2>
+    <p class="lede only-beginner">一个信息流可能有几百万条帖子，所以 API 每次只发一小部分（一“页”）。请求下一页有两种常见方式。看看在你滚动浏览时来了一条新帖子会发生什么。</p>
+    <p class="lede only-advanced">在按最新优先排序、且两次翻页之间有写入的信息流上，对比 offset 分页和游标（keyset）分页。点击<b>播放经典 bug</b>，或者自己动手操作。</p>
+
+    <div class="callout only-beginner" style="margin-bottom:14px">
+      <b>页码（offset）</b>的意思是“跳过前 6 条，给我接下来的 3 条”。<b>游标（cursor）</b>就像书签：“给我 #7 之后的 3 条”。服务器数据上的彩色箭头标出了每种方式的下一页从哪里开始。
+    </div>
+    <div class="callout only-advanced" style="margin-bottom:14px">
+      <b>Offset</b>：<code>LIMIT 3 OFFSET 6</code>。数据库要扫描并丢弃 6 行（O(offset)），而且只要上方有行被插入或删除，窗口就会移位。<br>
+      <b>游标 / keyset</b>：<code>WHERE (created_at, id) &lt; (:ts, :id) ORDER BY created_at DESC, id DESC LIMIT 3</code>。它利用索引，在写入时依然稳定。游标对外应保持不透明，例如用 base64 编码。
+    </div>
+
+    <div class="server">
+      <div class="server-head">
+        <div class="label">服务器数据 · 最新优先</div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+
+    <div class="pg-cols">
+      <div class="pg-col off">
+        <h3><i></i><span class="only-beginner">页码（offset）</span><span class="only-advanced">Offset 分页</span></h3>
+        <code class="pg-req" id="offReq"></code>
+        <div class="label">你已收到</div>
+        <div class="feed" id="offFeed"></div>
+        <div class="stats" id="offStats"></div>
+      </div>
+      <div class="pg-col cur">
+        <h3><i></i><span class="only-beginner">书签（cursor）</span><span class="only-advanced">游标分页</span></h3>
+        <code class="pg-req" id="curReq"></code>
+        <div class="label">你已收到</div>
+        <div class="feed" id="curFeed"></div>
+        <div class="stats" id="curStats"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="pgNext">加载下一页</button>
+      <button class="btn" id="pgAdd">+ 来了一条新帖子</button>
+      <button class="btn" id="pgDel">− 删除一条你看过的帖子</button>
+      <button class="btn" id="pgPlay">▶ 播放经典 bug</button>
+      <button class="btn" id="pgReset">重置</button>
+    </div>
+    <div class="insight" id="pgInsight"></div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="compat">
+    <div class="kicker">第 4 单元</div>
+    <h2>安全地变更：是否破坏兼容？</h2>
+    <p class="lede only-beginner">一旦有应用在用你的 API，你就不能随便改了，因为它们的代码依赖旧的结构。判断每个变更是可以放心上线，还是会弄坏已有的应用。</p>
+    <p class="lede only-advanced">假设客户端已经部署，而且你无法强制它们升级。基于这一前提给每个变更分类。进阶模式会加入那些真正引发线上事故的微妙情况。</p>
+
+    <div class="sorter">
+      <div class="bin safe"><h3>✓ 可以放心上线</h3><ul id="binSafe"></ul></div>
+      <div class="change-card" id="changeCard"></div>
+      <div class="bin breaking"><h3>⚠ 破坏性变更</h3><ul id="binBreak"></ul></div>
+    </div>
+    <div class="feedback" id="changeFb"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>黄金法则：</b>你可以<b>新增</b>东西，但不要<b>改名、删除或修改</b>它们。如果确实必须修改，让旧版本继续工作一段时间，提前通知大家，之后再删除。
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>演进契约</b>
+      <ul>
+        <li><b>先扩展，再收缩：</b>新增新字段，迁移客户端，在发出 <code>Deprecation</code> 头并给出 <code>Sunset</code> 日期（RFC 8594）之后，再删除旧字段。</li>
+        <li><b>版本管理：</b>URL 前缀（<code>/v2</code>）简单直观；基于请求头或日期的版本（<code>API-Version: 2026-10-01</code>）允许按端点做更细粒度的变更。</li>
+        <li><b>宽容读取者：</b>要求客户端忽略未知字段、处理未知枚举值。这样“新增”才真正安全。</li>
+        <li>在 CI 中运行契约测试（消费者驱动，例如 Pact）或 OpenAPI diff，在发布前发现破坏性变更。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">第 5 单元</div>
+    <h2>自我检测</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../http-basics/index.zh-CN.html">一步步看懂 HTTP</a>。下一课：<a href="../sql/index.zh-CN.html">动手学 SQL</a>。</footer>
+</main>
+

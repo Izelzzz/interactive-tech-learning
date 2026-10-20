@@ -1075,9 +1075,13 @@ Content-Type: application/problem+json
   }
 
   async function delPost() {
-    const seenByBoth = posts.find(id => off.received.includes(id));
-    const victim = seenByBoth ?? posts[0];
-    if (victim === undefined) return;
+    // only delete a post the reader has actually seen, or the lesson's claim below is false
+    const victim = posts.find(id => off.received.includes(id));
+    if (victim === undefined) {
+      pgSay(L('Load a page first, so there is a post you have already seen.',
+              'Load at least one page first: the delete must hit a row inside the already-delivered range.'));
+      return;
+    }
     renderPaging(victim);
     await sleep(450);
     posts = posts.filter(id => id !== victim);

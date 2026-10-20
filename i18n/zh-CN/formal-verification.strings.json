@@ -1,0 +1,909 @@
+{
+ "title": "形式化验证",
+ "strings": [
+  [
+   "\"Peterson's algorithm\"",
+   "\"Peterson 算法\""
+  ],
+  [
+   "'\"Every request eventually gets a response\" is…'",
+   "'“每个请求最终都会得到响应”是……'"
+  ],
+  [
+   "'+128 does not fit in 8 bits, so it wraps around'",
+   "'8 位装不下 +128，于是发生了回绕'"
+  ],
+  [
+   "'// promise: s == a[0] + a[1] + … + a[n-1]\\ni = 0\\ns = 0\\nwhile i < n:\\n  // invariant: '",
+   "'// 承诺：s == a[0] + a[1] + … + a[n-1]\\ni = 0\\ns = 0\\nwhile i < n:\\n  // 不变式：'"
+  ],
+  [
+   "'// shared: flag[0] = flag[1] = false, turn = 0\\nloop forever:\\n  idle: flag[me] = true\\n  turn: turn = other\\n  wait: wait until flag[other] == false\\n             or turn == me\\n  crit: critical section\\n        flag[me] = false'",
+   "'// shared: flag[0] = flag[1] = false, turn = 0\\nloop forever:\\n  idle: flag[me] = true\\n  turn: turn = other\\n  wait: wait until flag[other] == false\\n             or turn == me\\n  crit: // 临界区\\n        flag[me] = false'"
+  ],
+  [
+   "'// shared: flag[0] = flag[1] = false\\nloop forever:\\n  idle:  do other work, then want to enter\\n  check: wait until flag[other] == false\\n  raise: flag[me] = true\\n  crit:  use the printer (critical section)\\n         flag[me] = false'",
+   "'// shared: flag[0] = flag[1] = false\\nloop forever:\\n  idle:  // 做别的事，然后想进入\\n  check: wait until flag[other] == false\\n  raise: flag[me] = true\\n  crit:  // 使用打印机（临界区）\\n         flag[me] = false'"
+  ],
+  [
+   "'// shared: flag[0] = flag[1] = false\\nloop forever:\\n  idle: flag[me] = true\\n  wait: wait until flag[other] == false\\n  crit: critical section\\n        flag[me] = false'",
+   "'// shared: flag[0] = flag[1] = false\\nloop forever:\\n  idle: flag[me] = true\\n  wait: wait until flag[other] == false\\n  crit: // 临界区\\n        flag[me] = false'"
+  ],
+  [
+   "'2¹²⁸ ≈ 3.4 × 10³⁸ inputs. 585 years is the figure for a single 64-bit input.'",
+   "'2¹²⁸ ≈ 3.4 × 10³⁸ 个输入。585 年是单个 64 位输入的数字。'"
+  ],
+  [
+   "'8-bit numbers go from -128 to 127. The result of -(-128) wraps back to -128.'",
+   "'8 位整数的范围是 -128 到 127。-(-128) 的结果会回绕成 -128。'"
+  ],
+  [
+   "'A \"sort\" that always returns an empty list passes the spec \"the output is sorted\". What is wrong?'",
+   "'一个总是返回空列表的“排序”通过了规约“输出是有序的”。问题出在哪里？'"
+  ],
+  [
+   "'A comment at the end of the file'",
+   "'文件末尾的一段注释'"
+  ],
+  [
+   "'A fact that is true each time the loop checks its condition'",
+   "'每次循环检查条件时都成立的一个事实'"
+  ],
+  [
+   "'A few hours'",
+   "'几个小时'"
+  ],
+  [
+   "'A few seconds with a GPU'",
+   "'用 GPU 几秒钟'"
+  ],
+  [
+   "'A function passes 100 random tests. What do you actually know?'",
+   "'一个函数通过了 100 个随机测试。你真正知道的是什么？'"
+  ],
+  [
+   "'A liveness property'",
+   "'活性性质'"
+  ],
+  [
+   "'A loop invariant is…'",
+   "'循环不变式是……'"
+  ],
+  [
+   "'A proof is relative to its spec and assumptions. It rules out whole classes of bugs, not every possible problem.'",
+   "'证明总是相对于它的规约和假设而言的。它排除了整类 bug，而不是所有可能的问题。'"
+  ],
+  [
+   "'A safety property'",
+   "'安全性质'"
+  ],
+  [
+   "'A test that runs after deployment'",
+   "'部署之后运行的测试'"
+  ],
+  [
+   "'A variable that never changes'",
+   "'一个永远不变的变量'"
+  ],
+  [
+   "'About 10²² years'",
+   "'大约 10²² 年'"
+  ],
+  [
+   "'About 585 years'",
+   "'大约 585 年'"
+  ],
+  [
+   "'Actually sorts the list.'",
+   "'真的把列表排好序。'"
+  ],
+  [
+   "'Always returns an empty list.'",
+   "'总是返回空列表。'"
+  ],
+  [
+   "'An invariant'",
+   "'不变式'"
+  ],
+  [
+   "'Because Dafny cannot do multiplication'",
+   "'因为 Dafny 不会做乘法'"
+  ],
+  [
+   "'Because it explores every state, it finds rare interleavings that tests almost never hit.'",
+   "'因为它会探索每一个状态，所以能找到测试几乎碰不到的罕见交错执行。'"
+  ],
+  [
+   "'Because q is negative'",
+   "'因为 q 是负数'"
+  ],
+  [
+   "'Because the loop does not terminate'",
+   "'因为循环不终止'"
+  ],
+  [
+   "'Bounded: I ∧ B ⇒ V ≥ 0'",
+   "'有下界：I ∧ B ⇒ V ≥ 0'"
+  ],
+  [
+   "'Checks the code style'",
+   "'检查代码风格'"
+  ],
+  [
+   "'Choose the loop invariant'",
+   "'选择循环不变式'"
+  ],
+  [
+   "'Computers cannot store -128'",
+   "'计算机无法存储 -128'"
+  ],
+  [
+   "'Copied'",
+   "'已复制'"
+  ],
+  [
+   "'Copy failed'",
+   "'复制失败'"
+  ],
+  [
+   "'Copy'",
+   "'复制'"
+  ],
+  [
+   "'Copycat'",
+   "'照抄'"
+  ],
+  [
+   "'Correct, as it should be.'",
+   "'正确，理应如此。'"
+  ],
+  [
+   "'Counterexample trace (deadlock)'",
+   "'反例轨迹（死锁）'"
+  ],
+  [
+   "'Counterexample trace (safety violation)'",
+   "'反例轨迹（违反安全性）'"
+  ],
+  [
+   "'Decreases: V after the body < V before'",
+   "'递减：执行循环体后的 V < 执行前的 V'"
+  ],
+  [
+   "'Dedup sort'",
+   "'去重排序'"
+  ],
+  [
+   "'Each iteration keeps it true'",
+   "'每次迭代都保持它成立'"
+  ],
+  [
+   "'Each obligation is checked over all states in the bounded domain. A ✗ comes with a concrete counterexample state.'",
+   "'每条证明义务都在有界域内的所有状态上检查。✗ 会附带一个具体的反例状态。'"
+  ],
+  [
+   "'Each pixel is one input: -32768 at the top left, 32767 at the bottom right.'",
+   "'每个像素是一个输入：左上角是 -32768，右下角是 32767。'"
+  ],
+  [
+   "'Each square is one input: -128 at the top left, 127 at the bottom right.'",
+   "'每个方格是一个输入：左上角是 -128，右下角是 127。'"
+  ],
+  [
+   "'Empty lists are not sorted'",
+   "'空列表不算有序'"
+  ],
+  [
+   "'Every program running on it is secure'",
+   "'在它上面运行的每个程序都是安全的'"
+  ],
+  [
+   "'Exhaustively testing f(x, y) for two 64-bit integers at 10⁹ checks per second takes about…'",
+   "'以每秒 10⁹ 次检查的速度，穷举测试两个 64 位整数参数的 f(x, y) 大约需要……'"
+  ],
+  [
+   "'Exit: I ∧ ¬B ⇒ Q'",
+   "'退出：I ∧ ¬B ⇒ Q'"
+  ],
+  [
+   "'Explore all reachable states'",
+   "'探索所有可达状态'"
+  ],
+  [
+   "'Fix the code or the spec where it fails'",
+   "'在失败的地方修改代码或规约'"
+  ],
+  [
+   "'Flag plus a tie-breaking turn variable. The last process to write turn is the one that waits.'",
+   "'旗子加上一个打破平局的 turn 变量。最后写 turn 的那个进程负责等待。'"
+  ],
+  [
+   "'Flags first'",
+   "'先举旗'"
+  ],
+  [
+   "'From q = 0, r = 1, n = 0, d = 1 the invariant holds and the guard is true, but one step breaks it. A useful invariant must be inductive.'",
+   "'从 q = 0, r = 1, n = 0, d = 1 出发，不变式成立、守卫为真，但走一步就被打破了。有用的不变式必须是归纳的。'"
+  ],
+  [
+   "'Grid of all 256 inputs, from -128 at the top left to 127 at the bottom right'",
+   "'全部 256 个输入的网格：左上角是 -128，右下角是 127'"
+  ],
+  [
+   "'Grid of all 65,536 inputs, from -32768 at the top left to 32767 at the bottom right'",
+   "'全部 65,536 个输入的网格：左上角是 -32768，右下角是 32767'"
+  ],
+  [
+   "'How does an SMT solver find the abs(INT_MIN) bug?'",
+   "'SMT 求解器是怎么找到 abs(INT_MIN) 这个 bug 的？'"
+  ],
+  [
+   "'How it goes wrong, step by step'",
+   "'一步一步看它怎么出错'"
+  ],
+  [
+   "'Init: pc = (idle, idle), flag = (false, false).'",
+   "'初始：pc = (idle, idle)，flag = (false, false)。'"
+  ],
+  [
+   "'Initiation: {P} init {I}'",
+   "'初始化：{P} init {I}'"
+  ],
+  [
+   "'Inspect the counterexample trace'",
+   "'查看反例轨迹'"
+  ],
+  [
+   "'Integer division'",
+   "'整数除法'"
+  ],
+  [
+   "'Invariant re-established after the body. Preservation must hold from every state satisfying I ∧ B, not only this one.'",
+   "'循环体执行后不变式重新成立。保持性必须对每个满足 I ∧ B 的状态都成立，而不只是这一个。'"
+  ],
+  [
+   "'It compiles the code with sanitizers'",
+   "'它用 sanitizer 编译代码'"
+  ],
+  [
+   "'It encodes \"abs(x) < 0\" as a bit-vector formula and finds a satisfying assignment'",
+   "'它把“abs(x) < 0”编码成位向量公式，并找到一个满足它的赋值'"
+  ],
+  [
+   "'It has no bugs left'",
+   "'它已经没有 bug 了'"
+  ],
+  [
+   "'It is correct for every input'",
+   "'它对每个输入都正确'"
+  ],
+  [
+   "'It is established and preserved, but at exit it allows r < 0, so it does not imply 0 <= r < d.'",
+   "'它能被建立，也能被保持，但在退出时允许 r < 0，所以推不出 0 <= r < d。'"
+  ],
+  [
+   "'It is true at the start and stays true after every iteration. With the exit condition, it gives the result.'",
+   "'它一开始就成立，并且在每次迭代后仍然成立。再加上退出条件，就能得到结果。'"
+  ],
+  [
+   "'It reads the comments in the code'",
+   "'它阅读代码里的注释'"
+  ],
+  [
+   "'It runs abs on random inputs very fast'",
+   "'它飞快地用随机输入运行 abs'"
+  ],
+  [
+   "'It runs faster than other kernels'",
+   "'它比其他内核跑得更快'"
+  ],
+  [
+   "'It will pass the next 100 tests'",
+   "'它会通过接下来的 100 个测试'"
+  ],
+  [
+   "'It works for those 100 inputs'",
+   "'它对这 100 个输入是对的'"
+  ],
+  [
+   "'Its C code implements its abstract spec, under stated assumptions such as correct hardware'",
+   "'在明确的假设（例如硬件正确）下，它的 C 代码实现了它的抽象规约'"
+  ],
+  [
+   "'Lazy sort'",
+   "'偷懒排序'"
+  ],
+  [
+   "'Liveness: something good eventually happens. Its counterexamples are infinite runs (lassos), and checking it needs fairness.'",
+   "'活性：好事最终会发生。它的反例是无限长的运行（套索形），检查它需要公平性假设。'"
+  ],
+  [
+   "'Look first, then raise your flag. It sounds reasonable.'",
+   "'先看一眼，再举起自己的旗子。听起来挺合理。'"
+  ],
+  [
+   "'Model the system as states and transitions'",
+   "'把系统建模为状态和迁移'"
+  ],
+  [
+   "'Model, property, search, then read the trace. Fix the design or the model and repeat.'",
+   "'先建模，再写性质，然后搜索，最后读轨迹。修改设计或模型，然后重复。'"
+  ],
+  [
+   "'Naive flags'",
+   "'朴素标志'"
+  ],
+  [
+   "'Negative numbers are not allowed'",
+   "'不允许负数'"
+  ],
+  [
+   "'None, it is fine'",
+   "'都没违反，它没问题'"
+  ],
+  [
+   "'Nothing, it is a valid sort'",
+   "'没问题，它是合法的排序'"
+  ],
+  [
+   "'Only the correct implementation survives. sorted ∧ multiset(b) == multiset(a) is the complete spec; |b| == |a| and set equality are implied by it.'",
+   "'只有正确的实现留了下来。sorted ∧ multiset(b) == multiset(a) 是完整的规约；|b| == |a| 和集合相等都可以由它推出。'"
+  ],
+  [
+   "'Only the real sort passes. Sorted plus same numbers is a full spec for sorting. Notice that \"same length\" adds nothing once you require the same numbers.'",
+   "'只有真排序通过了。“有序”加上“数相同”就是排序的完整规约。注意：一旦要求数相同，“长度相同”就是多余的。'"
+  ],
+  [
+   "'Padder'",
+   "'补齐'"
+  ],
+  [
+   "'Preconditions describe what the caller must provide. Postconditions describe what the code promises back.'",
+   "'前置条件描述调用者必须提供什么，后置条件描述代码承诺返回什么。'"
+  ],
+  [
+   "'Preservation is checked from every state satisfying I ∧ B, and I is too weak to carry itself'",
+   "'保持性要从每个满足 I ∧ B 的状态出发检查，而 I 太弱，无法让自己保持下去'"
+  ],
+  [
+   "'Preservation: {I ∧ B} body {I}'",
+   "'保持性：{I ∧ B} body {I}'"
+  ],
+  [
+   "'Press \"Explore every state\" to run the BFS. Nodes appear in discovery order; columns are BFS depth.'",
+   "'点“探索每一个状态”运行广度优先搜索（BFS）。节点按发现顺序出现，每一列是一层 BFS 深度。'"
+  ],
+  [
+   "'Press \"Explore every state\". Each box will be one possible situation of the two programs.'",
+   "'点“探索每一个状态”。每个方框都是两个程序可能处于的一种情况。'"
+  ],
+  [
+   "'Press \"Run one iteration\". Watch the last column: the invariant is true every time the loop checks its condition.'",
+   "'点“运行一次迭代”。注意最后一列：每次循环检查条件时，不变式都成立。'"
+  ],
+  [
+   "'Proves the spec is what you wanted'",
+   "'证明规约就是你想要的'"
+  ],
+  [
+   "'Put the model checking workflow in order.'",
+   "'把模型检测的工作流程按顺序排好。'"
+  ],
+  [
+   "'Put the steps of verifying a function in order.'",
+   "'把验证一个函数的步骤按顺序排好。'"
+  ],
+  [
+   "'Raise the flag first, then wait. This fixes the race, but both can end up waiting for each other.'",
+   "'先举旗，再等待。这修复了竞态，但两个进程可能互相等下去。'"
+  ],
+  [
+   "'Raise your flag, then politely give the other program the turn. Wait only if it wants in and it is its turn.'",
+   "'举起旗子，然后礼貌地把轮次让给另一个程序。只有当对方也想进入、而且轮到对方时，才等待。'"
+  ],
+  [
+   "'Reachable state graph'",
+   "'可达状态图'"
+  ],
+  [
+   "'Real sort'",
+   "'真排序'"
+  ],
+  [
+   "'Replaces every number with the smallest one.'",
+   "'把每个数都换成最小的那个。'"
+  ],
+  [
+   "'Returns the input unchanged.'",
+   "'原样返回输入。'"
+  ],
+  [
+   "'Run the verifier'",
+   "'运行验证器'"
+  ],
+  [
+   "'Runs the program a few times with random timing'",
+   "'用随机的时序把程序跑几遍'"
+  ],
+  [
+   "'Satisfies every clause on all 121 inputs.'",
+   "'在全部 121 个输入上满足每一条子句。'"
+  ],
+  [
+   "'Smudger'",
+   "'抹平'"
+  ],
+  [
+   "'Sorts, drops duplicates, then pads with the last value back to the original length.'",
+   "'先排序、去重，再用最后一个值补齐到原来的长度。'"
+  ],
+  [
+   "'Sorts, then drops duplicates.'",
+   "'先排序，再去掉重复的数。'"
+  ],
+  [
+   "'Spec first, then code, then check, then fix. Repeat until the verifier agrees, and keep reviewing the spec itself.'",
+   "'先写规约，再写代码，然后检查，再修复。重复直到验证器通过，同时也要不断审视规约本身。'"
+  ],
+  [
+   "'Start with 100 random tests, the way a typical unit or fuzz test would.'",
+   "'先跑 100 个随机测试，就像普通的单元测试或模糊测试那样。'"
+  ],
+  [
+   "'Start with the random tests. That is what most test suites do.'",
+   "'先跑随机测试。大多数测试套件就是这么做的。'"
+  ],
+  [
+   "'Start: both programs idle, both flags false.'",
+   "'开始：两个程序都空闲，两面旗子都是 false。'"
+  ],
+  [
+   "'State graph'",
+   "'状态图'"
+  ],
+  [
+   "'State the property, e.g. mutual exclusion'",
+   "'写出要检查的性质，例如互斥'"
+  ],
+  [
+   "'Step the loop. The invariant n == q * d + r && 0 <= r holds at every check of the guard, and the variant r strictly decreases.'",
+   "'单步执行循环。每次检查守卫条件时，不变式 n == q * d + r && 0 <= r 都成立，变式 r 严格递减。'"
+  ],
+  [
+   "'Still true. One step kept the invariant true, which is what the second question asks for every possible state, not just this one.'",
+   "'仍然成立。这一步保持了不变式，而第二个问题要求的是：对每一个可能的状态都如此，而不只是这一个。'"
+  ],
+  [
+   "'Sum of a list'",
+   "'列表求和'"
+  ],
+  [
+   "'Test-then-set without atomicity: the check and the write are separate steps.'",
+   "'先检查再设置，但不是原子操作：检查和写入是两个独立的步骤。'"
+  ],
+  [
+   "'Tests show the presence of bugs, never their absence. Inputs you did not try are still unknown.'",
+   "'测试能证明 bug 存在，却永远不能证明 bug 不存在。没试过的输入仍然是未知的。'"
+  ],
+  [
+   "'The checker asks the three questions below for every small list (up to 3 numbers from −2 to 2) and every value of i and s.'",
+   "'检查器会对每一个小列表（最多 3 个数，取值 −2 到 2）以及 i 和 s 的每个取值，问下面这三个问题。'"
+  ],
+  [
+   "'The checker is broken'",
+   "'检查器坏了'"
+  ],
+  [
+   "'The condition that ends the loop'",
+   "'让循环结束的条件'"
+  ],
+  [
+   "'The empty spec is \"true\": every implementation satisfies it.'",
+   "'空规约就是“true”：每个实现都满足它。'"
+  ],
+  [
+   "'The function has a typo'",
+   "'函数里有拼写错误'"
+  ],
+  [
+   "'The invariant n == q * d + r (without 0 <= r) fails which obligation for Div?'",
+   "'对 Div 来说，不变式 n == q * d + r（不带 0 <= r）违反了哪条证明义务？'"
+  ],
+  [
+   "'The kernel has no bugs of any kind'",
+   "'内核没有任何种类的 bug'"
+  ],
+  [
+   "'The number of times the loop runs'",
+   "'循环执行的次数'"
+  ],
+  [
+   "'The padder keeps length, order and the set of values. Only the multiset clause sees the changed counts.'",
+   "'补齐程序保持了长度、顺序和值的集合。只有多重集子句能发现次数变了。'"
+  ],
+  [
+   "'The real sort fails? That should not happen.'",
+   "'真排序失败了？这不应该发生。'"
+  ],
+  [
+   "'The spec is too weak'",
+   "'规约太弱了'"
+  ],
+  [
+   "'The spec must also say the output contains the same numbers as the input. Otherwise wrong programs satisfy it.'",
+   "'规约还必须说明输出包含的数和输入相同。否则错误的程序也能满足它。'"
+  ],
+  [
+   "'True at the start'",
+   "'一开始就成立'"
+  ],
+  [
+   "'True, but only because this invariant can never hold when the loop stops.'",
+   "'成立，但只是因为循环停下时这个不变式根本不可能成立。'"
+  ],
+  [
+   "'True, but only because this invariant can never hold while the loop keeps going.'",
+   "'成立，但只是因为循环继续执行时这个不变式根本不可能成立。'"
+  ],
+  [
+   "'Vacuous: no state satisfies I ∧ B.'",
+   "'空真：没有状态满足 I ∧ B。'"
+  ],
+  [
+   "'Vacuous: no state satisfies I ∧ ¬B.'",
+   "'空真：没有状态满足 I ∧ ¬B。'"
+  ],
+  [
+   "'Visits every reachable state of a model and checks a property in each'",
+   "'访问模型的每一个可达状态，并在每个状态上检查性质'"
+  ],
+  [
+   "'What does a model checker do?'",
+   "'模型检测器做什么？'"
+  ],
+  [
+   "'What does the seL4 proof guarantee?'",
+   "'seL4 的证明保证了什么？'"
+  ],
+  [
+   "'What is a postcondition?'",
+   "'什么是后置条件？'"
+  ],
+  [
+   "'What must be true before the code runs'",
+   "'代码运行之前必须成立的事情'"
+  ],
+  [
+   "'What the code promises is true when it finishes'",
+   "'代码承诺在结束时成立的事情'"
+  ],
+  [
+   "'When the loop stops, it gives the promised answer'",
+   "'循环停下时，能得出承诺的结果'"
+  ],
+  [
+   "'Which clause rules out \"sort, dedupe, then pad with the last value\"?'",
+   "'哪条子句能排除“排序、去重、再用最后一个值补齐”？'"
+  ],
+  [
+   "'Which invariant proves it?'",
+   "'哪个不变式能证明它？'"
+  ],
+  [
+   "'Why does \"q * d <= n\" fail preservation even though it is true on every real run?'",
+   "'为什么“q * d <= n”在每次真实运行中都成立，却不满足保持性？'"
+  ],
+  [
+   "'Why does abs(-128) return -128 for 8-bit numbers?'",
+   "'为什么对 8 位整数来说 abs(-128) 返回 -128？'"
+  ],
+  [
+   "'With no rules at all, every program \"passes\". An empty spec promises nothing.'",
+   "'一条规则都没有时，每个程序都“通过”。空规约什么也没承诺。'"
+  ],
+  [
+   "'Write down what the code must do (the spec)'",
+   "'写下代码必须做什么（规约）'"
+  ],
+  [
+   "'Write the code'",
+   "'编写代码'"
+  ],
+  [
+   "'Wrong program, yet no clause is violated.'",
+   "'程序是错的，却没有违反任何子句。'"
+  ],
+  [
+   "'Wrong, but the spec lets it through!'",
+   "'是错的，但规约放过了它！'"
+  ],
+  [
+   "'b is sorted'",
+   "'b 是有序的'"
+  ],
+  [
+   "'be a permutation (same multiset)'",
+   "'是输入的一个排列（多重集相同）'"
+  ],
+  [
+   "'be sorted (each number ≤ the next)'",
+   "'有序（每个数 ≤ 下一个数）'"
+  ],
+  [
+   "'be sorted'",
+   "'有序'"
+  ],
+  [
+   "'contain the same numbers, each the same number of times'",
+   "'包含相同的数，而且每个数出现的次数也相同'"
+  ],
+  [
+   "'contain the same values (as a set)'",
+   "'包含相同的值（作为集合）'"
+  ],
+  [
+   "'different length'",
+   "'长度不同'"
+  ],
+  [
+   "'different set of values'",
+   "'值的集合不同'"
+  ],
+  [
+   "'have the same length as the input'",
+   "'和输入一样长'"
+  ],
+  [
+   "'have the same length'",
+   "'长度相同'"
+  ],
+  [
+   "'i is smaller than n'",
+   "'i 小于 n'"
+  ],
+  [
+   "'not a permutation of the input'",
+   "'不是输入的排列'"
+  ],
+  [
+   "'not sorted'",
+   "'不是有序的'"
+  ],
+  [
+   "'s is never negative'",
+   "'s 永远不是负数'"
+  ],
+  [
+   "'s is the sum of the first i + 1 numbers'",
+   "'s 是前 i + 1 个数之和'"
+  ],
+  [
+   "'s is the sum of the first i numbers, and i never goes past n'",
+   "'s 是前 i 个数之和，并且 i 永远不超过 n'"
+  ],
+  [
+   "'sat gives a model, which is a counterexample. unsat means no input violates the property.'",
+   "'sat 会给出一个模型，也就是反例。unsat 表示没有任何输入违反该性质。'"
+  ],
+  [
+   "'which does not have the same numbers'",
+   "'它包含的数和输入不一样'"
+  ],
+  [
+   "'which has a different length'",
+   "'长度和输入不同'"
+  ],
+  [
+   "'which is not sorted'",
+   "'它不是有序的'"
+  ],
+  [
+   "`${N} reachable states, ${E} transitions, all checked. Mutual exclusion holds in every reachable state and there is no deadlock. For this finite model that is a proof, not a sample.`",
+   "`${N} 个可达状态，${E} 条迁移，全部检查完毕。互斥性在每个可达状态中都成立，也没有死锁。对这个有限模型来说，这是证明，不是抽样。`"
+  ],
+  [
+   "`${N} reachable states, ${E} transitions. Mutual exclusion holds in every state, but ${dead} state has no outgoing transition: a deadlock. Step through it.`",
+   "`${N} 个可达状态，${E} 条迁移。互斥性在每个状态都成立，但有 ${dead} 个状态没有任何出边：这是死锁。一步一步看看。`"
+  ],
+  [
+   "`${N} reachable states, ${E} transitions. Mutual exclusion is violated in ${bad} state. BFS gives a shortest counterexample: ${g.nodes[target].depth} steps.`",
+   "`${N} 个可达状态，${E} 条迁移。互斥性在 ${bad} 个状态中被违反。BFS 给出最短反例：${g.nodes[target].depth} 步。`"
+  ],
+  [
+   "`${n} / 5 units`",
+   "`${n} / 5 单元`"
+  ],
+  [
+   "`${s}  (should be: ${item.items[i]})`",
+   "`${s}（应为：${item.items[i]}）`"
+  ],
+  [
+   "`${wrongPass} incorrect ${wrongPass === 1 ? 'implementation satisfies' : 'implementations satisfy'} this spec. Strengthen it.`",
+   "`有 ${wrongPass} 个错误实现满足这个规约。请加强它。`"
+  ],
+  [
+   "`${wrongPass} wrong ${wrongPass === 1 ? 'program passes' : 'programs pass'} (orange). Your spec is too weak. Which rule would catch ${wrongPass === 1 ? 'it' : 'them'}?`",
+   "`有 ${wrongPass} 个错误程序通过了（橙色）。你的规约太弱了。哪条规则能抓住${wrongPass === 1 ? '它' : '它们'}？`"
+  ],
+  [
+   "`100/100 passed, covering ${(100 / u1.size * 100).toFixed(2)}% of the input space at most. The chance that 100 uniform random tests miss a single bad input is (1 - 1/65536)^100 ≈ ${miss}%.`",
+   "`100/100 通过，最多只覆盖了输入空间的 ${(100 / u1.size * 100).toFixed(2)}%。100 个均匀随机测试错过唯一一个坏输入的概率是 (1 - 1/65536)^100 ≈ ${miss}%。`"
+  ],
+  [
+   "`<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`",
+   "`<b>${ok ? '正确。' : '不太对。'}</b> ${esc(why)}`"
+  ],
+  [
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">Clear</button><button class=\"btn primary\" id=\"oCheck\" disabled>Check order</button></div>`",
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">清空</button><button class=\"btn primary\" id=\"oCheck\" disabled>检查顺序</button></div>`"
+  ],
+  [
+   "`<div class=\"divbar\" aria-hidden=\"true\">${bar}</div><div style=\"font-size:.8rem;color:var(--muted)\">n = 17 units: ${st.q} full chunk${st.q === 1 ? '' : 's'} of d = 5, remainder r = ${st.r}</div>`",
+   "`<div class=\"divbar\" aria-hidden=\"true\">${bar}</div><div style=\"font-size:.8rem;color:var(--muted)\">n = 17 个单位：${st.q} 块大小为 d = 5 的整块，余数 r = ${st.r}</div>`"
+  ],
+  [
+   "`<div class=\"proc\">${p.turn ? `turn = <b>${s.turn}</b>` : 'no turn variable'}<div class=\"loc\">${L(`step ${trStep} of ${path.length - 1}`, `step ${trStep} / ${path.length - 1}`)}</div></div>`",
+   "`<div class=\"proc\">${p.turn ? `turn = <b>${s.turn}</b>` : '没有 turn 变量'}<div class=\"loc\">${L(`第 ${trStep} / ${path.length - 1} 步`, `第 ${trStep} / ${path.length - 1} 步`)}</div></div>`"
+  ],
+  [
+   "`<div class=\"quiz-meta\"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`",
+   "`<div class=\"quiz-meta\"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`"
+  ],
+  [
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? 'Perfect. Proven, not just tested.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay the units, then try again.'}</p>\n        <button class=\"btn primary\" id=\"retry\">Try again</button></div>`",
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? '满分。这是证明出来的，不只是测出来的。' : pct >= 70 ? '做得不错。复习一下答错的题，再试一次。' : '开了个好头。重新玩一遍各单元，然后再试一次。'}</p>\n        <button class=\"btn primary\" id=\"retry\">再试一次</button></div>`"
+  ],
+  [
+   "`<li class=\"badstep\">${esc(cur.bad ? L('Both programs are in the critical section. The rule is broken.', 'Invariant violated: pc[0] = crit ∧ pc[1] = crit.') : 'Deadlock: both processes wait for a flag that will never be lowered.')}</li>`",
+   "`<li class=\"badstep\">${esc(cur.bad ? L('两个程序同时在临界区。规则被打破了。', '不变式被违反：pc[0] = crit ∧ pc[1] = crit。') : '死锁：两个进程都在等一面永远不会放下的旗子。')}</li>`"
+  ],
+  [
+   "`<span class=\"nm\">${esc(m.name)}</span><span class=\"pill ${pass ? 'pass' : 'fail'}\">${pass ? L('passes', 'meets spec') : L('fails', 'violates')}</span>\n        <code>${esc(m.code)}</code><span class=\"why\">${esc(L(m.story + STORY_SEP, '') + why)}</span>`",
+   "`<span class=\"nm\">${esc(m.name)}</span><span class=\"pill ${pass ? 'pass' : 'fail'}\">${pass ? L('通过', '满足规约') : L('失败', '违反规约')}</span>\n        <code>${esc(m.code)}</code><span class=\"why\">${esc(L(m.story + STORY_SEP, '') + why)}</span>`"
+  ],
+  [
+   "`<span>q = <b>${st.q}</b></span><span>r = <b>${st.r}</b></span><span>guard r ≥ d: <b>${P.guard(st)}</b></span>`",
+   "`<span>q = <b>${st.q}</b></span><span>r = <b>${st.r}</b></span><span>守卫 r ≥ d：<b>${P.guard(st)}</b></span>`"
+  ],
+  [
+   "`<thead><tr><th>check #</th><th>i</th><th>s</th><th>sum of first i</th><th>invariant</th></tr></thead><tbody>`",
+   "`<thead><tr><th>检查次数</th><th>i</th><th>s</th><th>前 i 个数之和</th><th>不变式</th></tr></thead><tbody>`"
+  ],
+  [
+   "`<thead><tr><th>check #</th><th>q</th><th>r</th><th>q·d + r</th><th>invariant</th><th>variant r</th></tr></thead><tbody>`",
+   "`<thead><tr><th>检查次数</th><th>q</th><th>r</th><th>q·d + r</th><th>不变式</th><th>变式 r</th></tr></thead><tbody>`"
+  ],
+  [
+   "`<tr class=\"${k === run.rows.length - 1 && k ? 'new' : ''}\"><td class=\"num\">${k}</td><td class=\"num\">${x.i}</td><td class=\"num\">${x.s}</td><td>${x.i ? x.a.slice(0, x.i).join(' + ').replace(/\\+ -/g, '− ') + ' = ' + sumFirst(x.a, x.i) : '0 (nothing yet)'}</td><td class=\"${correct(x) ? 'ok' : 'no'}\">${correct(x) ? '✓' : '✗'}</td></tr>`",
+   "`<tr class=\"${k === run.rows.length - 1 && k ? 'new' : ''}\"><td class=\"num\">${k}</td><td class=\"num\">${x.i}</td><td class=\"num\">${x.s}</td><td>${x.i ? x.a.slice(0, x.i).join(' + ').replace(/\\+ -/g, '− ') + ' = ' + sumFirst(x.a, x.i) : '0（还没加任何数）'}</td><td class=\"${correct(x) ? 'ok' : 'no'}\">${correct(x) ? '✓' : '✗'}</td></tr>`"
+  ],
+  [
+   "`All ${N} possible situations checked. In none of them are both programs in the critical section, and the programs never get stuck. This is a proof for this model, not just a lucky test run.`",
+   "`全部 ${N} 种可能的情况都检查过了。没有任何一种情况下两个程序同时在临界区，程序也从不会卡住。对这个模型来说，这是证明，而不只是一次走运的测试。`"
+  ],
+  [
+   "`All 100 tests passed. Looks correct! But only ${tried} different inputs out of 256 were tried. About ${miss}% of random runs miss the bad input. Now press \"Check every input\".`",
+   "`100 个测试全部通过，看起来没问题！但 256 个输入中只试了 ${tried} 个不同的值。大约 ${miss}% 的随机测试会错过那个出错的输入。现在点“检查每一个输入”。`"
+  ],
+  [
+   "`Bounded check: <b>${LISTS.length}</b> inputs × <b>${visImpls().length}</b> implementations.`",
+   "`有界检查：<b>${LISTS.length}</b> 个输入 × <b>${visImpls().length}</b> 个实现。`"
+  ],
+  [
+   "`Caught: ${fmtList(cx.a)} gives ${fmtList(cx.b)}, ${cx.clause.failB}.`",
+   "`被抓到了：${fmtList(cx.a)} 得到 ${fmtList(cx.b)}，${cx.clause.failB}。`"
+  ],
+  [
+   "`Checked all 256 inputs. Exactly one fails: abs(${f}) returns ${absImpl(f)}, a negative number. Random tests were never going to be reliable here.`",
+   "`256 个输入全部检查完毕。恰好有一个失败：abs(${f}) 返回 ${absImpl(f)}，是个负数。在这里，随机测试本来就靠不住。`"
+  ],
+  [
+   "`Checked every list up to 4 numbers long: <b>${LISTS.length}</b> lists.`",
+   "`检查了长度不超过 4 的每一个列表：共 <b>${LISTS.length}</b> 个。`"
+  ],
+  [
+   "`Counterexample: ${fmtList(cx.a)} ↦ ${fmtList(cx.b)} (${cx.clause.fail}).`",
+   "`反例：${fmtList(cx.a)} ↦ ${fmtList(cx.b)}（${cx.clause.fail}）。`"
+  ],
+  [
+   "`Exhaustive check: ${u1.size.toLocaleString('en-US')} inputs, ${u1.fails.length} counterexample: abs16(${f}) = ${absImpl(f)}. This proves the property false. Fixing it (for example, returning a wider type) and re-running would prove it true, but only because 2¹⁶ inputs is small.`",
+   "`穷举检查：${u1.size.toLocaleString('en-US')} 个输入，${u1.fails.length} 个反例：abs16(${f}) = ${absImpl(f)}。这证明了该性质不成立。修复后（例如返回更宽的类型）再跑一遍，就能证明它成立，但这只是因为 2¹⁶ 个输入很少。`"
+  ],
+  [
+   "`Fails for ${P.show(r.init.st)}`",
+   "`在 ${P.show(r.init.st)} 时不成立`"
+  ],
+  [
+   "`Fails: from ${P.show(r.pres.st)} one step gives ${P.showAfter(r.pres.t)}`",
+   "`不成立：从 ${P.show(r.pres.st)} 走一步得到 ${P.showAfter(r.pres.t)}`"
+  ],
+  [
+   "`Fails: the loop can stop at ${P.show(r.exit.st)}, where the answer is wrong`",
+   "`不成立：循环可能停在 ${P.show(r.exit.st)}，而此时结果是错的`"
+  ],
+  [
+   "`Guard false: r = ${run.st.r} < d. Invariant ∧ ¬guard gives n == q·d + r ∧ 0 ≤ r < d, i.e. 17 = ${run.st.q}·5 + ${run.st.r}. The variant went 17, 12, 7, 2: it decreased each time and stayed ≥ 0.`",
+   "`守卫为 false：r = ${run.st.r} < d。不变式 ∧ ¬守卫 推出 n == q·d + r ∧ 0 ≤ r < d，即 17 = ${run.st.q}·5 + ${run.st.r}。变式依次是 17、12、7、2：每次都减小，并且始终 ≥ 0。`"
+  ],
+  [
+   "`Lucky run: a random test hit -32768. The chance of that is only about ${(100 - miss).toFixed(2)}%. Run it again.`",
+   "`运气好：有一个随机测试命中了 -32768。这种概率只有大约 ${(100 - miss).toFixed(2)}%。再跑一次试试。`"
+  ],
+  [
+   "`Lucky! One of the 100 random tests happened to pick -128. Run it again: about ${miss}% of runs miss it completely.`",
+   "`运气不错！100 个随机测试中有一个恰好选中了 -128。再跑一次试试：大约 ${miss}% 的情况下会完全错过它。`"
+  ],
+  [
+   "`P${i} enters (flag[${j}] = ${s.flag[j]}, turn = ${s.turn})`",
+   "`P${i} 进入（flag[${j}] = ${s.flag[j]}，turn = ${s.turn}）`"
+  ],
+  [
+   "`P${i} leaves and sets flag[${i}] = false`",
+   "`P${i} 离开并设置 flag[${i}] = false`"
+  ],
+  [
+   "`P${i} sees flag[${j}] = false and enters`",
+   "`P${i} 看到 flag[${j}] = false 并进入`"
+  ],
+  [
+   "`P${i} sees flag[${j}] = false and moves on`",
+   "`P${i} 看到 flag[${j}] = false，继续往下走`"
+  ],
+  [
+   "`P${i} sets flag[${i}] = true and enters`",
+   "`P${i} 设置 flag[${i}] = true 并进入`"
+  ],
+  [
+   "`P${i} sets flag[${i}] = true`",
+   "`P${i} 设置 flag[${i}] = true`"
+  ],
+  [
+   "`P${i} sets turn = ${j}`",
+   "`P${i} 设置 turn = ${j}`"
+  ],
+  [
+   "`P${i} wants to enter`",
+   "`P${i} 想进入`"
+  ],
+  [
+   "`The checker found ${N} possible situations. In one of them (red) both programs are printing at the same time. Step through the exact path that gets there.`",
+   "`检测器找到了 ${N} 种可能的情况。其中一种（红色）是两个程序同时在打印。一步一步看看是怎么走到那里的。`"
+  ],
+  [
+   "`The loop stops because i < n is false, so i = n = 5. The invariant says s is the sum of the first i numbers, which is now all of them: s = ${run.st.s}. That is exactly the promise.`",
+   "`循环停下了，因为 i < n 为 false，所以 i = n = 5。不变式说 s 是前 i 个数之和，而现在就是全部的数：s = ${run.st.s}。这正是我们的承诺。`"
+  ],
+  [
+   "`abs(${x}) = ${absImpl(x)}  ${ok ? '✓' : '✗ negative!'}`",
+   "`abs(${x}) = ${absImpl(x)}  ${ok ? '✓' : '✗ 负数！'}`"
+  ],
+  [
+   "`counterexample: ${P.show(r.bound.st)}`",
+   "`反例：${P.show(r.bound.st)}`"
+  ],
+  [
+   "`counterexample: ${P.show(r.dec.st)} → ${P.showAfter(r.dec.t)}`",
+   "`反例：${P.show(r.dec.st)} → ${P.showAfter(r.dec.t)}`"
+  ],
+  [
+   "`counterexample: ${P.show(r.exit.st)} satisfies I ∧ ¬B but not Q`",
+   "`反例：${P.show(r.exit.st)} 满足 I ∧ ¬B，但不满足 Q`"
+  ],
+  [
+   "`counterexample: ${P.show(r.init.st)}`",
+   "`反例：${P.show(r.init.st)}`"
+  ],
+  [
+   "`counterexample: ${P.show(r.pres.st)} → ${P.showAfter(r.pres.t)}`",
+   "`反例：${P.show(r.pres.st)} → ${P.showAfter(r.pres.t)}`"
+  ],
+  [
+   "`method Sort(a: seq<int>) returns (b: seq<int>)\\n${lines.length ? lines.join('\\n') : '  // no ensures clauses: anything goes'}`",
+   "`method Sort(a: seq<int>) returns (b: seq<int>)\\n${lines.length ? lines.join('\\n') : '  // 没有 ensures 子句：怎么写都行'}`"
+  ],
+  [
+   "' '",
+   "''"
+  ]
+ ]
+}

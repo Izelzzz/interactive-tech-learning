@@ -1,0 +1,213 @@
+
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.zh-CN.html">← 课程</a> 设计数据库</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 单元</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="讲解深度">
+      <button data-level="beginner" aria-pressed="true">小白</button>
+      <button data-level="advanced" aria-pressed="false">进阶</button>
+    </div>
+    <a class="lang-switch" href="index.html" lang="en" hreflang="en">English</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">第 4 课</div>
+    <h1>如何设计一个始终正确的数据库</h1>
+    <p class="only-beginner">数据库是应用存放信息的地方。如果设计得不好，数据就会自相矛盾、丢失，或者很难快速找到。在这一课里，你会故意弄坏一个设计糟糕的数据库，然后把它修好。</p>
+    <p class="only-advanced">关系型数据库设计首先关乎完整性，其次才是性能：通过规范化消除异常，显式地建模基数关系，按访问路径建索引，并用事务在故障和并发下维持不变式。</p>
+    <nav class="units">
+      <a class="unit" href="#model" id="unit-model"><span class="tick">✓</span><small>第 1 单元</small><b>大表 → 多张表</b><small>先弄坏，再修好</small></a>
+      <a class="unit" href="#rel" id="unit-rel"><span class="tick">✓</span><small>第 2 单元</small><b>关系</b><small>回答 5 个情境</small></a>
+      <a class="unit" href="#index" id="unit-index"><span class="tick">✓</span><small>第 3 单元</small><b>索引</b><small>赛跑 + 4 个查询</small></a>
+      <a class="unit" href="#txn" id="unit-txn"><span class="tick">✓</span><small>第 4 单元</small><b>事务</b><small>有无事务各崩溃一次</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>第 5 单元</small><b>自我检测</b><small>完成测验</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="model">
+    <div class="kicker">第 1 单元</div>
+    <h2>从一张大表到规范的多张表</h2>
+    <p class="lede only-beginner">一家小店把所有订单都记在一张大表里。看起来没问题，但同样的信息被一遍遍地复制（橙色单元格）。用下面的按钮看看会出什么问题，然后把它拆成多张表。</p>
+    <p class="lede only-advanced">一张存在重复事实的非规范化单表。触发三种经典异常（更新、删除、插入），然后规范化到 3NF，再重复同样的操作。</p>
+
+    <div class="legend">
+      <span><i style="background:var(--c-cust)"></i><span class="only-beginner">关于客户</span><span class="only-advanced">依赖于客户</span></span>
+      <span><i style="background:var(--c-prod)"></i><span class="only-beginner">关于商品</span><span class="only-advanced">依赖于商品</span></span>
+      <span><i style="background:var(--c-ord)"></i><span class="only-beginner">关于订单本身</span><span class="only-advanced">依赖于订单主键</span></span>
+    </div>
+
+    <div id="modelView"></div>
+    <div class="counter" id="modelCounter"></div>
+
+    <div class="actions">
+      <button class="btn" id="actEmail">Ana 更换了邮箱</button>
+      <button class="btn" id="actDelete">删除 Ben 唯一的订单（#3）</button>
+      <button class="btn" id="actAdd">新增商品：Webcam（$59）</button>
+    </div>
+    <div class="insight" id="modelInsight"></div>
+    <div class="controls">
+      <button class="btn primary" id="normalizeBtn">拆分成多张表 →</button>
+      <button class="btn" id="modelReset">重置</button>
+    </div>
+
+    <div class="codeblock only-advanced" style="margin-top:16px" id="ddlBlock">
+      <div class="codeblock-head"><span>表结构（PostgreSQL）</span><button class="copy">复制</button></div>
+      <pre>CREATE TABLE customers (
+  id     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name   text NOT NULL,
+  email  text NOT NULL UNIQUE
+);
+
+CREATE TABLE products (
+  id     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name   text NOT NULL,
+  price  numeric(10,2) NOT NULL CHECK (price >= 0)
+);
+
+CREATE TABLE orders (
+  id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  customer_id bigint NOT NULL REFERENCES customers(id),
+  product_id  bigint NOT NULL REFERENCES products(id),
+  unit_price  numeric(10,2) NOT NULL  -- 下单时的价格，有意为之
+);</pre>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>一句话概括：</b>每个事实只存在<b>一个</b>地方。客户放进 customers 表，商品放进 products 表。订单只是通过编号<i>指向</i>它们（<code>customer_id</code>、<code>product_id</code>）。这些指针叫作<b>外键</b>，而每一行自己独有的编号叫作<b>主键</b>。
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>范式的实际运用</b>
+      <ul>
+        <li><b>1NF</b>：值是原子的，没有重复组（不能出现 <code>products = "Mouse, Keyboard"</code>）。</li>
+        <li><b>2NF / 3NF</b>：每个非主键列都依赖于主键、依赖于完整的主键、并且只依赖于主键。<code>email</code> 依赖的是客户而不是订单，所以要移出去。</li>
+        <li><b>有意的反规范化</b>：<code>orders.unit_price</code> 故意复制了价格。它记录的是一个历史事实（实际收取的金额），而不是当前价格。</li>
+        <li>只有在有明确“真相来源”的前提下，才为读性能做反规范化（物化视图、缓存，或由触发器维护的列）。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="rel">
+    <div class="kicker">第 2 单元</div>
+    <h2>关系：一个还是多个？</h2>
+    <p class="lede only-beginner">数据库里的东西是相互关联的。关键问题永远是：“多少个这个对应多少个那个？”选出答案，图会显示这些表是如何连接的。</p>
+    <p class="lede only-advanced">选择基数，图会显示外键放在哪里，以及由哪些约束来保证。进阶模式会加入自引用关系。</p>
+
+    <div class="scen-nav" id="relNav"></div>
+    <div class="scenario" id="relText"></div>
+    <div class="rel-choices" id="relChoices"></div>
+    <div class="feedback" id="relFb"></div>
+    <div class="er" id="er"></div>
+    <div class="codeblock only-advanced" style="margin-top:12px"><div class="codeblock-head"><span>DDL</span><button class="copy">复制</button></div><pre id="relDdl">（作答后显示表结构）</pre></div>
+    <div class="controls"><button class="btn primary" id="relNext" style="display:none">下一个情境 →</button></div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="index">
+    <div class="kicker">第 3 单元</div>
+    <h2>索引：快速找到东西</h2>
+    <p class="lede only-beginner">一张有一百万用户的表。没有索引时，数据库必须查看每一行。索引就像电话簿上的字母标签：几乎能直接跳到正确的位置。</p>
+    <p class="lede only-advanced">顺序扫描对堆是 O(n) 的。B-tree 索引查找只需要 O(log n) 次页读取，而且扇出可达数百，所以即使是非常大的表也只有 3–4 层。索引的代价是写放大和存储空间。</p>
+
+    <div class="controls" style="margin-top:0">
+      <label class="toggle" for="whoSel">查找：
+        <select id="whoSel" class="btn" style="padding:5px 8px">
+          <option value="ben">ben@mail.com</option>
+          <option value="kai">kai@mail.com</option>
+          <option value="zoe">zoe@mail.com</option>
+        </select>
+      </label>
+      <button class="btn primary" id="raceBtn">▶ 开始查找</button>
+    </div>
+    <code id="raceSql" style="display:block;margin:10px 0;font-size:.85rem"></code>
+
+    <div class="race">
+      <div class="lanebox">
+        <h3>没有索引</h3>
+        <div class="sub"><span class="only-beginner">从上到下读取每一行。</span><span class="only-advanced">Seq Scan on users · Filter: email = …</span> 每个方块代表 10,000 行。</div>
+        <div class="grid100" id="scanGrid"></div>
+        <div class="meter">已读行数：<b id="scanCount">0</b></div>
+      </div>
+      <div class="lanebox tree">
+        <h3>email 上有索引</h3>
+        <div class="sub"><span class="only-beginner">顺着字母标签一路找到正确的那一页。</span><span class="only-advanced">Index Scan using users_email_idx · B-tree，3 层。</span></div>
+        <svg id="treeSvg" viewBox="0 0 420 210" role="img" aria-label="B-tree 索引查找"></svg>
+        <div class="meter">已读页数：<b id="treeCount">0</b></div>
+      </div>
+    </div>
+    <div class="insight" id="raceInsight">点击“开始查找”，两种查找会同时开始。</div>
+
+    <h3 style="margin-top:24px" class="only-beginner">这次查找能用上索引吗？</h3>
+    <h3 style="margin-top:24px" class="only-advanced">复合索引：哪些条件能用上它？</h3>
+    <p class="lede only-beginner" style="margin-bottom:0"><code>email</code> 上有一个索引。逐个判断下面的查找。</p>
+    <p class="lede only-advanced" style="margin-bottom:0"><code>CREATE INDEX ON people (last_name, first_name);</code> 可以把它想成先按姓排序，同一个姓里面再按名排序。</p>
+    <div class="qcards" id="qcards"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px"><b>权衡：</b>每个索引都会让查找更快，但每次插入或更新时也必须同时更新索引，而且索引会占用空间。只为应用中真正经常执行的查找添加索引。</div>
+    <div class="callout only-advanced" style="margin-top:16px"><b>经验法则：</b>为外键以及高频的 WHERE / ORDER BY 路径建索引。在复合索引中，等值条件的列放在范围条件的列之前。在合适的地方使用部分索引（<code>WHERE deleted_at IS NULL</code>）和覆盖索引（<code>INCLUDE</code>）。用 <code>EXPLAIN (ANALYZE, BUFFERS)</code> 检查执行计划，并删掉没有被任何查询用到的索引。</div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="txn">
+    <div class="kicker">第 4 单元</div>
+    <h2>事务：要么全做，要么全不做</h2>
+    <p class="lede only-beginner">Alice 给 Bob 转 $100。这是两次修改：先从 Alice 那里扣 $100，再给 Bob 加 $100。如果服务器在这两步之间崩溃了怎么办？</p>
+    <p class="lede only-advanced">一笔转账包含两次写入，它们必须维持一个不变式：总余额保持不变。在两次写入之间注入一次崩溃，分别对比有事务和没有事务的情况。</p>
+
+    <label class="toggle" for="useTxn"><input type="checkbox" id="useTxn"> <span>用事务包起来（<code>BEGIN … COMMIT</code>）</span></label>
+
+    <div class="bank" id="bank">
+      <div class="acct" id="acctA"><div class="who">Alice</div><div class="bal" id="balA">$500</div></div>
+      <div class="acct" id="acctB"><div class="who">Bob</div><div class="bal" id="balB">$200</div></div>
+    </div>
+    <div class="total" id="total"></div>
+    <div class="controls" style="margin-top:0">
+      <button class="btn primary" id="runOk">转账 $100</button>
+      <button class="btn" id="runCrash">转账 $100，中途崩溃</button>
+      <button class="btn" id="bankReset">重置余额</button>
+    </div>
+    <ul class="log" id="log"></ul>
+    <div class="insight" id="txnInsight">先关闭事务试一次崩溃，再打开事务试一次。</div>
+
+    <div class="acid only-beginner">
+      <div><b>A</b>要么全做，要么全不做：每一步都发生，或者都不发生。</div>
+      <div><b>C</b>规则始终成立，比如“钱不会凭空产生或消失”。</div>
+      <div><b>I</b>两个人同时操作也不会互相干扰。</div>
+      <div><b>D</b>一旦提示“完成”，即使断电也不会丢。</div>
+    </div>
+    <div class="acid only-advanced">
+      <div><b>A</b>原子性：undo 日志 / MVCC；失败时 ROLLBACK。</div>
+      <div><b>C</b>一致性：提交时约束、外键、CHECK 均成立。</div>
+      <div><b>I</b>隔离性：选择的隔离级别在异常与并发之间取舍。</div>
+      <div><b>D</b>持久性：COMMIT 返回之前 WAL 已经 fsync。</div>
+    </div>
+
+    <div class="only-advanced" style="margin-top:24px">
+      <h3>并发：同时发生两笔取款</h3>
+      <p class="lede" style="margin-bottom:8px">两个会话在同一时刻各从 Alice 的 $500 中取出 $100。正确结果是 $300。</p>
+      <div class="controls" style="margin-top:0">
+        <button class="btn" id="raceBad">▶ 先读后写（朴素做法）</button>
+        <button class="btn" id="raceGood">▶ 原子 UPDATE（行锁）</button>
+      </div>
+      <div class="racegrid" id="raceGrid"></div>
+      <div class="insight" id="raceRes" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">第 5 单元</div>
+    <h2>自我检测</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../sql/index.zh-CN.html">动手学 SQL</a>。下一课：<a href="../formal-verification/index.zh-CN.html">形式化验证</a>。</footer>
+</main>
+

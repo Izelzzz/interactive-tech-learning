@@ -1,0 +1,224 @@
+
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.zh-CN.html">← 课程</a> 动手学 SQL</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 单元</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="讲解深度">
+      <button data-level="beginner" aria-pressed="true">小白</button>
+      <button data-level="advanced" aria-pressed="false">进阶</button>
+    </div>
+    <a class="lang-switch" href="index.html" lang="en" hreflang="en">English</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">第 3 课</div>
+    <h1>用 SQL 向数据库提问</h1>
+    <p class="only-beginner">SQL 是向数据库要数据时使用的语言。你只要说清楚想要什么，数据库会自己想办法取出来。在这一课里，你会用点击来拼出查询，并亲眼看到每一步对真实的数据行做了什么。</p>
+    <p class="only-advanced">SQL 是声明式的：你描述想要的结果集，由查询规划器决定怎么算出来。本课涵盖过滤与排序、连接的语义、聚合与窗口函数、逻辑执行顺序、三值逻辑以及 SQL 注入。</p>
+    <nav class="units">
+      <a class="unit" href="#select" id="unit-select"><span class="tick">✓</span><small>第 1 单元</small><b>挑出数据行</b><small>运行 3 条不同的查询</small></a>
+      <a class="unit" href="#join" id="unit-join"><span class="tick">✓</span><small>第 2 单元</small><b>JOIN 连接</b><small>试试 INNER 和 LEFT</small></a>
+      <a class="unit" href="#group" id="unit-group"><span class="tick">✓</span><small>第 3 单元</small><b>GROUP BY 分组</b><small>分组两次，其中一次带 HAVING</small></a>
+      <a class="unit" href="#order" id="unit-order"><span class="tick">✓</span><small>第 4 单元</small><b>查询如何执行</b><small>逐步走完 + 1 道题</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>第 5 单元</small><b>自我检测</b><small>完成测验</small></a>
+    </nav>
+
+    <details class="dataset">
+      <summary>每个单元都会用到的商店数据</summary>
+      <div class="three" id="dataset"></div>
+      <p class="note only-beginner"><b>NULL</b> 的意思是“这里没有值”。Eli 没有填写城市，有一笔订单是没注册账号的访客下的，还有些订单暂时没有评分。Gus 和 Hana 什么都没买过。</p>
+      <p class="note only-advanced"><b>NULL</b> 表示缺失或未知的值：Eli 的 <code>customers.city</code>、访客下单时的 <code>orders.customer_id</code>，以及尚未评分的订单。Gus 和 Hana 没有订单，也没有任何订单引用台灯（Desk lamp）。</p>
+    </details>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="select">
+    <div class="kicker">第 1 单元</div>
+    <h2>SELECT、WHERE、ORDER BY、LIMIT</h2>
+    <p class="lede only-beginner">点一点就能拼出一条查询。选一张表，选要显示的列，再加上过滤条件、排序方式和行数上限。然后点“运行”，看看每一行会怎样。</p>
+    <p class="lede only-advanced">组合一条单表查询。虚线边框的选项是进阶情形：NULL 比较、范围条件和 OFFSET。留意关于 NULL 排序位置以及 LIMIT 边界处并列值的提示。</p>
+
+    <div class="qb" id="qb"></div>
+    <div class="codeblock">
+      <div class="codeblock-head"><span>你的查询</span><button class="copy">复制</button></div>
+      <pre id="qbSql"></pre>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="qbRun">▶ 运行查询</button>
+    </div>
+
+    <div class="steps" id="qbSteps"></div>
+    <div class="stepcap" id="qbCap" aria-live="polite"></div>
+    <div class="tbl-wrap"><table class="data fit" id="qbTable"></table></div>
+    <div class="insight" id="qbInsight">改一改查询，然后点“运行”。</div>
+    <div class="counter" id="qbCounter"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>把查询当成一句话来读：</b>“从 <code>FROM</code> 这张表里，只要 <code>WHERE</code> 条件成立的行，按 <code>ORDER BY</code> 排好序，最多给我 <code>LIMIT</code> 行，并且只显示 <code>SELECT</code> 这些列。”文本值要放在单引号里，比如 <code>'Berlin'</code>，数字则不用。
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>生产环境里容易踩的坑</b>
+      <ul>
+        <li>没有 <code>ORDER BY</code> 时，行的顺序是未定义的。换一次运行、换个版本或换个执行计划，顺序都可能变。</li>
+        <li>NULL 的位置因数据库而异：PostgreSQL 和 Oracle 在 ASC 中把 NULL 排在最后，MySQL 和 SQLite 则排在最前。支持的话就写明 <code>NULLS FIRST</code> 或 <code>NULLS LAST</code>。</li>
+        <li>用 <code>LIMIT … OFFSET</code> 分页需要唯一的排序键，否则翻页时行可能重复或丢失。页数很深时，优先用键集分页：<code>WHERE (price, id) &gt; (?, ?)</code>。</li>
+        <li>探索数据时用 <code>SELECT *</code> 没问题，但在应用代码里要写明列名，这样表结构变化时代码不会出错。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="join">
+    <div class="kicker">第 2 单元</div>
+    <h2>JOIN：把多张表合起来</h2>
+    <p class="lede only-beginner">订单里只存了顾客编号。想在每笔订单旁边显示顾客名字，就要把两张表连接起来：每笔订单都会和 <code>id</code> 等于它 <code>customer_id</code> 的那位顾客配对。选一种连接方式，顺着连线看看。</p>
+    <p class="lede only-advanced">连接谓词负责给行配对。外连接随后会把一侧或两侧没配上的行加回来，缺的部分用 NULL 补齐。把四种类型都试一遍，再看看对右表加过滤条件会让 LEFT JOIN 变成什么样。</p>
+
+    <div class="qb">
+      <div class="qb-row"><div class="kw">JOIN</div><div class="pills" id="joinType"></div></div>
+      <div class="qb-row only-advanced"><div class="kw">过滤</div><div class="pills" id="joinFilter"></div></div>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+      <pre id="joinSql"></pre>
+    </div>
+
+    <div class="joinviz" id="joinViz">
+      <div><div class="tname c"><i></i>customers</div><table class="data" id="jLeft"></table></div>
+      <div></div>
+      <div><div class="tname o"><i></i>orders</div><table class="data fit" id="jRight"></table></div>
+      <svg id="jSvg" aria-hidden="true"></svg>
+    </div>
+
+    <div class="label" style="margin-top:16px">结果</div>
+    <div class="tbl-wrap"><table class="data fit" id="joinRes"></table></div>
+    <div class="counter" id="joinCount"></div>
+    <div class="insight" id="joinInsight"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>该用哪一种？</b>只想要有配对的行时用 <code>INNER JOIN</code>，比如“订单及其顾客”。左表的每一行即使没有配对也必须出现时用 <code>LEFT JOIN</code>，比如“所有顾客，以及他们的订单（如果有的话）”。缺少的值会以 <code>NULL</code> 返回。
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>关于连接的几点</b>
+      <ul>
+        <li><code>RIGHT JOIN</code> 就是把两张表对调后的 LEFT JOIN。大多数团队只写 LEFT JOIN，让查询更好读。</li>
+        <li>关于可选一侧的条件应该写在 <code>ON</code> 里。写在 <code>WHERE</code> 里的条件在连接之后才执行，会把用 NULL 补齐的行过滤掉。</li>
+        <li>要找没有配对的行（反连接），用 <code>LEFT JOIN … WHERE o.id IS NULL</code> 或 <code>NOT EXISTS</code>。</li>
+        <li>一对多连接会让左表的行按匹配数重复出现。之后再聚合（比如对顾客表的某列求 <code>SUM</code>）可能会重复计算。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="group">
+    <div class="kicker">第 3 单元</div>
+    <h2>GROUP BY 与聚合函数</h2>
+    <p class="lede only-beginner">GROUP BY 会把某个值相同的行放进同一个桶，再把每个桶变成一行汇总。<code>COUNT</code> 用来计数，<code>SUM</code> 用来求和，<code>AVG</code> 用来求平均。WHERE 在分桶之前过滤行，HAVING 在分桶之后过滤整个桶。</p>
+    <p class="lede only-advanced">聚合会把每个分组压缩成一行。对比 <code>COUNT(*)</code> 和 <code>COUNT(rating)</code>，看看 <code>AVG</code> 如何跳过 NULL，以及 NULL 键为何会归入同一组。然后再把 GROUP BY 和保留每一行的窗口函数做个对比。</p>
+
+    <div class="qb" id="gb"></div>
+    <div class="codeblock">
+      <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+      <pre id="gbSql"></pre>
+    </div>
+    <div class="controls"><button class="btn primary" id="gbRun">▶ 运行分组</button></div>
+
+    <div class="stepcap" id="gbCap" style="margin-top:12px" aria-live="polite"></div>
+    <div class="label">orders</div>
+    <div class="gsrc" id="gbSrc" data-empty="所有行都已经放进下面的桶里了。"></div>
+    <div class="buckets" id="gbBuckets"></div>
+    <div class="label" style="margin-top:14px">结果</div>
+    <div class="tbl-wrap"><table class="data fit" id="gbRes"></table></div>
+    <div class="insight" id="gbInsight">选一列用来分组，然后点“运行”。</div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>要记住的规则：</b>用了 GROUP BY 之后，SELECT 里的每一列要么出现在 GROUP BY 里，要么放在 <code>COUNT</code> 这类聚合函数里。一个装了三笔订单的桶有三个金额，数据库需要知道你要的是总和、平均值还是别的什么。
+    </div>
+
+    <div class="only-advanced">
+      <h3 class="sub-h">GROUP BY 与窗口函数</h3>
+      <p class="lede" style="margin-bottom:10px">窗口函数也是在一组相关的行上计算，就像分组一样，但不会把它们压缩成一行。每一行都保持原样，只是旁边多了一个计算出来的值。</p>
+      <div class="pills" id="winPick"></div>
+      <div class="codeblock" style="margin-top:10px">
+        <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+        <pre id="winSql"></pre>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table class="data fit" id="winTable"></table></div>
+      <div class="insight" id="winInsight"></div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="order">
+    <div class="kicker">第 4 单元</div>
+    <h2>查询到底是怎么执行的</h2>
+    <p class="lede only-beginner">你先写的是 <code>SELECT</code>，但数据库并不从这里开始。它先找到表，然后过滤，再分组，最后才挑选列。逐步执行下面的查询，留意每一行旁边的数字。</p>
+    <p class="lede only-advanced">逻辑处理顺序决定了每个子句能看到什么。物理执行计划可能会把过滤条件下推、调整连接顺序或使用索引，但结果必须和按这个顺序算出来的一样。</p>
+
+    <div class="sqlview" id="pipeSql"></div>
+    <div class="pipe" id="pipe"></div>
+    <div class="controls" style="margin-top:0">
+      <button class="btn primary" id="pipeStep">下一步 →</button>
+      <button class="btn" id="pipePlay">▶ 全部播放</button>
+      <button class="btn" id="pipeReset">重置</button>
+    </div>
+    <div class="insight" id="pipeInsight"></div>
+    <div class="snap" id="pipeSnap"></div>
+
+    <h3 class="sub-h">为什么会出错？</h3>
+    <div id="aliasBox" style="margin-top:10px"></div>
+
+    <div class="only-advanced">
+      <h3 class="sub-h">NULL 与三值逻辑</h3>
+      <p class="lede" style="margin-bottom:8px">在 SQL 里，一个条件的结果可以是 TRUE、FALSE 或 NULL（未知）。WHERE 只保留条件为 TRUE 的行。预测一下每个表达式的结果。</p>
+      <div class="qcards" id="tvl"></div>
+      <div class="label" style="margin-top:16px">在数据上跑一跑</div>
+      <div class="pills" id="nullPick"></div>
+      <div class="codeblock" style="margin-top:10px">
+        <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+        <pre id="nullSql"></pre>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table class="data fit" id="nullRes"></table></div>
+      <div class="insight" id="nullInsight"></div>
+
+      <h3 class="sub-h">SQL 注入与参数化查询</h3>
+      <p class="lede" style="margin-bottom:10px">一个搜索框把名字发给服务器，服务器用它拼出查询。试试预设的输入，并在“拼接字符串”和“把值作为参数传递”之间切换。</p>
+      <div class="field">
+        <label for="injInput">用户输入的名字：</label>
+        <input id="injInput" type="text" value="Ana" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="qb" style="margin-top:10px">
+        <div class="qb-row"><div class="kw">试试</div><div class="pills" id="injPresets"></div></div>
+        <div class="qb-row"><div class="kw">代码</div><div class="pills" id="injMode"></div></div>
+      </div>
+      <div class="two-col">
+        <div class="codeblock">
+          <div class="codeblock-head"><span>服务器代码</span><button class="copy">复制</button></div>
+          <pre id="injCode"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="codeblock-head"><span>数据库实际收到的内容</span><button class="copy">复制</button></div>
+          <pre id="injSent"></pre>
+        </div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table class="data fit" id="injRes"></table></div>
+      <div class="insight" id="injInsight"></div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">第 5 单元</div>
+    <h2>自我检测</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../api-design/index.zh-CN.html">设计好用的 API</a>。下一课：<a href="../database-design/index.zh-CN.html">设计数据库</a>。</footer>
+</main>
+

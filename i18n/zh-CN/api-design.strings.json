@@ -1,0 +1,877 @@
+{
+ "title": "设计好用的 API",
+ "strings": [
+  [
+   "'(pick a status code)'",
+   "'（请选择一个状态码）'"
+  ],
+  [
+   "'201 Created tells the client that something new now exists.'",
+   "'201 Created 告诉客户端：一个新东西现在存在了。'"
+  ],
+  [
+   "'204 No Content is the precise answer. 200 with a body is also fine.'",
+   "'204 No Content 是最准确的答案。返回带响应体的 200 也可以。'"
+  ],
+  [
+   "'401 means \"we don\\'t know who you are\". The client should log in and try again.'",
+   "'401 的意思是“我们不知道你是谁”。客户端应该先登录再重试。'"
+  ],
+  [
+   "'403: we know who you are, but you\\'re not allowed. 404 is also accepted when you don\\'t want to reveal that the resource exists.'",
+   "'403：我们知道你是谁，但你没有权限。如果你不想暴露这个资源是否存在，返回 404 也算对。'"
+  ],
+  [
+   "'404 Not Found: the address is fine, but nothing lives there.'",
+   "'404 Not Found：地址本身没问题，只是那里什么都没有。'"
+  ],
+  [
+   "'409 Conflict: the request is valid on its own but clashes with existing state.'",
+   "'409 Conflict：请求本身是合法的，但与现有状态冲突。'"
+  ],
+  [
+   "'422 means the syntax is fine but the semantic validation failed. Many APIs use 400 for both; whichever you choose, be consistent.'",
+   "'422 表示语法没问题，但语义校验失败。很多 API 两种情况都用 400；不管选哪个，保持一致就好。'"
+  ],
+  [
+   "'429 Too Many Requests, with a Retry-After header so well-behaved clients know when to come back.'",
+   "'429 Too Many Requests，并带上 Retry-After 头，让守规矩的客户端知道何时再来。'"
+  ],
+  [
+   "'4xx client, 5xx server'",
+   "'4xx 是客户端的错，5xx 是服务器的错'"
+  ],
+  [
+   "'4xx server, 5xx client'",
+   "'4xx 是服务器的错，5xx 是客户端的错'"
+  ],
+  [
+   "'4xx vs 5xx: whose fault is it?'",
+   "'4xx 和 5xx：分别是谁的错？'"
+  ],
+  [
+   "'4xx: the request was wrong, so fix the request. 5xx: the server failed, and the same request might work later.'",
+   "'4xx：请求有问题，要改请求。5xx：服务器出了故障，同样的请求稍后可能就成功了。'"
+  ],
+  [
+   "'<span class=\"stats\">nothing yet</span>'",
+   "'<span class=\"stats\">还没有内容</span>'"
+  ],
+  [
+   "'A DELETE succeeds and there is nothing to return.'",
+   "'一个 DELETE 成功了，没有内容需要返回。'"
+  ],
+  [
+   "'A behavioural break: clients that assumed one call returns everything (or ≤ 50 items) silently lose data. Defaults are part of the contract.'",
+   "'行为上的破坏：以为一次调用就能拿到全部（或最多 50 条）的客户端会悄悄丢数据。默认值也是契约的一部分。'"
+  ],
+  [
+   "'A bug on the server: the database connection crashed.'",
+   "'服务器上有个 bug：数据库连接崩溃了。'"
+  ],
+  [
+   "'A client sent 120 requests in one minute; the limit is 100.'",
+   "'某个客户端一分钟内发送了 120 个请求，而上限是 100 个。'"
+  ],
+  [
+   "'A cursor says \"after post #7\", so new posts at the top don\\'t shift what you get next.'",
+   "'游标表示“#7 之后的帖子”，所以顶部的新帖子不会影响你接下来拿到的内容。'"
+  ],
+  [
+   "'A form is sent with a required field missing. Which status code?'",
+   "'提交的表单缺少一个必填字段。应该返回哪个状态码？'"
+  ],
+  [
+   "'A new user signs up successfully.'",
+   "'一个新用户注册成功。'"
+  ],
+  [
+   "'A normal (non-admin) user tries to delete another user\\'s account.'",
+   "'一个普通（非管理员）用户试图删除另一个用户的账号。'"
+  ],
+  [
+   "'A rename is a remove plus an add. Expand/contract: ship both fields, mark \"name\" deprecated, and remove it after the sunset date.'",
+   "'改名 = 删除 + 新增。采用扩展/收缩（expand/contract）：同时发布两个字段，把 \"name\" 标记为弃用，过了下线日期再删除。'"
+  ],
+  [
+   "'A resource with a globally unique ID should have a canonical top-level URL. Deep paths tie clients to your hierarchy and break when someone moves teams. Use nesting for listing (/teams/12/members), not for addressing.'",
+   "'拥有全局唯一 ID 的资源应该有一个规范的顶层 URL。深层路径把客户端和你的层级结构绑在一起，有人换团队时就会失效。嵌套用于列表（/teams/12/members），而不是用于定位单个资源。'"
+  ],
+  [
+   "'A search sent by POST loses caching and shareable links. Use it only when the query is too big for a URL.'",
+   "'用 POST 发送的搜索失去了缓存和可分享的链接。只有当查询太大、放不进 URL 时才这样做。'"
+  ],
+  [
+   "'A sub-collection expresses ownership (/users/42/orders). Pick one convention, such as lowercase plural kebab-case paths and one casing for JSON fields, and enforce it with a linter in CI.'",
+   "'子集合表达归属关系（/users/42/orders）。选定一套约定，例如路径用小写复数 kebab-case、JSON 字段用一种统一的大小写风格，并在 CI 里用 linter 强制执行。'"
+  ],
+  [
+   "'A type change breaks typed clients at deserialisation and dynamic ones at runtime (string concatenation instead of addition). Add \"price_decimal\" instead.'",
+   "'改类型会让强类型客户端在反序列化时失败，让动态类型客户端在运行时出错（变成字符串拼接而不是相加）。应该新增 \"price_decimal\"。'"
+  ],
+  [
+   "'Add a new endpoint GET /users/42/badges.'",
+   "'新增一个端点 GET /users/42/badges。'"
+  ],
+  [
+   "'Add a new optional field \"nickname\" to the user response.'",
+   "'在用户响应中新增一个可选字段 \"nickname\"。'"
+  ],
+  [
+   "'Add a new value \"refunded\" to the \"status\" enum in responses.'",
+   "'在响应的 \"status\" 枚举中新增一个值 \"refunded\"。'"
+  ],
+  [
+   "'Add an optional query parameter ?sort=… to GET /posts.'",
+   "'给 GET /posts 新增一个可选查询参数 ?sort=…。'"
+  ],
+  [
+   "'Add first, announce, give people time, and remove last.'",
+   "'先新增，再通知，给大家时间，最后删除。'"
+  ],
+  [
+   "'Add the new field next to the old one'",
+   "'在旧字段旁边新增新字段'"
+  ],
+  [
+   "'Adding a new endpoint'",
+   "'新增一个端点'"
+  ],
+  [
+   "'Adding a new value to a response enum is risky because…'",
+   "'在响应的枚举中新增一个值有风险，因为…'"
+  ],
+  [
+   "'Adding an optional field'",
+   "'新增一个可选字段'"
+  ],
+  [
+   "'Adding an optional query parameter'",
+   "'新增一个可选查询参数'"
+  ],
+  [
+   "'After ✓'",
+   "'修复后 ✓'"
+  ],
+  [
+   "'An explicit action makes the side effects visible, is easy to authorise and audit, and 409 expresses the illegal state transition.'",
+   "'显式的动作让副作用一目了然，易于授权和审计，而 409 表达了非法的状态转换。'"
+  ],
+  [
+   "'An infinite social feed gets new posts all the time. Which pagination avoids showing you the same post twice?'",
+   "'一个无限滚动的社交信息流不断有新帖子出现。哪种分页方式能避免同一条帖子出现两次？'"
+  ],
+  [
+   "'Any app still calling it suddenly gets errors. Warn people first, and only remove it once nobody uses it any more.'",
+   "'还在调用它的应用会突然报错。先通知大家，等没人再用时才删除。'"
+  ],
+  [
+   "'Apps doing maths with the price would break or give wrong results. A type change is never safe.'",
+   "'用价格做计算的应用会出错或算错。改类型永远不安全。'"
+  ],
+  [
+   "'Apps that read the old field name suddenly get nothing. Adding things is safe; renaming or removing them is not.'",
+   "'读取旧字段名的应用会突然什么都拿不到。新增是安全的，改名或删除则不是。'"
+  ],
+  [
+   "'Avoid deep nesting. One level is plenty.'",
+   "'避免深层嵌套，一层就够了。'"
+  ],
+  [
+   "'Before'",
+   "'修复前'"
+  ],
+  [
+   "'Better than GET, but HTTP already has a method for exactly this: DELETE.'",
+   "'比 GET 好，但 HTTP 已经有专门做这件事的方法：DELETE。'"
+  ],
+  [
+   "'Both mean the client'",
+   "'两者都是客户端的错'"
+  ],
+  [
+   "'Both mean the server'",
+   "'两者都是服务器的错'"
+  ],
+  [
+   "'Both methods returned the same posts. Now try adding or deleting a post, then load the next page.'",
+   "'两种方式返回的帖子一样。现在试试添加或删除一条帖子，再加载下一页。'"
+  ],
+  [
+   "'Browsers, bots and link previews open GET links automatically'",
+   "'浏览器、机器人和链接预览会自动打开 GET 链接'"
+  ],
+  [
+   "'Browsers, search engines and chat-app link previews open GET links on their own. If a GET link deletes things, a bot that only visits your page could delete users.'",
+   "'浏览器、搜索引擎和聊天软件的链接预览都会自己去打开 GET 链接。如果一个 GET 链接会删东西，那么只是访问你页面的机器人也可能把用户删掉。'"
+  ],
+  [
+   "'Can\\'t combine filters'",
+   "'过滤条件无法组合'"
+  ],
+  [
+   "'Cancelling an order refunds the payment and is illegal after shipping. Which design communicates this best?'",
+   "'取消订单会退款，且发货后不能再取消。哪种设计最能清楚地表达这一点？'"
+  ],
+  [
+   "'Cancelling isn\\'t just editing a field, so give it its own clear button.'",
+   "'取消订单不只是改一个字段，所以给它一个单独、明确的按钮。'"
+  ],
+  [
+   "'Change \"price\" from a number to a string.'",
+   "'把 \"price\" 从数字改成字符串。'"
+  ],
+  [
+   "'Change the default page size from 50 to 20.'",
+   "'把默认分页大小从 50 改成 20。'"
+  ],
+  [
+   "'Check the access logs for remaining callers, send Deprecation and Sunset headers, then return 410 Gone (not a silent 404) after the sunset date.'",
+   "'检查访问日志里还有哪些调用方，发送 Deprecation 和 Sunset 头，过了下线日期后返回 410 Gone（而不是悄无声息的 404）。'"
+  ],
+  [
+   "'Clients with exhaustive switches or strict deserialisers may crash'",
+   "'使用穷举 switch 或严格反序列化的客户端可能会崩溃'"
+  ],
+  [
+   "'Collections are plural, and POST to a collection already means \"create\". \"new\" adds nothing.'",
+   "'集合用复数，而对集合 POST 本身就表示“创建”，“new”是多余的。'"
+  ],
+  [
+   "'Context: cancelling refunds the payment and sends an email, and orders that have already shipped can\\'t be cancelled.'",
+   "'背景：取消订单会退款并发送邮件，已经发货的订单不能取消。'"
+  ],
+  [
+   "'Copied'",
+   "'已复制'"
+  ],
+  [
+   "'Copy failed'",
+   "'复制失败'"
+  ],
+  [
+   "'Copy'",
+   "'复制'"
+  ],
+  [
+   "'Couples clients to the org chart'",
+   "'让客户端依赖组织架构'"
+  ],
+  [
+   "'Create something by POSTing to the collection.'",
+   "'创建东西：对集合发送 POST。'"
+  ],
+  [
+   "'Cursor / bookmark'",
+   "'游标 / 书签（cursor）'"
+  ],
+  [
+   "'Deep nesting'",
+   "'嵌套过深'"
+  ],
+  [
+   "'Enums aren\\'t valid JSON'",
+   "'枚举不是合法的 JSON'"
+  ],
+  [
+   "'Every app that reads \"name\" now gets nothing. Rename by adding the new field and keeping the old one for a while.'",
+   "'所有读取 \"name\" 的应用现在什么都拿不到了。改名的正确做法是：新增新字段，同时保留旧字段一段时间。'"
+  ],
+  [
+   "'Every new filter would need a new URL, and filters can\\'t be combined.'",
+   "'每加一种过滤条件就需要一个新 URL，而且过滤条件无法组合。'"
+  ],
+  [
+   "'Expand → announce → observe → contract. Never remove anything you can\\'t prove is unused.'",
+   "'扩展 → 通知 → 观察 → 收缩。无法证明没人在用的东西，永远不要删。'"
+  ],
+  [
+   "'For real business actions, a named action endpoint is fine.'",
+   "'对于真正的业务动作，用一个具名的动作端点完全没问题。'"
+  ],
+  [
+   "'GET /posts → 20 items (was 50)'",
+   "'GET /posts → 20 条（原来是 50 条）'"
+  ],
+  [
+   "'GET is defined as safe, so intermediaries may prefetch, retry and cache it. Destructive GETs are a classic cause of incidents, for example crawlers following admin links. DELETE is idempotent and never cached.'",
+   "'GET 被定义为安全的，所以中间环节可以预取、重试和缓存它。具有破坏性的 GET 是经典的事故原因，比如爬虫顺着管理后台的链接一路点下去。DELETE 是幂等的，而且永远不会被缓存。'"
+  ],
+  [
+   "'GET is slower than POST'",
+   "'GET 比 POST 慢'"
+  ],
+  [
+   "'GET must never change data.'",
+   "'GET 绝不能修改数据。'"
+  ],
+  [
+   "'GET requests can\\'t contain an ID'",
+   "'GET 请求不能包含 ID'"
+  ],
+  [
+   "'GET that changes data'",
+   "'会修改数据的 GET'"
+  ],
+  [
+   "'Generic \"update\" hides side effects'",
+   "'笼统的“update”掩盖了副作用'"
+  ],
+  [
+   "'HTTP limits large numbers'",
+   "'HTTP 限制了大数字'"
+  ],
+  [
+   "'HTTP requires it'",
+   "'HTTP 要求这样做'"
+  ],
+  [
+   "'ID hidden in a query string'",
+   "'ID 藏在查询参数里'"
+  ],
+  [
+   "'If an app doesn\\'t send it, nothing changes. Safe.'",
+   "'应用不传它的话，什么都不会变。安全。'"
+  ],
+  [
+   "'If something has its own unique number, give it its own short address.'",
+   "'如果一样东西有自己唯一的编号，就给它一个自己的短地址。'"
+  ],
+  [
+   "'Inconsistent casing'",
+   "'大小写不一致'"
+  ],
+  [
+   "'Indexes can\\'t be used with ORDER BY'",
+   "'索引不能和 ORDER BY 一起用'"
+  ],
+  [
+   "'It changes the URL'",
+   "'它会改变 URL'"
+  ],
+  [
+   "'It clashes with the current state, for example a duplicate.'",
+   "'与当前状态冲突，例如数据重复。'"
+  ],
+  [
+   "'It doubles the payload size'",
+   "'它会让数据量翻倍'"
+  ],
+  [
+   "'It is only additive for clients that were told to handle unknown values. State that rule in your contract from day one.'",
+   "'只有对那些被要求处理未知值的客户端来说，它才是纯新增。从第一天起就在契约里写明这条规则。'"
+  ],
+  [
+   "'It isn\\'t the client\\'s fault, so 5xx. In advanced mode, 503 (with Retry-After) is also accepted when the outage is temporary.'",
+   "'不是客户端的错，所以是 5xx。在进阶模式下，如果故障是暂时的，503（带 Retry-After）也算对。'"
+  ],
+  [
+   "'It looks RESTful, but it hides a big side effect (refund and email) behind a field change. It also makes invalid transitions such as shipped → cancelled awkward to reject and to authorise separately.'",
+   "'看起来很 RESTful，但它把一个很大的副作用（退款和邮件）藏在了一个字段修改后面。而且像“已发货 → 已取消”这样的非法状态转换也很难拒绝，很难单独做权限控制。'"
+  ],
+  [
+   "'It makes JSON parsing faster'",
+   "'让 JSON 解析更快'"
+  ],
+  [
+   "'It makes cursors shorter'",
+   "'让游标更短'"
+  ],
+  [
+   "'It works like folders on a computer: user 42\\'s folder contains an \"orders\" folder. Use lowercase everywhere so nobody has to guess.'",
+   "'就像电脑上的文件夹：42 号用户的文件夹里有一个“orders”文件夹。到处都用小写，谁都不用猜。'"
+  ],
+  [
+   "'It\\'s like dropping a form into the \"Orders\" tray. You hand it to the collection, and the server gives back the new order\\'s number.'",
+   "'就像把一张表格投进“订单”收件箱：你交给集合，服务器把新订单的编号还给你。'"
+  ],
+  [
+   "'It\\'s still a GET that changes data. A link previewer could delete users just by looking at the link.'",
+   "'它仍然是一个会修改数据的 GET。链接预览程序光是看一眼这个链接，就可能把用户删掉。'"
+  ],
+  [
+   "'It\\'s the client\\'s mistake (4xx), and the request itself is invalid: 400.'",
+   "'是客户端的错（4xx），而且请求本身无效：400。'"
+  ],
+  [
+   "'It\\'s the client\\'s mistake, so 4xx. 400 is the classic choice. In advanced mode, 422 is also accepted: the JSON is fine, but a validation rule fails.'",
+   "'是客户端的错，所以是 4xx。400 是经典的选择。在进阶模式下 422 也算对：JSON 本身没问题，但违反了校验规则。'"
+  ],
+  [
+   "'JSON-RPC error objects'",
+   "'JSON-RPC 错误对象'"
+  ],
+  [
+   "'Load a page first, so there is a post you have already seen.'",
+   "'先加载一页，这样才会有一条你已经看过的帖子。'"
+  ],
+  [
+   "'Load a page, mutate the data, then load the next page and compare both strategies.'",
+   "'先加载一页，修改数据，再加载下一页，比较两种策略的结果。'"
+  ],
+  [
+   "'Load at least one page first: the delete must hit a row inside the already-delivered range.'",
+   "'先至少加载一页：删除必须命中已经返回过的范围内的一行。'"
+  ],
+  [
+   "'Lots of software follows GET links by itself. If one deletes data, a bot could delete things just by visiting.'",
+   "'很多软件会自己去访问 GET 链接。如果某个链接会删除数据，机器人光是访问就可能把东西删掉。'"
+  ],
+  [
+   "'Make the optional request field \"phone\" required.'",
+   "'把可选的请求字段 \"phone\" 改为必填。'"
+  ],
+  [
+   "'Mixed case and two names joined together. Keep URLs lowercase and show the relationship with the path.'",
+   "'大小写混用，还把两个名字拼在了一起。URL 保持小写，并用路径表达关联关系。'"
+  ],
+  [
+   "'Model resources, not RPC calls. A collection (/users) plus an identifier (/users/42) gives you GET/PUT/PATCH/DELETE with well-known semantics, so caches, gateways and logs understand your API without custom rules.'",
+   "'围绕资源建模，而不是围绕 RPC 调用。集合（/users）加标识符（/users/42），就能直接用上语义明确的 GET/PUT/PATCH/DELETE，缓存、网关和日志不需要额外规则就能理解你的 API。'"
+  ],
+  [
+   "'Monitor usage of the old field'",
+   "'监控旧字段的使用情况'"
+  ],
+  [
+   "'No writes since the last page, so both strategies agree. Mutate the data and load again.'",
+   "'上一页之后没有写入，所以两种策略结果一致。修改数据后再加载一次。'"
+  ],
+  [
+   "'Nobody used it before, so nothing that already works can break.'",
+   "'以前没人用过它，所以不会破坏任何已有的功能。'"
+  ],
+  [
+   "'OFFSET is O(n): rows are produced and thrown away. Keyset pagination seeks straight to the right place in the index.'",
+   "'OFFSET 是 O(n) 的：这些行被生成出来又被扔掉。keyset 分页直接在索引中定位到正确的位置。'"
+  ],
+  [
+   "'Offsets are stored as strings'",
+   "'offset 是以字符串存储的'"
+  ],
+  [
+   "'Old apps just ignore a field they don\\'t know about. Adding is safe.'",
+   "'旧应用会直接忽略它们不认识的字段。新增是安全的。'"
+  ],
+  [
+   "'One URL per action'",
+   "'每个动作一个 URL'"
+  ],
+  [
+   "'One-off flag'",
+   "'一次性的标志位'"
+  ],
+  [
+   "'POST /orders returns 201 Created with a Location: /orders/{id} header and the created representation. Because the server assigns the ID, POST is not idempotent. Accept an Idempotency-Key if clients may retry.'",
+   "'POST /orders 返回 201 Created，带上 Location: /orders/{id} 头和新建的资源。因为 ID 由服务器分配，POST 不是幂等的。如果客户端可能重试，请支持 Idempotency-Key。'"
+  ],
+  [
+   "'POST /orders/42/cancel, returning 409 if it is already shipped'",
+   "'POST /orders/42/cancel，已发货时返回 409'"
+  ],
+  [
+   "'POST /users  {\"email\": \"…\"}  → now 422'",
+   "'POST /users  {\"email\": \"…\"}  → 现在返回 422'"
+  ],
+  [
+   "'PUT means \"store this at exactly this URL\". You don\\'t know the new order\\'s URL yet, because the server assigns the ID.'",
+   "'PUT 的意思是“把它存到这个确切的 URL”。可你还不知道新订单的 URL，因为 ID 由服务器分配。'"
+  ],
+  [
+   "'Page numbers (offset)'",
+   "'页码（offset）'"
+  ],
+  [
+   "'Plain CRUD doesn\\'t fit everything. When an operation is a state transition with side effects, POST /orders/{id}/cancel (or a /cancellations sub-collection) is explicit, easy to authorise and audit, and can return 409 Conflict when the transition isn\\'t allowed.'",
+   "'纯 CRUD 并不能覆盖所有情况。当一个操作是带副作用的状态转换时，POST /orders/{id}/cancel（或 /cancellations 子集合）更明确，易于授权和审计，并且可以在转换不被允许时返回 409 Conflict。'"
+  ],
+  [
+   "'Press \"Load next page\" a couple of times, then add a new post and load again.'",
+   "'先点几次“加载下一页”，然后添加一条新帖子，再加载一次。'"
+  ],
+  [
+   "'Problem details give you type, title, status, detail and instance, plus your own extension members.'",
+   "'问题详情提供 type、title、status、detail 和 instance，你还可以加上自己的扩展字段。'"
+  ],
+  [
+   "'Purely additive. Make sure it follows your existing conventions so you don\\'t have to \"fix\" it later, which would be a breaking change.'",
+   "'纯新增。确保它遵循现有约定，免得以后还要“修正”它，那才会是破坏性变更。'"
+  ],
+  [
+   "'Query parameters are like filter checkboxes in an online shop: each one is simple, and you can tick several at once.'",
+   "'查询参数就像网店里的筛选勾选框：每个都很简单，还可以同时勾选好几个。'"
+  ],
+  [
+   "'RFC 9457 problem details (application/problem+json)'",
+   "'RFC 9457 问题详情（application/problem+json）'"
+  ],
+  [
+   "'Random order'",
+   "'随机排序'"
+  ],
+  [
+   "'Reading should use GET. A POST can\\'t be cached, bookmarked or safely retried.'",
+   "'读取应该用 GET。POST 不能被缓存、不能收藏，也不能安全地重试。'"
+  ],
+  [
+   "'Relationship hidden in a parameter'",
+   "'关联关系藏在参数里'"
+  ],
+  [
+   "'Remove the field after the sunset date'",
+   "'过了下线日期后删除该字段'"
+  ],
+  [
+   "'Remove the old endpoint GET /reports/legacy.'",
+   "'删除旧端点 GET /reports/legacy。'"
+  ],
+  [
+   "'Remove the old field'",
+   "'删除旧字段'"
+  ],
+  [
+   "'Rename the field \"name\" to \"fullName\".'",
+   "'把字段 \"name\" 改名为 \"fullName\"。'"
+  ],
+  [
+   "'Renaming a field'",
+   "'给字段改名'"
+  ],
+  [
+   "'Requests from existing clients that omit \"phone\" now fail. Making request validation stricter is breaking; making it looser is safe.'",
+   "'现有客户端发出的、没有 \"phone\" 的请求现在都会失败。收紧请求校验是破坏性的，放宽则是安全的。'"
+  ],
+  [
+   "'Retire a field with expand/contract. Put the steps in order.'",
+   "'用扩展/收缩的方式下线一个字段。把步骤按顺序排好。'"
+  ],
+  [
+   "'Retry-After (and ideally the RateLimit headers) tells clients exactly when to retry, instead of hammering you with exponential guesses.'",
+   "'Retry-After（最好再加上 RateLimit 系列头）准确告诉客户端何时重试，而不是让它靠指数退避瞎猜、不停地冲击你。'"
+  ],
+  [
+   "'Rows with identical timestamps could be skipped or repeated'",
+   "'时间戳相同的行可能被跳过或重复'"
+  ],
+  [
+   "'Safe as long as the default (no parameter) behaves exactly as before.'",
+   "'只要默认行为（不带参数时）和以前完全一样，就是安全的。'"
+  ],
+  [
+   "'Safe for tolerant readers. That is why you should document \"ignore unknown fields\" and avoid strict deserialisation in your SDKs.'",
+   "'对“宽容读取者”是安全的。所以你应该在文档里写明“忽略未知字段”，并在 SDK 里避免严格的反序列化。'"
+  ],
+  [
+   "'Safe. Clients ignore headers they don\\'t know, and it helps support and tracing.'",
+   "'安全。客户端会忽略不认识的响应头，而且它有助于客服排查和链路追踪。'"
+  ],
+  [
+   "'Send Deprecation + Sunset headers'",
+   "'发送 Deprecation + Sunset 头'"
+  ],
+  [
+   "'Sending everything at once'",
+   "'一次性全部返回'"
+  ],
+  [
+   "'Servers block GET requests'",
+   "'服务器会拦截 GET 请求'"
+  ],
+  [
+   "'Ship the new field alongside the old one'",
+   "'在旧字段旁边发布新字段'"
+  ],
+  [
+   "'Shorter, but callers still have to know the company. A member already has its own unique ID.'",
+   "'更短了，但调用方仍然需要知道公司。成员本身已经有唯一的 ID。'"
+  ],
+  [
+   "'Show relationships with the path, and keep naming consistent.'",
+   "'用路径表达关联关系，命名保持一致。'"
+  ],
+  [
+   "'Slow down. You hit a rate limit.'",
+   "'慢一点，你触发了限流。'"
+  ],
+  [
+   "'Small, composable parameters (filter, sort, limit, cursor) beat one-off flags. Document the allowed values, reject unknown ones with 400, and use one sort syntax everywhere, for example sort=-created_at.'",
+   "'小而可组合的参数（filter、sort、limit、cursor）胜过一次性的标志位。在文档里写明允许的取值，对未知参数返回 400，并全站统一排序语法，例如 sort=-created_at。'"
+  ],
+  [
+   "'Someone signs up with an email address that is already registered.'",
+   "'有人用一个已经注册过的邮箱地址注册。'"
+  ],
+  [
+   "'Something broke on the server.'",
+   "'服务器内部出错了。'"
+  ],
+  [
+   "'Start returning a new response header X-Request-Id.'",
+   "'开始在响应中返回新的响应头 X-Request-Id。'"
+  ],
+  [
+   "'Step 1: both clients fetch the first window.'",
+   "'第 1 步：两个客户端都获取第一个窗口。'"
+  ],
+  [
+   "'Step 1: both clients load page 1.'",
+   "'第 1 步：两个客户端都加载第 1 页。'"
+  ],
+  [
+   "'Success, and there\\'s nothing to send back.'",
+   "'成功，并且没有内容需要返回。'"
+  ],
+  [
+   "'Success. Here is the result.'",
+   "'成功，这是结果。'"
+  ],
+  [
+   "'Success. Something new was created.'",
+   "'成功，新东西已创建。'"
+  ],
+  [
+   "'Tell everyone the old field will go away'",
+   "'通知所有人旧字段将被移除'"
+  ],
+  [
+   "'That thing doesn\\'t exist.'",
+   "'那个东西不存在。'"
+  ],
+  [
+   "'That was the last page. Press Reset to start over.'",
+   "'这是最后一页了。点击“重置”重新开始。'"
+  ],
+  [
+   "'The JSON is well-formed but \"email\" has an invalid format. What is the most precise status code?'",
+   "'JSON 格式正确，但 \"email\" 的格式不合法。最准确的状态码是什么？'"
+  ],
+  [
+   "'The URL names the thing (/orders/17), and the GET method says \"read it\".'",
+   "'URL 给事物命名（/orders/17），GET 方法表示“读取它”。'"
+  ],
+  [
+   "'The app asks for user 999, which doesn\\'t exist.'",
+   "'应用请求 999 号用户，但这个用户不存在。'"
+  ],
+  [
+   "'The database must walk and discard all the skipped rows'",
+   "'数据库必须遍历并丢弃所有被跳过的行'"
+  ],
+  [
+   "'The keyset must be unique and totally ordered. (created_at, id) guarantees there is exactly one \"next\" row.'",
+   "'keyset 必须唯一且完全有序。(created_at, id) 保证“下一行”恰好只有一行。'"
+  ],
+  [
+   "'The order still exists after it\\'s cancelled. You need it for history, refunds and support.'",
+   "'订单取消后依然存在，历史记录、退款和客服都需要它。'"
+  ],
+  [
+   "'The request has no login token at all.'",
+   "'请求里完全没有登录令牌。'"
+  ],
+  [
+   "'The request is well-formed but breaks a validation rule.'",
+   "'请求格式正确，但违反了校验规则。'"
+  ],
+  [
+   "'The request itself is broken or invalid.'",
+   "'请求本身有错误或无效。'"
+  ],
+  [
+   "'The server is temporarily down or overloaded.'",
+   "'服务器暂时不可用或过载。'"
+  ],
+  [
+   "'The sign-up form is sent without an email address.'",
+   "'注册表单提交时没有填写邮箱地址。'"
+  ],
+  [
+   "'There\\'s still a verb (\"get\") in the path. The GET method already says \"get\".'",
+   "'路径里仍然有动词（“get”）。GET 方法本身就已经表示“获取”了。'"
+  ],
+  [
+   "'Think of the URL as the address on an envelope, and the method as what you want done with it. \"/users/42\" is the address of user 42, and GET means \"show me\".'",
+   "'把 URL 想成信封上的地址，把方法想成你希望对它做的事。“/users/42”是 42 号用户的地址，GET 的意思是“给我看看”。'"
+  ],
+  [
+   "'This is often breaking in practice: an exhaustive switch or strict enum deserialiser crashes on the unknown value. It is only safe if the contract told clients from day one to handle unknown values.'",
+   "'在实践中这经常是破坏性的：穷举式的 switch 或严格的枚举反序列化器遇到未知值会崩溃。只有当契约从第一天起就要求客户端处理未知值时，它才是安全的。'"
+  ],
+  [
+   "'This just moves the same problem into the query string.'",
+   "'这只是把同样的问题挪到了查询参数里。'"
+  ],
+  [
+   "'This reads as \"order 42 of users\". An ID should come right after the thing it identifies.'",
+   "'这读起来像“users 的 42 号订单”。ID 应该紧跟在它所标识的东西后面。'"
+  ],
+  [
+   "'URLs name things (nouns). The HTTP method is the verb.'",
+   "'URL 给事物命名（名词），HTTP 方法才是动词。'"
+  ],
+  [
+   "'Use query parameters to filter, sort and page.'",
+   "'用查询参数来过滤、排序和分页。'"
+  ],
+  [
+   "'Verb in the URL'",
+   "'URL 里有动词'"
+  ],
+  [
+   "'Wait until apps have switched'",
+   "'等待应用都完成切换'"
+  ],
+  [
+   "'We don\\'t know who you are (no login or a bad login).'",
+   "'我们不知道你是谁（没有登录或登录信息无效）。'"
+  ],
+  [
+   "'We know who you are, but you\\'re not allowed to do this.'",
+   "'我们知道你是谁，但你没有权限这样做。'"
+  ],
+  [
+   "'What is the standard format for machine-readable HTTP error bodies?'",
+   "'机器可读的 HTTP 错误响应体，标准格式是什么？'"
+  ],
+  [
+   "'What should a 429 response include so clients can back off correctly?'",
+   "'429 响应应该包含什么，才能让客户端正确地退避？'"
+  ],
+  [
+   "'Which of these changes would break apps that already use your API?'",
+   "'下面哪种变更会破坏已经在使用你 API 的应用？'"
+  ],
+  [
+   "'Which request is the best way to fetch order 17?'",
+   "'获取 17 号订单，哪个请求最好？'"
+  ],
+  [
+   "'Why does OFFSET 100000 get slow in SQL?'",
+   "'为什么在 SQL 里 OFFSET 100000 会变慢？'"
+  ],
+  [
+   "'Why must a GET request never delete or change data?'",
+   "'为什么 GET 请求绝不能删除或修改数据？'"
+  ],
+  [
+   "'You need to rename a field without breaking anyone. Put the steps in order.'",
+   "'你需要给一个字段改名，又不能影响任何人。把步骤按顺序排好。'"
+  ],
+  [
+   "'You paginate with a cursor on created_at. Why add id as a tie-breaker?'",
+   "'你用 created_at 做游标分页。为什么还要加上 id 作为决胜字段？'"
+  ],
+  [
+   "'\\n\\n(no body)'",
+   "'\\n\\n（没有响应体）'"
+  ],
+  [
+   "'next → '",
+   "'下一页 → '"
+  ],
+  [
+   "'text/plain stack traces'",
+   "'text/plain 格式的堆栈信息'"
+  ],
+  [
+   "`${n} / 5 units`",
+   "`${n} / 5 单元`"
+  ],
+  [
+   "`${s}  (should be: ${item.items[i]})`",
+   "`${s}（正确答案：${item.items[i]}）`"
+  ],
+  [
+   "`<b>${correct ? 'Correct' : 'Not quite'}: it's ${c.breaking ? 'breaking' : 'safe'}.</b> ${esc(c[level] || c.advanced)}`",
+   "`<b>${correct ? '回答正确' : '不太对'}：它是${c.breaking ? '破坏性变更' : '安全的'}。</b>${esc(c[level] || c.advanced)}`"
+  ],
+  [
+   "`<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`",
+   "`<b>${ok ? '回答正确。' : '不太对。'}</b> ${esc(why)}`"
+  ],
+  [
+   "`<b>Correct.</b> ${esc(s.why)}`",
+   "`<b>回答正确。</b>${esc(s.why)}`"
+  ],
+  [
+   "`<b>Not quite.</b> ${code} means: ${esc(CODES[code][1])} Try again.`",
+   "`<b>不太对。</b>${code} 的意思是：${esc(CODES[code][1])} 再试一次。`"
+  ],
+  [
+   "`<b>Not quite.</b> ${esc(why)} Try another one.`",
+   "`<b>不太对。</b>${esc(why)} 再试试别的。`"
+  ],
+  [
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">Clear</button><button class=\"btn primary\" id=\"oCheck\" disabled>Check order</button></div>`",
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">清空</button><button class=\"btn primary\" id=\"oCheck\" disabled>检查顺序</button></div>`"
+  ],
+  [
+   "`<div class=\"count\">All sorted</div><div class=\"what\">${right} / ${vis.length} correct</div>\n        <p style=\"color:var(--muted);font-size:.9rem;margin-bottom:12px\">${right === vis.length ? 'You have a good sense for compatibility.' : 'The ones marked ✗ in the bins are worth another look.'}</p>\n        <button class=\"btn\" id=\"sortAgain\">Sort again</button>`",
+   "`<div class=\"count\">全部分完了</div><div class=\"what\">答对 ${right} / ${vis.length}</div>\n        <p style=\"color:var(--muted);font-size:.9rem;margin-bottom:12px\">${right === vis.length ? '你对兼容性很有感觉。' : '框里标着 ✗ 的那些值得再看一看。'}</p>\n        <button class=\"btn\" id=\"sortAgain\">重新分类</button>`"
+  ],
+  [
+   "`<div class=\"count\">Change ${vis.length - left.length + 1} of ${vis.length}</div>\n      <div class=\"what\">${esc(c.text)}</div><pre>${esc(c.code)}</pre>\n      <div class=\"choice\"><button class=\"btn safe-btn\" data-b=\"0\">✓ Safe</button><button class=\"btn break-btn\" data-b=\"1\">⚠ Breaking</button></div>`",
+   "`<div class=\"count\">第 ${vis.length - left.length + 1} 个变更，共 ${vis.length} 个</div>\n      <div class=\"what\">${esc(c.text)}</div><pre>${esc(c.code)}</pre>\n      <div class=\"choice\"><button class=\"btn safe-btn\" data-b=\"0\">✓ 安全</button><button class=\"btn break-btn\" data-b=\"1\">⚠ 破坏性</button></div>`"
+  ],
+  [
+   "`<div class=\"quiz-meta\"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`",
+   "`<div class=\"quiz-meta\"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`"
+  ],
+  [
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? 'Perfect. You\\'re ready to design APIs.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay the units, then try again.'}</p>\n        <button class=\"btn primary\" id=\"retry\">Try again</button></div>`",
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? '满分！你已经可以设计 API 了。' : pct >= 70 ? '做得不错。复习一下答错的题，再试一次。' : '开了个好头。回顾各单元后再试一次。'}</p>\n        <button class=\"btn primary\" id=\"retry\">再试一次</button></div>`"
+  ],
+  [
+   "`<span><i class=\"arrow c\"></i>${L('bookmark: next page starts here (cursor)', 'next cursor position')}</span>`",
+   "`<span><i class=\"arrow c\"></i>${L('书签：下一页从这里开始（cursor）', '下一个游标位置')}</span>`"
+  ],
+  [
+   "`<span><i class=\"arrow o\"></i>${L('next page starts here (offset)', 'next OFFSET window')}</span>`",
+   "`<span><i class=\"arrow o\"></i>${L('下一页从这里开始（offset）', '下一个 OFFSET 窗口')}</span>`"
+  ],
+  [
+   "`DELETE #${victim} from the already-delivered range. Every row behind it shifts up one position, so the next OFFSET window will skip a row.`",
+   "`从已经返回的范围里 DELETE #${victim}。它后面的每一行都往前移一位，所以下一个 OFFSET 窗口会跳过一行。`"
+  ],
+  [
+   "`Duplicate: the insert shifted every row down, so OFFSET ${off.offset - oPage.length} re-read a row from the previous window. The keyset predicate (id < ${prevAfter ?? '∞'}) is anchored to a value, not a position.`",
+   "`重复：插入让每一行都往后移了一位，所以 OFFSET ${off.offset - oPage.length} 又读到了上一个窗口里的一行。keyset 条件（id < ${prevAfter ?? '∞'}）锚定的是一个值，而不是一个位置。`"
+  ],
+  [
+   "`INSERT #${id} at the head. The offset window now starts one row earlier in the data (on an already-delivered row). The cursor still points to the first row with id < ${cur.after ?? '∞'}.`",
+   "`在头部 INSERT #${id}。offset 窗口现在在数据中提前了一行（落在一条已经返回过的行上）。游标仍然指向第一条 id < ${cur.after ?? '∞'} 的行。`"
+  ],
+  [
+   "`New post #${id} arrived at the top. Look at the arrows: the orange one (page numbers) now points at a post you've already seen, while the blue bookmark hasn't moved.`",
+   "`新帖子 #${id} 出现在最上面。看看箭头：橙色箭头（页码方式）现在指向一条你已经看过的帖子，而蓝色的书签没有动。`"
+  ],
+  [
+   "`Offset showed you ${newDups} post(s) twice! The new post pushed everything down one place, so \"skip ${off.offset - oPage.length}\" now lands on a post you've already seen. The bookmark doesn't care what's added above it.`",
+   "`页码方式让你看到了 ${newDups} 条重复的帖子！新帖子把所有内容往后挤了一位，所以“跳过 ${off.offset - oPage.length} 条”现在落在了一条你已经看过的帖子上。书签方式不在乎上面新增了什么。`"
+  ],
+  [
+   "`Offset silently skipped ${newMiss} post(s)! A post you'd already seen was deleted, everything moved up one place, and \"skip\" jumped over a post you never saw. Nobody notices this bug.`",
+   "`页码方式悄悄漏掉了 ${newMiss} 条帖子！一条你看过的帖子被删除后，所有内容往前挪了一位，“跳过”恰好跳过了一条你从没看到的帖子。这种 bug 没有人会注意到。`"
+  ],
+  [
+   "`Pages: ${c.pages} · Duplicates: <b class=\"${c.dups ? 'badn' : 'okn'}\">${c.dups}</b> · Missed: <b class=\"${m ? 'badn' : 'okn'}\">${m}</b>`",
+   "`页数：${c.pages} · 重复：<b class=\"${c.dups ? 'badn' : 'okn'}\">${c.dups}</b> · 漏掉：<b class=\"${m ? 'badn' : 'okn'}\">${m}</b>`"
+  ],
+  [
+   "`Post #${victim} (which you'd already seen) was deleted, and everything after it moved up one place. Load the next page and count carefully…`",
+   "`帖子 #${victim}（你已经看过）被删除了，它后面的所有内容都往前挪了一位。加载下一页，仔细数一数…`"
+  ],
+  [
+   "`Request: <code>${esc(s.req)}</code>`",
+   "`请求：<code>${esc(s.req)}</code>`"
+  ],
+  [
+   "`Situation ${i + 1}`",
+   "`第 ${i + 1} 个情境`"
+  ],
+  [
+   "`Skip: the delete shifted rows up, so the next OFFSET window started one row too late. Missed rows are worse than duplicates because nobody notices them. Keyset pagination is immune to this.`",
+   "`漏读：删除让后面的行都往前移，所以下一个 OFFSET 窗口晚了一行才开始。漏掉的行比重复的行更糟，因为没人会发现。keyset 分页不受影响。`"
+  ]
+ ]
+}

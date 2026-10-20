@@ -1,0 +1,973 @@
+{
+ "title": "一步步看懂 HTTP",
+ "strings": [
+  [
+   "'\"Hello?\" \"Hi, I can hear you!\" \"Great!\" at the start of a phone call.'",
+   "'打电话时开头的“喂？”“喂，听得到！”“好的！”'"
+  ],
+  [
+   "'(press Send)'",
+   "'（点击“发送请求”）'"
+  ],
+  [
+   "'0 ms when cached; roughly 20–120 ms when not.'",
+   "'有缓存时 0 ms；没有缓存时大约 20–120 ms。'"
+  ],
+  [
+   "'1 RTT with TLS 1.3 (2 with TLS 1.2), 0 RTT when resuming.'",
+   "'TLS 1.3 需要 1 个 RTT（TLS 1.2 需要 2 个），会话恢复时 0 RTT。'"
+  ],
+  [
+   "'1 round trip (RTT).'",
+   "'1 个往返（RTT）。'"
+  ],
+  [
+   "'200 OK with the body'",
+   "'200 OK，带响应体'"
+  ],
+  [
+   "'204 means \"success, and there is no body\". 200 with a body would also be valid, but 204 is the precise one.'",
+   "'204 表示“成功，并且没有响应体”。返回带响应体的 200 也可以，但 204 更准确。'"
+  ],
+  [
+   "'304 Not Modified with no body'",
+   "'304 Not Modified，没有响应体'"
+  ],
+  [
+   "':stream 3  GET /style.css  → 200  text/css\\n:stream 5  GET /app.js     → 200  application/javascript\\n:stream 7  GET /logo.png   → 200  image/png\\n\\n(HTTP/2: one connection, three streams)\\nDOM + CSSOM → layout → paint → composite'",
+   "':stream 3  GET /style.css  → 200  text/css\\n:stream 5  GET /app.js     → 200  application/javascript\\n:stream 7  GET /logo.png   → 200  image/png\\n\\n（HTTP/2：一条连接，三个流）\\nDOM + CSSOM → layout → paint → composite'"
+  ],
+  [
+   "'<span class=\"u-scheme\">https://</span><span class=\"u-host\">example.com</span><span class=\"u-path\">/index.html</span>\\n\\nscheme = <span class=\"u-scheme\">https</span>   (port 443)\\nhost   = <span class=\"u-host\">example.com</span>\\npath   = <span class=\"u-path\">/index.html</span>\\n\\nHSTS preload   ✓ https only\\nHTTP cache     ✗ miss\\nservice worker ✗ none'",
+   "'<span class=\"u-scheme\">https://</span><span class=\"u-host\">example.com</span><span class=\"u-path\">/index.html</span>\\n\\nscheme = <span class=\"u-scheme\">https</span>   (port 443)\\nhost   = <span class=\"u-host\">example.com</span>\\npath   = <span class=\"u-path\">/index.html</span>\\n\\nHSTS preload   ✓ 仅 https\\nHTTP cache     ✗ 未命中\\nservice worker ✗ 无'"
+  ],
+  [
+   "'<tr><td colspan=\"3\" style=\"color:var(--muted)\">(empty)</td></tr>'",
+   "'<tr><td colspan=\"3\" style=\"color:var(--muted)\">（空）</td></tr>'"
+  ],
+  [
+   "'A <img> tag load'",
+   "'<img> 标签加载图片'"
+  ],
+  [
+   "'A <script> without defer or async stops the HTML parser until it has downloaded and run.'",
+   "'没有 defer 或 async 的 <script> 会让 HTML 解析器停下来，直到脚本下载并执行完毕。'"
+  ],
+  [
+   "'A DELETE succeeds and the server has nothing to send back. Which status code fits?'",
+   "'一个 DELETE 成功了，服务器没有内容要返回。哪个状态码合适？'"
+  ],
+  [
+   "'A conditional GET whose ETag still matches gets 304. The browser reuses its cached copy and saves the transfer.'",
+   "'条件 GET 的 ETag 仍然匹配时返回 304。浏览器复用缓存副本，省去了传输。'"
+  ],
+  [
+   "'A low TTL makes failover faster but causes more lookups. <link rel=\"dns-prefetch\"> hides this wait.'",
+   "'TTL 设得低，故障切换更快，但查询次数更多。<link rel=\"dns-prefetch\"> 可以把这段等待提前完成。'"
+  ],
+  [
+   "'A missing intermediate certificate fails on some clients only. 0-RTT data can be replayed, so only use it for idempotent requests.'",
+   "'缺少中间证书时，只有部分客户端会失败，很难排查。0-RTT 数据可能被重放，只能用于幂等请求。'"
+  ],
+  [
+   "'A payment API must handle a client retrying POST /charges without charging twice. What is the standard technique?'",
+   "'支付 API 必须应对客户端重试 POST /charges，而且不能重复扣款。标准做法是什么？'"
+  ],
+  [
+   "'A request has a method, a target, a version, headers and an optional body. HTTP/2 sends the same thing as binary frames with HPACK-compressed headers, multiplexed on a stream. The meaning does not change.'",
+   "'请求由方法、目标、版本、请求头和可选的请求体组成。HTTP/2 以二进制帧发送同样的内容，请求头用 HPACK 压缩，并在一个流上多路复用，语义完全不变。'"
+  ],
+  [
+   "'A response has a status line, headers and a body. Cache-Control and ETag control caching. Content-Encoding (gzip or br) compresses the body. The connection stays open (keep-alive) so it can be reused.'",
+   "'响应由状态行、响应头和响应体组成。Cache-Control 和 ETag 控制缓存，Content-Encoding（gzip 或 br）压缩响应体。连接保持打开（keep-alive），以便复用。'"
+  ],
+  [
+   "'A shop showing you its official licence, then you both switch to a secret code only the two of you know.'",
+   "'商店先出示正式营业执照，然后你们换成一套只有你们俩懂的暗号。'"
+  ],
+  [
+   "'A sign-up form creates a new account. Which method fits best?'",
+   "'注册表单要创建一个新账号。哪个方法最合适？'"
+  ],
+  [
+   "'A slow database query shows up as a high TTFB. The Server-Timing header can show where the time went.'",
+   "'慢查询会表现为很高的 TTFB。Server-Timing 响应头可以告诉你时间花在了哪里。'"
+  ],
+  [
+   "'A stored book is {\"title\":\"Dune\",\"read\":true}. You send PUT /books/1 with {\"title\":\"Dune\"}. What happens to \"read\"?'",
+   "'已存储的书是 {\"title\":\"Dune\",\"read\":true}。你发送 PUT /books/1，内容为 {\"title\":\"Dune\"}。\"read\" 会怎样？'"
+  ],
+  [
+   "'A typical path: load balancer or reverse proxy → router matches method + path → middleware (auth, logging, rate limits) → handler → cache or database → response serialisation. The time spent here shows up in TTFB (time to first byte).'",
+   "'典型路径：负载均衡或反向代理 → 路由按方法 + 路径匹配 → 中间件（鉴权、日志、限流）→ 处理函数 → 缓存或数据库 → 序列化响应。这里花的时间会体现在 TTFB（首字节时间）里。'"
+  ],
+  [
+   "'Add a new book called Neuromancer.'",
+   "'新增一本书，书名叫 Neuromancer。'"
+  ],
+  [
+   "'An Idempotency-Key header'",
+   "'使用 Idempotency-Key 请求头'"
+  ],
+  [
+   "'An attacker can replay it'",
+   "'攻击者可以重放它'"
+  ],
+  [
+   "'Applies a partial change (RFC 5789), for example in JSON Merge Patch or JSON Patch format. It is not guaranteed to be idempotent: an \"increment\" operation changes the result every time.'",
+   "'对资源做部分修改（RFC 5789），例如使用 JSON Merge Patch 或 JSON Patch 格式。它不保证幂等：像“加一”这样的操作每次都会改变结果。'"
+  ],
+  [
+   "'Ask for the page: method + path + headers.'",
+   "'请求页面：方法 + 路径 + 请求头。'"
+  ],
+  [
+   "'Asks the server: \"What am I allowed to do here?\"'",
+   "'问服务器：“我在这里可以做什么？”'"
+  ],
+  [
+   "'At least 1 RTT per wave of subresources. CSS and synchronous JS block the first paint.'",
+   "'每一批子资源至少 1 个 RTT。CSS 和同步 JS 会阻塞首次绘制。'"
+  ],
+  [
+   "'Before talking, the browser and server do a handshake to open a reliable line: \"Can you hear me?\" \"Yes, can you hear me?\" \"Yes!\" After this, nothing gets lost or arrives out of order.'",
+   "'正式通话之前，浏览器和服务器先握手，建立一条可靠的线路：“听得到吗？”“听得到，你听得到我吗？”“听得到！”之后传输的数据既不会丢，也不会乱序。'"
+  ],
+  [
+   "'Book 1 didn\\'t exist, so I created it.'",
+   "'1 号书原本不存在，所以我新建了它。'"
+  ],
+  [
+   "'Browser → DNS:  \"Where does example.com live?\"\\nDNS → Browser:  \"At 93.184.215.14.\\n                 You can remember that for 5 minutes.\"'",
+   "'浏览器 → DNS：“example.com 住在哪儿？”\\nDNS → 浏览器：“在 93.184.215.14。\\n               这个答案你可以记 5 分钟。”'"
+  ],
+  [
+   "'Browser: \"Hello, can you hear me?\"\\nServer:  \"Yes! Can you hear me?\"\\nBrowser: \"Yes! Let\\'s talk.\"\\n\\n✓ line is open'",
+   "'浏览器：“喂，听得到吗？”\\n服务器：“听得到！你听得到我吗？”\\n浏览器：“听得到！开始吧。”\\n\\n✓ 线路已接通'"
+  ],
+  [
+   "'Browser: \"Please GET me the page /index.html.\\n          By the way, I\\'m Chrome,\\n          and I prefer English.\"'",
+   "'浏览器：“请 GET 页面 /index.html。\\n        顺便说一下，我是 Chrome，\\n        我更喜欢英文。”'"
+  ],
+  [
+   "'Browser: \"Prove you\\'re really example.com.\"\\nServer:  \"Here\\'s my ID card, signed by\\n          an authority you trust.\"\\nBrowser: \"Checked ✓. Let\\'s use a secret code.\"\\n\\n🔒 Nobody in between can read what follows.'",
+   "'浏览器：“证明你真的是 example.com。”\\n服务器：“这是我的身份证，\\n        由你信任的机构签发。”\\n浏览器：“核验通过 ✓。我们换用暗号吧。”\\n\\n🔒 之后的内容中间人无法读取。'"
+  ],
+  [
+   "'Browser: \"This page also needs a style sheet,\\n          a script and a logo. Send those too?\"\\nServer:  \"Here they are!\"\\nBrowser: \"Drawing the page… done ✓\"'",
+   "'浏览器：“这个页面还需要一个样式表、\\n        一个脚本和一个 logo，也发给我吧？”\\n服务器：“给你！”\\n浏览器：“正在绘制页面… 完成 ✓”'"
+  ],
+  [
+   "'CORS preflight: to ask whether the request is allowed'",
+   "'CORS 预检：询问这个请求是否被允许'"
+  ],
+  [
+   "'Cacheable'",
+   "'可缓存'"
+  ],
+  [
+   "'Change just part of something. Like fixing one word with a pen instead of reprinting the page.'",
+   "'只改一部分。就像用笔改掉一个字，而不是重印整页。'"
+  ],
+  [
+   "'Choosing the right certificate when many sites share one IP'",
+   "'多个网站共用一个 IP 时，选出正确的证书'"
+  ],
+  [
+   "'Compressing headers'",
+   "'压缩请求头'"
+  ],
+  [
+   "'Computers find each other by number (an IP address), not by name. The browser asks DNS: \"What is the address of example.com?\" It works like looking up a phone number in your contacts.'",
+   "'计算机之间靠数字（IP 地址）而不是名字找到彼此。浏览器问 DNS：“example.com 的地址是多少？”这就像在通讯录里查电话号码。'"
+  ],
+  [
+   "'Cookies are sent with every request to the origin. Large cookies slow down every request, images included.'",
+   "'发往同一个源的每个请求都会带上 Cookie。Cookie 过大会拖慢每一个请求，包括图片请求。'"
+  ],
+  [
+   "'Copied'",
+   "'已复制'"
+  ],
+  [
+   "'Copy failed'",
+   "'复制失败'"
+  ],
+  [
+   "'Copy'",
+   "'复制'"
+  ],
+  [
+   "'Create something new or submit data. Like posting a letter: every letter you send is a new one.'",
+   "'创建新东西或提交数据。就像寄信：每寄出一封都是一封新信。'"
+  ],
+  [
+   "'Creates or replaces the target resource with the representation in the body. Idempotent: N identical PUTs leave the same state as one. Any field you leave out is not kept.'",
+   "'用请求体中的表示创建或替换目标资源。幂等：N 次相同的 PUT 和一次的结果一样。没有写的字段不会被保留。'"
+  ],
+  [
+   "'DELETE is not a CORS-safelisted method, and Authorization is not a safelisted header. Either one is enough to trigger an OPTIONS preflight.'",
+   "'DELETE 不是 CORS 安全列表中的方法，Authorization 也不是安全列表中的请求头。任意一个都足以触发 OPTIONS 预检。'"
+  ],
+  [
+   "'DELETE with an Authorization header'",
+   "'带 Authorization 请求头的 DELETE'"
+  ],
+  [
+   "'DNS lookup'",
+   "'DNS 查询'"
+  ],
+  [
+   "'DNS resolution'",
+   "'DNS 解析'"
+  ],
+  [
+   "'Describes which methods and options the target supports. Before some cross-origin requests, browsers send it automatically as a CORS preflight and read the Access-Control-Allow-* headers in the reply.'",
+   "'描述目标支持哪些方法和选项。发起某些跨域请求之前，浏览器会自动发送它作为 CORS 预检，并读取响应中的 Access-Control-Allow-* 头。'"
+  ],
+  [
+   "'Done, it\\'s gone. I have nothing to send back.'",
+   "'好了，已经删掉了，没有内容需要返回。'"
+  ],
+  [
+   "'Done. Book 1 has been completely replaced.'",
+   "'好了，1 号书已被整体替换。'"
+  ],
+  [
+   "'Done. Book 2 is marked as read. Nothing else changed.'",
+   "'好了，2 号书已标记为已读，其他都没变。'"
+  ],
+  [
+   "'Draw the page and request the CSS, JS and images it needs.'",
+   "'绘制页面，并请求它需要的 CSS、JS 和图片。'"
+  ],
+  [
+   "'Early data has no protection against replay. Replaying a GET is harmless; replaying a POST could, for example, place an order twice.'",
+   "'早期数据没有防重放保护。重放一个 GET 没有害处；重放一个 POST 则可能导致重复下单。'"
+  ],
+  [
+   "'Every new origin needs its own connection. <link rel=\"preconnect\"> does DNS + TCP + TLS early.'",
+   "'每个新的源（origin）都需要单独建立连接。<link rel=\"preconnect\"> 可以提前完成 DNS + TCP + TLS。'"
+  ],
+  [
+   "'Find the address → open a connection → secure it → ask → server works → answer comes back.'",
+   "'找到地址 → 建立连接 → 加密连接 → 提问 → 服务器处理 → 答复返回。'"
+  ],
+  [
+   "'Find the right code, fetch the data, build a reply.'",
+   "'找到对应的代码，取数据，组装回复。'"
+  ],
+  [
+   "'For book 2, just mark it as read.'",
+   "'2 号书只要标记为已读就行。'"
+  ],
+  [
+   "'For non-simple cross-origin requests the browser first sends an OPTIONS preflight and checks the Access-Control-Allow-* headers in the reply.'",
+   "'对于非简单的跨域请求，浏览器会先发送 OPTIONS 预检，并检查响应中的 Access-Control-Allow-* 头。'"
+  ],
+  [
+   "'GET reads data. It is safe (no side effects) and can be cached.'",
+   "'GET 用来读取数据。它是安全的（没有副作用），还可以缓存。'"
+  ],
+  [
+   "'GET with no custom headers'",
+   "'不带自定义请求头的 GET'"
+  ],
+  [
+   "'HSTS & cache check'",
+   "'HSTS 与缓存检查'"
+  ],
+  [
+   "'HSTS / cache check…'",
+   "'检查 HSTS / 缓存…'"
+  ],
+  [
+   "'Hello?'",
+   "'喂？'"
+  ],
+  [
+   "'Here is my ID card'",
+   "'这是我的身份证'"
+  ],
+  [
+   "'Hi! Hear me?'",
+   "'听得到！你呢？'"
+  ],
+  [
+   "'ID checked ✓'",
+   "'身份已核验 ✓'"
+  ],
+  [
+   "'Idempotent'",
+   "'幂等'"
+  ],
+  [
+   "'Is the book list there, and how big is it? No need to send it.'",
+   "'书单还在吗？有多大？不用把内容发给我。'"
+  ],
+  [
+   "'It depends on the server. Aim for under 200 ms TTFB.'",
+   "'取决于服务器。目标是 TTFB 低于 200 ms。'"
+  ],
+  [
+   "'It is dropped or reset, because PUT replaces the whole resource'",
+   "'被删除或重置，因为 PUT 会替换整个资源'"
+  ],
+  [
+   "'It is sent unencrypted'",
+   "'它不加密'"
+  ],
+  [
+   "'It skips the certificate check'",
+   "'它跳过证书校验'"
+  ],
+  [
+   "'It stays true'",
+   "'保持为 true'"
+  ],
+  [
+   "'It turns off HTTP/2'",
+   "'它会关闭 HTTP/2'"
+  ],
+  [
+   "'It\\'s 93.184.215.14'",
+   "'是 93.184.215.14'"
+  ],
+  [
+   "'Like GET, but it only asks for the label on the box, not what\\'s inside.'",
+   "'和 GET 一样，但只问箱子上的标签，不要箱子里的东西。'"
+  ],
+  [
+   "'Local checks → name resolution → transport → security → HTTP request → server time → response and rendering.'",
+   "'本地检查 → 域名解析 → 传输层 → 安全层 → HTTP 请求 → 服务器耗时 → 响应与渲染。'"
+  ],
+  [
+   "'Looking up a friend\\'s phone number in your contacts.'",
+   "'在通讯录里查朋友的电话号码。'"
+  ],
+  [
+   "'Negotiating HTTP/2'",
+   "'协商 HTTP/2'"
+  ],
+  [
+   "'Noticing you also need cutlery and sauce, asking for them, then starting to eat.'",
+   "'发现还需要餐具和酱料，要来之后开始吃。'"
+  ],
+  [
+   "'Now the browser asks its real question. The first word is the method. GET means \"please give me this.\" Headers add extra details, such as which browser you are using.'",
+   "'现在浏览器提出真正的问题。第一个词是方法（method），GET 的意思是“请把这个给我”。请求头补充额外信息，比如你用的是哪个浏览器。'"
+  ],
+  [
+   "'OK! Here is the page'",
+   "'好的！页面给你'"
+  ],
+  [
+   "'OK, let\\'s go secret'",
+   "'好，开始加密'"
+  ],
+  [
+   "'On an HSTS host, http:// is upgraded to https:// inside the browser. No redirect goes over the network.'",
+   "'如果主机启用了 HSTS，http:// 会在浏览器内部直接升级为 https://，不会产生网络重定向。'"
+  ],
+  [
+   "'On the wire'",
+   "'实际传输的内容'"
+  ],
+  [
+   "'Open a reliable two-way line to the server.'",
+   "'和服务器建立一条可靠的双向线路。'"
+  ],
+  [
+   "'PATCH applies a partial update. PUT would replace the whole user, and any field you left out would be lost.'",
+   "'PATCH 做部分更新。PUT 会替换整个用户，你没写的字段都会丢失。'"
+  ],
+  [
+   "'POST submits data so the server can create something new. The server usually replies 201 Created.'",
+   "'POST 提交数据，让服务器创建新东西。服务器通常回复 201 Created。'"
+  ],
+  [
+   "'POST with Content-Type: text/plain'",
+   "'Content-Type 为 text/plain 的 POST'"
+  ],
+  [
+   "'PUT sends the complete new state. Any field you leave out is not kept. Use PATCH for partial updates.'",
+   "'PUT 发送的是完整的新状态，没写的字段不会保留。部分更新请用 PATCH。'"
+  ],
+  [
+   "'Parse the URL'",
+   "'解析 URL'"
+  ],
+  [
+   "'Placing your order at the counter.'",
+   "'在柜台点单。'"
+  ],
+  [
+   "'Please give me the page'",
+   "'请把页面给我'"
+  ],
+  [
+   "'Processes the request body according to the resource\\'s own rules, usually by creating a new resource (201 + Location). Neither safe nor idempotent, so a retry can create a duplicate. That is why payment APIs accept an Idempotency-Key header.'",
+   "'按照资源自身的规则处理请求体，通常是创建一个新资源（201 + Location）。既不安全也不幂等，所以重试可能产生重复数据。这就是支付类 API 支持 Idempotency-Key 请求头的原因。'"
+  ],
+  [
+   "'Prove the server is real and encrypt the line.'",
+   "'证明服务器是真的，并给线路加密。'"
+  ],
+  [
+   "'Prove who you are'",
+   "'请证明你的身份'"
+  ],
+  [
+   "'Put the full sequence in order. Tap the stages from first to last.'",
+   "'把完整流程按顺序排好。从第一步到最后一步依次点击。'"
+  ],
+  [
+   "'Put the journey in order. Tap the stages from first to last.'",
+   "'把整个过程按顺序排好。从第一步到最后一步依次点击。'"
+  ],
+  [
+   "'Read something. Like opening a book to look at it: you don\\'t change anything.'",
+   "'读取东西。就像翻开一本书看看：什么都不改变。'"
+  ],
+  [
+   "'Reading the address on an envelope before you post it.'",
+   "'寄信之前先看清信封上的地址。'"
+  ],
+  [
+   "'Receive response'",
+   "'收到响应'"
+  ],
+  [
+   "'Remove book 3.'",
+   "'删除 3 号书。'"
+  ],
+  [
+   "'Remove something. Like throwing a page away.'",
+   "'删除东西。就像把一页纸扔掉。'"
+  ],
+  [
+   "'Removes the resource at the target URI. Idempotent: the server state after one DELETE or many is the same, even though later calls may return 404.'",
+   "'删除目标 URI 上的资源。幂等：执行一次或多次 DELETE 后服务器状态相同，即使之后的调用可能返回 404。'"
+  ],
+  [
+   "'Render'",
+   "'渲染'"
+  ],
+  [
+   "'Render, then fetch the rest'",
+   "'渲染，再取剩下的资源'"
+  ],
+  [
+   "'Replace book 1 with: Dune Messiah, not read yet.'",
+   "'把 1 号书整个换成：Dune Messiah，未读。'"
+  ],
+  [
+   "'Replace something completely. Like swapping a whole page in a binder for a new one.'",
+   "'整体替换。就像把活页夹里的一整页换成新的一页。'"
+  ],
+  [
+   "'Request body'",
+   "'请求体'"
+  ],
+  [
+   "'Request headers sent'",
+   "'发送请求头'"
+  ],
+  [
+   "'Request'",
+   "'请求'"
+  ],
+  [
+   "'Response streamed & parsed'",
+   "'流式接收并解析响应'"
+  ],
+  [
+   "'Response'",
+   "'响应'"
+  ],
+  [
+   "'Resuming a previous session'",
+   "'恢复之前的会话'"
+  ],
+  [
+   "'Retrieves a representation of the target resource. Safe and idempotent, and responses are cacheable. A body on a GET has no defined meaning, so don\\'t send one.'",
+   "'获取目标资源的表示。安全且幂等，响应可以缓存。GET 的请求体没有定义的语义，不要发送。'"
+  ],
+  [
+   "'SNI sends the hostname before encryption starts, so a server hosting many domains knows which certificate to present. ALPN is what negotiates h2.'",
+   "'SNI 在加密开始前发送主机名，这样托管多个域名的服务器才知道该出示哪张证书。协商 h2 的是 ALPN。'"
+  ],
+  [
+   "'Safe'",
+   "'安全'"
+  ],
+  [
+   "'Send GET /'",
+   "'发送 GET /'"
+  ],
+  [
+   "'Send HTTP request'",
+   "'发送 HTTP 请求'"
+  ],
+  [
+   "'Send the HTTP request'",
+   "'发送 HTTP 请求'"
+  ],
+  [
+   "'Sending HEAD first'",
+   "'先发送 HEAD'"
+  ],
+  [
+   "'Sending the same POST twice usually creates two resources. You saw this with the duplicate \"Neuromancer\" rows in Unit 2.'",
+   "'同一个 POST 发两次，通常会创建两个资源。你在第 2 单元里已经看到了重复的 “Neuromancer” 记录。'"
+  ],
+  [
+   "'Server processes'",
+   "'服务器处理'"
+  ],
+  [
+   "'Server work (TTFB)'",
+   "'服务器处理（TTFB）'"
+  ],
+  [
+   "'Server'",
+   "'服务器'"
+  ],
+  [
+   "'Server: \"200, which means OK, here you go!\"\\n        \"It\\'s an HTML page, 1256 bytes long.\"\\n        \"You can keep a copy for 10 minutes.\"'",
+   "'服务器：“200，意思是好的，给你！”\\n        “这是一个 HTML 页面，长 1256 字节。”\\n        “你可以保留副本 10 分钟。”'"
+  ],
+  [
+   "'Server: \"Who handles /index.html? The page code.\"\\n        \"Let me look up what goes on the page…\"\\n        \"…and wrap it all up as HTML.\"'",
+   "'服务器：“/index.html 归谁管？页面代码。”\\n        “我查一下页面上要放什么…”\\n        “…再把它们打包成 HTML。”'"
+  ],
+  [
+   "'Show me all the books.'",
+   "'把所有书都给我看看。'"
+  ],
+  [
+   "'Sorry, I can\\'t find book 2.'",
+   "'抱歉，找不到 2 号书。'"
+  ],
+  [
+   "'Sorry, I can\\'t find book 3. It\\'s already gone.'",
+   "'抱歉，找不到 3 号书，它已经被删掉了。'"
+  ],
+  [
+   "'Status code + headers + the page itself.'",
+   "'状态码 + 响应头 + 页面本身。'"
+  ],
+  [
+   "'Switch to GET'",
+   "'改用 GET'"
+  ],
+  [
+   "'TCP handshake (1) + TLS 1.3 handshake (1) + request/response (1) = 3. TLS 1.2 adds one more. HTTP/3 (QUIC) combines the first two into 1.'",
+   "'TCP 握手（1）+ TLS 1.3 握手（1）+ 请求/响应（1）= 3。TLS 1.2 还要再多一个。HTTP/3（QUIC）把前两个合并成 1 个。'"
+  ],
+  [
+   "'TCP handshake'",
+   "'TCP 握手'"
+  ],
+  [
+   "'TLS 1.3 over TCP, DNS already cached. How many round trips pass before the first byte of the HTTP response arrives?'",
+   "'TLS 1.3 + TCP，DNS 已经有缓存。在收到 HTTP 响应的第一个字节之前，要经过几个往返？'"
+  ],
+  [
+   "'TLS 1.3: the ClientHello carries cipher suites, a key share, SNI (the hostname) and ALPN. The server answers with ServerHello, its certificate and Finished. The client checks the certificate chain against trusted CAs. Both sides derive session keys with ECDHE. This costs one round trip, or zero when resuming a session. ALPN chooses h2 or http/1.1.'",
+   "'TLS 1.3：ClientHello 携带加密套件、密钥共享参数、SNI（主机名）和 ALPN。服务器回复 ServerHello、证书和 Finished。客户端用受信任的 CA 校验证书链，双方通过 ECDHE 推导会话密钥。整个过程需要一个往返，会话恢复时为零。ALPN 决定使用 h2 还是 http/1.1。'"
+  ],
+  [
+   "'TLS handshake (the S in HTTPS)'",
+   "'TLS 握手（HTTPS 里的 S）'"
+  ],
+  [
+   "'TLS handshake'",
+   "'TLS 握手'"
+  ],
+  [
+   "'The HTTP response'",
+   "'HTTP 响应'"
+  ],
+  [
+   "'The URL is parsed into scheme, host, port (443 is implied for https), path and query. Before using the network, the browser checks HSTS rules, its HTTP cache and any service worker. Any of these can answer or change the request.'",
+   "'URL 会被解析为协议（scheme）、主机、端口（https 默认 443）、路径和查询参数。在真正联网之前，浏览器会先检查 HSTS 规则、自己的 HTTP 缓存以及 Service Worker，其中任何一个都可能直接给出响应或改写请求。'"
+  ],
+  [
+   "'The browser checks its own cache, then the OS cache, then asks a recursive resolver (UDP port 53, or DNS-over-HTTPS). If the resolver has no cached answer, it asks the root servers, then the .com servers, then example.com\\'s own nameserver for an A/AAAA record. The answer is cached for its TTL.'",
+   "'浏览器先查自己的缓存，再查操作系统缓存，然后询问递归解析器（UDP 53 端口，或 DNS-over-HTTPS）。如果解析器没有缓存，它会依次询问根服务器、.com 服务器，最后向 example.com 自己的权威服务器查询 A/AAAA 记录。结果会按 TTL 缓存。'"
+  ],
+  [
+   "'The browser needs the server\\'s IP address before it can open a connection, so DNS comes first. Then TCP, then TLS, then the HTTP request.'",
+   "'浏览器必须先知道服务器的 IP 地址才能建立连接，所以 DNS 最先。然后是 TCP，再是 TLS，最后才是 HTTP 请求。'"
+  ],
+  [
+   "'The browser reads the HTML and finds it needs more files: styles, scripts and images. It asks for them over the same open connection, then draws the page on your screen.'",
+   "'浏览器读取 HTML，发现还需要更多文件：样式、脚本和图片。它通过同一条已打开的连接请求这些文件，然后把页面画到屏幕上。'"
+  ],
+  [
+   "'The browser sends If-None-Match: \"abc\" and the resource has not changed. What is the response?'",
+   "'浏览器发送 If-None-Match: \"abc\"，而资源没有变化。响应是什么？'"
+  ],
+  [
+   "'The client sends a unique Idempotency-Key. If the server sees the same key again, it returns the stored result instead of charging again.'",
+   "'客户端发送一个唯一的 Idempotency-Key。服务器如果再次看到同一个 key，就返回之前保存的结果，而不是再扣一次款。'"
+  ],
+  [
+   "'The data didn\\'t change this time, because this merge-patch only sets read = true. PATCH in general is not guaranteed to be idempotent; an \"increment\" patch would change it every time.'",
+   "'这次数据没有变化，因为这个 merge-patch 只是把 read 设为 true。但 PATCH 一般不保证幂等，比如“加一”这样的 patch 每次都会改变数据。'"
+  ],
+  [
+   "'The kitchen cooking your order.'",
+   "'厨房在做你点的菜。'"
+  ],
+  [
+   "'The parser builds the DOM while the preload scanner finds subresources and requests them early. With HTTP/2 these requests share one connection. DOM + CSSOM → render tree → layout → paint → composite.'",
+   "'解析器构建 DOM，同时预加载扫描器提前发现并请求子资源。在 HTTP/2 下，这些请求共用一条连接。DOM + CSSOM → 渲染树 → 布局 → 绘制 → 合成。'"
+  ],
+  [
+   "'The same as GET, but the server must not send a body. Use it to check cheaply whether a resource exists, how big it is (Content-Length) or whether it is still fresh (ETag / Last-Modified).'",
+   "'和 GET 相同，但服务器不能返回响应体。用来低成本地检查资源是否存在、有多大（Content-Length），或是否仍然新鲜（ETag / Last-Modified）。'"
+  ],
+  [
+   "'The server does the work'",
+   "'服务器处理请求'"
+  ],
+  [
+   "'The server must reject the request'",
+   "'服务器必须拒绝这个请求'"
+  ],
+  [
+   "'The server reads the request and works out which piece of its code should handle it. That code may look something up in a database. Then it prepares an answer.'",
+   "'服务器读取请求，判断该由哪段代码处理。这段代码可能会去数据库查一些东西，然后准备好答复。'"
+  ],
+  [
+   "'The server replies with a status code (200 means \"OK, here you go\"), some headers and the body, which is the actual HTML of the page.'",
+   "'服务器回复一个状态码（200 表示“好的，给你”）、一些响应头，以及响应体，也就是页面真正的 HTML。'"
+  ],
+  [
+   "'The server shows an ID card (its certificate) to prove it really is example.com, and both sides agree on a secret key. From now on everything is scrambled, so nobody in between can read it.'",
+   "'服务器出示一张“身份证”（证书），证明自己确实是 example.com，双方再商定一把只有彼此知道的密钥。从此所有内容都被加密，中间的人无法读取。'"
+  ],
+  [
+   "'The server treats it as a PATCH'",
+   "'服务器会把它当作 PATCH 处理'"
+  ],
+  [
+   "'The server\\'s data changed. Press Send again to test whether repeating it changes anything more.'",
+   "'服务器的数据变了。再点一次“发送请求”，看看重复发送会不会带来更多变化。'"
+  ],
+  [
+   "'The three-way handshake (SYN → SYN-ACK → ACK) exchanges starting sequence numbers and costs one round trip. HTTP/3 replaces TCP with QUIC over UDP, which combines the transport and TLS handshakes into one.'",
+   "'三次握手（SYN → SYN-ACK → ACK）交换双方的初始序列号，耗时一个往返。HTTP/3 用基于 UDP 的 QUIC 取代了 TCP，把传输层握手和 TLS 握手合并成一次。'"
+  ],
+  [
+   "'The waiter bringing your food along with the receipt.'",
+   "'服务员把菜和小票一起端上来。'"
+  ],
+  [
+   "'This time you got 404, but the server\\'s data is the same as after the first DELETE. That is what idempotent means: repeating it doesn\\'t change the result.'",
+   "'这次你得到了 404，但服务器的数据和第一次 DELETE 之后完全一样。这就是幂等：重复执行不会改变结果。'"
+  ],
+  [
+   "'To compress the request'",
+   "'为了压缩请求'"
+  ],
+  [
+   "'To retry a failed request'",
+   "'为了重试失败的请求'"
+  ],
+  [
+   "'To warm up the cache'",
+   "'为了预热缓存'"
+  ],
+  [
+   "'Turn the name example.com into a numeric address.'",
+   "'把 example.com 这个名字换成数字地址。'"
+  ],
+  [
+   "'What am I allowed to do with the book list?'",
+   "'我可以对书单做哪些操作？'"
+  ],
+  [
+   "'What does SNI in the ClientHello allow?'",
+   "'ClientHello 里的 SNI 有什么用？'"
+  ],
+  [
+   "'What they\\'re saying'",
+   "'他们在说什么'"
+  ],
+  [
+   "'Where is example.com?'",
+   "'example.com 在哪？'"
+  ],
+  [
+   "'Which cross-origin fetch triggers a CORS preflight?'",
+   "'下面哪个跨域请求会触发 CORS 预检？'"
+  ],
+  [
+   "'Which of these methods is NOT idempotent?'",
+   "'下面哪个方法不是幂等的？'"
+  ],
+  [
+   "'Why does a browser sometimes send OPTIONS before a cross-origin request on its own?'",
+   "'为什么浏览器有时会在跨域请求之前自己先发一个 OPTIONS？'"
+  ],
+  [
+   "'Why is TLS 1.3 0-RTT early data limited to idempotent requests?'",
+   "'为什么 TLS 1.3 的 0-RTT 早期数据只能用于幂等请求？'"
+  ],
+  [
+   "'Without Cache-Control, browsers guess how long to cache the page. Set it explicitly.'",
+   "'没有 Cache-Control 时，浏览器只能猜页面该缓存多久。请明确设置它。'"
+  ],
+  [
+   "'Work out who to contact and what to ask for.'",
+   "'弄清楚要联系谁、要请求什么。'"
+  ],
+  [
+   "'Yes!'",
+   "'听得到！'"
+  ],
+  [
+   "'You may read, add, replace, change and delete books.'",
+   "'你可以读取、新增、替换、修改和删除书。'"
+  ],
+  [
+   "'You only want to change a user\\'s email address and leave every other field alone. Which method?'",
+   "'你只想修改用户的邮箱地址，其他字段保持不变。该用哪个方法？'"
+  ],
+  [
+   "'You type https://example.com into the address bar. Which of these happens FIRST?'",
+   "'你在地址栏输入 https://example.com。下面哪件事最先发生？'"
+  ],
+  [
+   "'You type https://example.com/index.html and press Enter. The browser splits it into three parts: how to talk (https), who to talk to (example.com) and what to ask for (/index.html).'",
+   "'你输入 https://example.com/index.html 并按下回车。浏览器把它拆成三部分：怎么通信（https）、和谁通信（example.com）、要什么（/index.html）。'"
+  ],
+  [
+   "'You:     \"Open <span class=\"u-scheme\">https://</span><span class=\"u-host\">example.com</span><span class=\"u-path\">/index.html</span>\"\\n\\nBrowser: \"Got it. I\\'ll talk <span class=\"u-scheme\">securely</span>,\\n          to <span class=\"u-host\">example.com</span>,\\n          and ask for <span class=\"u-path\">/index.html</span>.\"'",
+   "'你：    “打开 <span class=\"u-scheme\">https://</span><span class=\"u-host\">example.com</span><span class=\"u-path\">/index.html</span>”\\n\\n浏览器：“收到。我会<span class=\"u-scheme\">加密</span>通信，\\n        联系 <span class=\"u-host\">example.com</span>，\\n        请求 <span class=\"u-path\">/index.html</span>。”'"
+  ],
+  [
+   "'Your app needs to show a user\\'s profile without changing anything. Which method?'",
+   "'你的应用要显示用户资料，并且不修改任何东西。该用哪个方法？'"
+  ],
+  [
+   "'\\n\\n(no body, just the label)'",
+   "'\\n\\n（没有响应体，只有标签）'"
+  ],
+  [
+   "'\\n\\n(no body: HEAD only returns headers)'",
+   "'\\n\\n（没有响应体：HEAD 只返回响应头）'"
+  ],
+  [
+   "'\\n\\nAllowed: '",
+   "'\\n\\n允许的方法：'"
+  ],
+  [
+   "'address book'",
+   "'通讯录'"
+  ],
+  [
+   "'address understood ✓'",
+   "'地址已解析 ✓'"
+  ],
+  [
+   "'cert chain valid ✓'",
+   "'证书链有效 ✓'"
+  ],
+  [
+   "'finding the right code…'",
+   "'正在找对应的代码…'"
+  ],
+  [
+   "'first paint ✓'",
+   "'首次绘制 ✓'"
+  ],
+  [
+   "'found the address ✓'",
+   "'找到地址了 ✓'"
+  ],
+  [
+   "'line open'",
+   "'线路已接通'"
+  ],
+  [
+   "'looking up data…'",
+   "'正在查数据…'"
+  ],
+  [
+   "'need: logo'",
+   "'需要：logo'"
+  ],
+  [
+   "'need: script'",
+   "'需要：脚本'"
+  ],
+  [
+   "'need: styles'",
+   "'需要：样式'"
+  ],
+  [
+   "'no connection'",
+   "'无连接'"
+  ],
+  [
+   "'not connected yet'",
+   "'尚未连接'"
+  ],
+  [
+   "'packing the answer…'",
+   "'正在打包答复…'"
+  ],
+  [
+   "'page is on screen ✓'",
+   "'页面已显示 ✓'"
+  ],
+  [
+   "'parsing HTML…'",
+   "'正在解析 HTML…'"
+  ],
+  [
+   "'private line 🔒'",
+   "'私密线路 🔒'"
+  ],
+  [
+   "'reading the address…'",
+   "'正在读取地址…'"
+  ],
+  [
+   "'reading the order…'",
+   "'正在读取订单…'"
+  ],
+  [
+   "'reading the page…'",
+   "'正在读取页面…'"
+  ],
+  [
+   "'ready ✓'",
+   "'准备好了 ✓'"
+  ],
+  [
+   "'script ✓'",
+   "'脚本 ✓'"
+  ],
+  [
+   "'styles ✓'",
+   "'样式 ✓'"
+  ],
+  [
+   "'your computer'",
+   "'你的电脑'"
+  ],
+  [
+   "'½ RTT for the request to arrive.'",
+   "'请求到达需要 ½ 个 RTT。'"
+  ],
+  [
+   "'½ RTT plus transfer time (size ÷ bandwidth, slowed at first by TCP slow start).'",
+   "'½ 个 RTT 加上传输时间（大小 ÷ 带宽，起初还会受 TCP 慢启动影响）。'"
+  ],
+  [
+   "'→ QUERY   example.com  IN A ?\\n← ANSWER  example.com  IN A  93.184.215.14\\n          TTL 300 s\\n\\nresolver path (cold):\\n  .  →  com.  →  example.com. (authoritative)'",
+   "'→ QUERY   example.com  IN A ?\\n← ANSWER  example.com  IN A  93.184.215.14\\n          TTL 300 s\\n\\n解析路径（无缓存时）：\\n  .  →  com.  →  example.com.（权威服务器）'"
+  ],
+  [
+   "'≈ 0 ms. A cache hit here skips every later stage.'",
+   "'≈ 0 ms。如果在这里命中缓存，后面所有阶段都可以跳过。'"
+  ],
+  [
+   "'▶ Play'",
+   "'▶ 播放'"
+  ],
+  [
+   "'❚❚ Pause'",
+   "'❚❚ 暂停'"
+  ],
+  [
+   "`${n} / 3 units`",
+   "`${n} / 3 单元`"
+  ],
+  [
+   "`${s}  (should be: ${item.items[i]})`",
+   "`${s}（正确答案：${item.items[i]}）`"
+  ],
+  [
+   "`<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`",
+   "`<b>${ok ? '回答正确。' : '不太对。'}</b> ${esc(why)}`"
+  ],
+  [
+   "`<b>You ask:</b> \"${esc(METHODS[m].say)}\"<br><b>Server says:</b> \"${esc(r.plain)}\"`",
+   "`<b>你问：</b>“${esc(METHODS[m].say)}”<br><b>服务器说：</b>“${esc(r.plain)}”`"
+  ],
+  [
+   "`<b>You ask:</b> \"${esc(m.say)}\"`",
+   "`<b>你问：</b>“${esc(m.say)}”`"
+  ],
+  [
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">Clear</button><button class=\"btn primary\" id=\"oCheck\" disabled>Check order</button></div>`",
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">清空</button><button class=\"btn primary\" id=\"oCheck\" disabled>检查顺序</button></div>`"
+  ],
+  [
+   "`<div class=\"label\"><span>Timing (illustrative, 30 ms round trip)</span><span>≈ ${total} ms</span></div>`",
+   "`<div class=\"label\"><span>耗时（示意，往返时间 30 ms）</span><span>≈ ${total} ms</span></div>`"
+  ],
+  [
+   "`<div class=\"quiz-meta\"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`",
+   "`<div class=\"quiz-meta\"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`"
+  ],
+  [
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? 'Perfect. You know how HTTP works.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay Units 1 and 2, then try again.'}</p>\n        <button class=\"btn primary\" id=\"retry\">Try again</button></div>`",
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? '满分！你已经掌握了 HTTP 的工作原理。' : pct >= 70 ? '做得不错。复习一下答错的题，再试一次。' : '开了个好头。回顾第 1、2 单元后再试一次。'}</p>\n        <button class=\"btn primary\" id=\"retry\">再试一次</button></div>`"
+  ],
+  [
+   "`<div><b>Cost</b>${esc(s.cost)}</div><div><b>Watch out</b>${esc(s.gotcha)}</div>`",
+   "`<div><b>代价</b>${esc(s.cost)}</div><div><b>注意</b>${esc(s.gotcha)}</div>`"
+  ],
+  [
+   "`<div><b>Think of it like</b>${esc(s.analogy)}</div>`",
+   "`<div><b>打个比方</b>${esc(s.analogy)}</div>`"
+  ],
+  [
+   "`<span>${m}</span><span class=\"dot\" title=\"tried\"></span>`",
+   "`<span>${m}</span><span class=\"dot\" title=\"已尝试\"></span>`"
+  ],
+  [
+   "`Done. I added it as book #${b.id}.`",
+   "`好了，已添加为 ${b.id} 号书。`"
+  ],
+  [
+   "`Here are all ${store.length} books.`",
+   "`这是全部 ${store.length} 本书。`"
+  ],
+  [
+   "`Nothing on the server changed. ${m} is a safe method: it only reads.`",
+   "`服务器上什么都没变。${m} 是安全方法：它只读取。`"
+  ],
+  [
+   "`Sending ${m} again changed the data again. It is not idempotent.`",
+   "`再次发送 ${m} 又改变了数据，它不是幂等的。`"
+  ],
+  [
+   "`Stage ${i + 1} of ${STEPS.length}`",
+   "`第 ${i + 1} 阶段，共 ${STEPS.length} 个`"
+  ],
+  [
+   "`The server's data is identical to before. Repeating ${m} has no extra effect, so it is idempotent.`",
+   "`服务器的数据和之前完全一样。重复 ${m} 没有额外效果，所以它是幂等的。`"
+  ],
+  [
+   "`Typical responses: <b>${m.typical}</b> &nbsp;·&nbsp; Spec: ${m.spec}`",
+   "`常见响应：<b>${m.typical}</b> &nbsp;·&nbsp; 规范：${m.spec}`"
+  ],
+  [
+   "`Yes, it's there. It's ${len} bytes, but I won't send it.`",
+   "`在的，一共 ${len} 字节，但我不会把内容发给你。`"
+  ],
+  [
+   "`You sent POST ${count} times and got ${count} new \"Neuromancer\" rows. POST is not idempotent.`",
+   "`你发送了 ${count} 次 POST，得到了 ${count} 条新的 “Neuromancer” 记录。POST 不是幂等的。`"
+  ]
+ ]
+}
