@@ -14,4 +14,16 @@
 4. [`demos/database-design/`](demos/database-design/index.html)：数据库设计：规范化、关系建模（一对一 / 一对多 / 多对多）、索引（全表扫描 vs B-tree 动画）、事务（转账崩溃演示与并发丢失更新）。
 5. [`demos/formal-verification/`](demos/formal-verification/index.html)：形式化验证：随机测试 vs 穷举检查、规约、模型检测（互斥协议的状态空间与反例轨迹）、循环不变式与证明义务。
 
-翻译工具：`tools/i18n_extract.py` 和 `tools/i18n_build.py` 只替换页面文案和脚本中的字符串，交互代码保持不变。
+
+## 开发
+
+```bash
+npm install                     # 安装 Playwright（仅用于测试）
+npx playwright install chromium
+npm test                        # 翻译同步检查 + 静态检查 + 浏览器冒烟测试
+```
+
+- **英文页面是唯一的源头。** 中文页面 `index.zh-CN.html` 由 `tools/i18n.py` 生成：它读取 `i18n/zh-CN/<课程>.body.html`（`<body>` 与 `<script>` 之间的页面结构）和 `i18n/zh-CN/<课程>.strings.json`（英文字符串 → 中文字符串），只替换文案，交互代码与英文版完全相同。
+- 修改英文页面后运行 `python3 tools/i18n.py build`。如果某条英文字符串改了或删了，构建会列出过期的翻译；`python3 tools/i18n.py missing <课程>` 会列出尚未翻译的新字符串。翻译不能引入英文模板中没有的代码。
+- `tests/static.mjs` 检查每个页面的脚本能否解析、相对链接是否有效；`tests/smoke.mjs` 在 1200px 和 390px 两种宽度、小白 / 进阶两种模式下加载每个页面，检查无报错、无横向滚动，并包含针对已修复 bug 的回归测试。
+- CI（`.github/workflows/ci.yml`）在每个 PR 和 main 分支上运行上述检查；推送到 main 且检查全部通过后，会把 `demos/` 部署到 GitHub Pages（需在仓库 Settings → Pages 中把 Source 设为 “GitHub Actions”）。
