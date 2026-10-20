@@ -1,0 +1,1376 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计好用的 API</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efeee8;
+    --text: #1c1c1a;
+    --muted: #64635d;
+    --border: #dcdbd3;
+    --accent: #3b5bdb;
+    --accent-soft: #e5eaff;
+    --ok: #2b8a3e;
+    --ok-soft: #e3f5e6;
+    --bad: #c92a2a;
+    --bad-soft: #fde8e8;
+    --warn: #b35c00;
+    --warn-soft: #fff1e0;
+    --line: #b9b8b0;
+    --c-offset: #d9480f;
+    --c-cursor: #1971c2;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-2: #282826;
+      --text: #ecebe6;
+      --muted: #a3a29b;
+      --border: #3a3a37;
+      --accent: #7d97ff;
+      --accent-soft: #252c48;
+      --ok: #5fcf75;
+      --ok-soft: #1c3322;
+      --bad: #ff7b7b;
+      --bad-soft: #3d1f1f;
+      --warn: #ffa94d;
+      --warn-soft: #3a2a17;
+      --line: #5a5a55;
+      --c-offset: #f0703a;
+      --c-cursor: #4dabf7;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --surface-2: #282826;
+    --text: #ecebe6;
+    --muted: #a3a29b;
+    --border: #3a3a37;
+    --accent: #7d97ff;
+    --accent-soft: #252c48;
+    --ok: #5fcf75;
+    --ok-soft: #1c3322;
+    --bad: #ff7b7b;
+    --bad-soft: #3d1f1f;
+    --warn: #ffa94d;
+    --warn-soft: #3a2a17;
+    --line: #5a5a55;
+    --c-offset: #f0703a;
+    --c-cursor: #4dabf7;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  }
+  body[data-level="advanced"] .only-beginner, body[data-level="beginner"] .only-advanced { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  code, pre { font-family: var(--mono); }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 0.95rem; margin-right: auto; }
+  .brand a { color: var(--muted); text-decoration: none; font-weight: 500; margin-right: 6px; }
+  .progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+  .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s ease; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 12px; font-size: 0.85rem; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .lang-switch {
+    font-size: 0.85rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface);
+  }
+  .lang-switch:hover { border-color: var(--accent); color: var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 48px 0 24px; }
+  .hero p { color: var(--muted); max-width: 660px; margin-top: 12px; font-size: 1.05rem; }
+  .units { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 28px; }
+  .unit {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .unit:hover { border-color: var(--accent); }
+  .unit small { color: var(--muted); display: block; }
+  .unit b { display: block; margin: 2px 0; }
+  .unit .tick { float: right; color: var(--ok); font-weight: 700; visibility: hidden; }
+  .unit.done .tick { visibility: visible; }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin: 24px 0; scroll-margin-top: 70px;
+  }
+  .kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .lede { color: var(--muted); margin: 6px 0 18px; }
+  .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 14px; font-size: 0.9rem;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .callout { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; font-size: 0.95rem; }
+  .callout ul { margin: 6px 0 0; padding-left: 20px; }
+  .callout li { margin: 3px 0; }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; display: none; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--ok-soft); }
+  .feedback.bad { background: var(--bad-soft); }
+  .insight { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.92rem; }
+  .prop { display: inline-block; font-size: 0.78rem; border-radius: 999px; padding: 2px 10px; margin: 0 6px 6px 0; }
+  .prop.bad { background: var(--bad-soft); color: var(--bad); }
+
+  .codeblock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; }
+  .codeblock-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .codeblock-head .copy { border: 0; background: none; color: var(--muted); font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+  .codeblock-head .copy:hover { background: var(--surface-2); color: var(--text); }
+  .codeblock pre { margin: 0; padding: 12px 14px; flex: 1; font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px;
+  }
+  .opt.mono { font-family: var(--mono); font-size: 0.9rem; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .75; }
+
+  /* ---------- unit 1: API doctor ---------- */
+  .doctor { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+  .caselist { display: flex; flex-direction: column; gap: 6px; }
+  .casebtn {
+    display: flex; gap: 8px; align-items: center; text-align: left;
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 7px 10px;
+    font: 0.78rem var(--mono); overflow: hidden;
+  }
+  .casebtn span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .casebtn .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+  .casebtn.fixed .dot { background: var(--ok); }
+  .casebtn[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .ep {
+    font: 600 clamp(1rem, 2.6vw, 1.3rem) var(--mono); padding: 18px 16px; background: var(--surface-2);
+    border-radius: 12px; overflow-wrap: anywhere; min-height: 64px;
+  }
+  .tok { display: inline-block; white-space: pre; max-width: 100%; overflow-wrap: anywhere; }
+  .tok.method { color: var(--accent); }
+  .tok.bad { color: var(--bad); text-decoration: underline wavy var(--bad); text-underline-offset: 4px; }
+  .tok.good { color: var(--ok); background: var(--ok-soft); border-radius: 4px; }
+  .ep.leave .tok { animation: tokOut .3s ease-in both; animation-delay: calc(var(--i) * 35ms); }
+  .ep.enter .tok { animation: tokIn .45s cubic-bezier(.2, .8, .3, 1.3) both; animation-delay: calc(var(--i) * 45ms); }
+  @keyframes tokOut { to { opacity: 0; transform: translateY(-14px); } }
+  @keyframes tokIn { from { opacity: 0; transform: translateY(14px); } }
+  .context { margin-top: 10px; font-size: 0.9rem; color: var(--muted); }
+  .symptoms { margin: 12px 0 4px; }
+  .question { font-weight: 600; margin: 10px 0 8px; }
+  .rules { margin-top: 20px; }
+
+  /* ---------- unit 2: status codes ---------- */
+  .families { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .fam { font-size: 0.85rem; padding: 4px 12px; border-radius: 999px; }
+  .fam b { font-family: var(--mono); }
+  .fam.s2 { background: var(--ok-soft); color: var(--ok); }
+  .fam.s4 { background: var(--warn-soft); color: var(--warn); }
+  .fam.s5 { background: var(--bad-soft); color: var(--bad); }
+  .scen-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .scen-nav button { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 2px 11px; font-size: 0.8rem; color: var(--muted); }
+  .scen-nav button.done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .scen-nav button.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .scenario { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+  .codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 14px 0; }
+  .code {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 12px;
+  }
+  .code b { font: 700 1.1rem var(--mono); display: block; }
+  .code small { color: var(--muted); }
+  .code:hover:not(:disabled) { border-color: var(--accent); }
+  .code.right { border-color: var(--ok); background: var(--ok-soft); }
+  .code.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .7; }
+  .code:disabled { cursor: default; }
+  .lane { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+  .lane-end {
+    flex: none; width: 76px; text-align: center; font-size: 0.8rem; font-weight: 600;
+    border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 0; background: var(--surface);
+  }
+  .lane-track { position: relative; flex: 1; height: 30px; border-top: 2px dashed var(--line); margin-top: 28px; }
+  .lpacket {
+    position: absolute; top: -16px; left: 0; white-space: nowrap;
+    color: #fff; font: 600 11.5px var(--mono); padding: 4px 10px; border-radius: 999px;
+  }
+  .io { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .io pre { min-height: 110px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+  .compare .codeblock.badc { border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
+  .compare .codeblock.goodc { border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
+  .compare ul { margin: 0; padding: 0 14px 12px 30px; font-size: 0.85rem; }
+
+  /* ---------- unit 3: pagination ---------- */
+  .server { background: var(--surface-2); border-radius: 12px; padding: 14px 14px 10px; }
+  .strip { display: flex; flex-wrap: wrap; gap: 24px 6px; padding-top: 18px; }
+  .schip {
+    position: relative; min-width: 46px; text-align: center; padding: 6px 6px 4px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; font: 600 0.82rem var(--mono);
+  }
+  .schip.new { animation: slideIn .5s ease-out; border-color: var(--ok); }
+  .schip .seen { display: flex; gap: 3px; justify-content: center; margin-top: 3px; }
+  .schip .seen i { width: 12px; height: 4px; border-radius: 2px; background: var(--surface-2); }
+  .schip .seen i.o.on { background: var(--c-offset); }
+  .schip .seen i.c.on { background: var(--c-cursor); }
+  /* "next page starts here" markers: small arrows above the chip plus a ring */
+  .schip .mk { position: absolute; top: -15px; left: 0; right: 0; display: flex; justify-content: center; gap: 3px; }
+  .arrow { display: inline-block; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 9px solid; }
+  .arrow.o { border-top-color: var(--c-offset); }
+  .arrow.c { border-top-color: var(--c-cursor); }
+  .schip.at-o { box-shadow: 0 0 0 2px var(--c-offset); }
+  .schip.at-c { box-shadow: 0 0 0 2px var(--c-cursor); }
+  .schip.at-o.at-c { box-shadow: 0 0 0 2px var(--c-offset), 0 0 0 4px var(--c-cursor); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .server-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
+  .schip.gone { animation: fadeOut .5s ease-in forwards; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-20px) scale(.8); } }
+  @keyframes fadeOut { to { opacity: 0; transform: scale(.6); } }
+  .pg-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .pg-col { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .pg-col.off { border-color: color-mix(in srgb, var(--c-offset) 45%, var(--border)); }
+  .pg-col.cur { border-color: color-mix(in srgb, var(--c-cursor) 45%, var(--border)); }
+  .pg-col h3 { display: flex; align-items: center; gap: 8px; }
+  .pg-col h3 i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .pg-col.off h3 i { background: var(--c-offset); }
+  .pg-col.cur h3 i { background: var(--c-cursor); }
+  .pg-req { display: block; margin: 8px 0 10px; font-size: 0.78rem; background: var(--surface-2); padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; }
+  .feed { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
+  .fchip { font: 600 0.8rem var(--mono); padding: 4px 8px; border-radius: 6px; background: var(--surface-2); }
+  .fchip.fresh { animation: pop .35s ease-out both; animation-delay: calc(var(--i) * 90ms); }
+  .fchip.dup { background: var(--bad-soft); color: var(--bad); outline: 1.5px solid var(--bad); }
+  .fchip.dup::after { content: " dup"; font-size: 0.65rem; }
+  .fchip.sep { background: none; color: var(--muted); padding: 4px 2px; animation: none; }
+  @keyframes pop { from { opacity: 0; transform: scale(.5); } }
+  .stats { margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+  .stats b.badn { color: var(--bad); }
+  .stats b.okn { color: var(--ok); }
+
+  /* ---------- unit 4: breaking-change sorter ---------- */
+  .sorter { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 14px; align-items: start; }
+  .bin { border: 2px dashed var(--border); border-radius: 12px; padding: 10px 12px; min-height: 180px; }
+  .bin h3 { font-size: 0.95rem; margin-bottom: 8px; }
+  .bin.safe h3 { color: var(--ok); }
+  .bin.breaking h3 { color: var(--bad); }
+  .bin ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .bin li { font-size: 0.8rem; padding: 6px 8px; border-radius: 6px; background: var(--surface-2); }
+  .bin li.fresh { animation: pop .35s ease-out both; }
+  .bin li.miss { outline: 1.5px solid var(--bad); }
+  .bin li.miss::before { content: "✗ "; color: var(--bad); font-weight: 700; }
+  .bin li.hit::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+  .change-card {
+    border: 1.5px solid var(--border); border-radius: 14px; padding: 18px; background: var(--surface);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .06);
+  }
+  .change-card .count { font-size: 0.8rem; color: var(--muted); }
+  .change-card .what { font-size: 1.05rem; font-weight: 600; margin: 6px 0 10px; }
+  .change-card pre { margin: 0 0 12px; background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 0.78rem; white-space: pre-wrap; }
+  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .choice .safe-btn { border-color: var(--ok); color: var(--ok); }
+  .choice .break-btn { border-color: var(--bad); color: var(--bad); }
+
+  /* ---------- quiz ---------- */
+  .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; }
+  .chip:disabled { opacity: .3; cursor: default; }
+  .slots { counter-reset: slot; display: grid; gap: 6px; margin: 14px 0; }
+  .slot { counter-increment: slot; border: 1.5px dashed var(--border); border-radius: 10px; padding: 7px 12px; min-height: 40px; color: var(--muted); font-size: 0.9rem; }
+  .slot::before { content: counter(slot) ". "; color: var(--muted); }
+  .slot.filled { border-style: solid; color: var(--text); }
+  .slot.right { border-color: var(--ok); background: var(--ok-soft); }
+  .slot.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .result { text-align: center; padding: 20px 0; }
+  .result .score { font: 700 3rem system-ui, sans-serif; }
+  .result p { color: var(--muted); margin: 6px 0 16px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
+
+  @media (max-width: 760px) {
+    .doctor, .io, .compare, .pg-cols { grid-template-columns: 1fr; }
+    .caselist { flex-direction: row; flex-wrap: wrap; }
+    .casebtn { flex: 1 1 140px; }
+    .sorter { grid-template-columns: 1fr 1fr; }
+    .sorter .change-card { grid-column: 1 / -1; order: -1; }
+    .bin { min-height: 80px; }
+    section.card { padding: 18px 16px; }
+    .bar { width: 70px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .ep.leave .tok, .ep.enter .tok, .fchip, .bin li, .schip.new, .schip.gone { animation-duration: 1ms; animation-delay: 0ms; }
+  }
+</style>
+</head>
+<body data-level="beginner">
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.zh-CN.html">← 课程</a> 设计好用的 API</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 单元</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="讲解深度">
+      <button data-level="beginner" aria-pressed="true">小白</button>
+      <button data-level="advanced" aria-pressed="false">进阶</button>
+    </div>
+    <a class="lang-switch" href="index.html" lang="en" hreflang="en">English</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">第 2 课</div>
+    <h1>如何设计一个让人用得舒服的 API</h1>
+    <p class="only-beginner">API 就是一个程序提供给另一个程序的“菜单”。好的菜单一看就懂，出错时说得清楚，长列表也能处理好，而且不会突然变样。在这一课里，你会动手修复设计糟糕的请求，并看到好的版本为什么更好用。</p>
+    <p class="only-advanced">API 设计关乎一份你要维护很多年的契约：资源建模、错误语义、在并发写入下依然可靠的分页，以及在不破坏已部署客户端的前提下演进契约。下面每个单元都需要动手操作。</p>
+    <nav class="units">
+      <a class="unit" href="#urls" id="unit-urls"><span class="tick">✓</span><small>第 1 单元</small><b>好好起名</b><small>修复 5 个端点</small></a>
+      <a class="unit" href="#status" id="unit-status"><span class="tick">✓</span><small>第 2 单元</small><b>说清楚</b><small>回答 5 个情境</small></a>
+      <a class="unit" href="#paging" id="unit-paging"><span class="tick">✓</span><small>第 3 单元</small><b>长列表</b><small>触发分页 bug</small></a>
+      <a class="unit" href="#compat" id="unit-compat"><span class="tick">✓</span><small>第 4 单元</small><b>安全地变更</b><small>给 6 个变更分类</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>第 5 单元</small><b>自我检测</b><small>完成测验</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="urls">
+    <div class="kicker">第 1 单元</div>
+    <h2>好好起名：API 诊所</h2>
+    <p class="lede only-beginner">下面每位“病人”都是一个设计糟糕的 API 请求，红色波浪线标出了问题所在。选出更健康的版本，看它被修好。</p>
+    <p class="lede only-advanced">每个案例都是真实世界里常见的设计坏味道，选出更好的契约。进阶模式额外增加两个难题，在这些情况下“纯 REST”并不是正确答案。</p>
+
+    <div class="doctor">
+      <div class="caselist" id="caselist"></div>
+      <div>
+        <div class="label" id="epLabel">修复前</div>
+        <div class="ep" id="ep"></div>
+        <div class="context" id="context"></div>
+        <div class="symptoms" id="symptoms"></div>
+        <div class="question">哪个版本更好？</div>
+        <div class="opts" id="caseOpts"></div>
+        <div class="feedback" id="caseFb"></div>
+        <div class="controls"><button class="btn primary" id="nextCase" style="display:none">下一位病人 →</button></div>
+      </div>
+    </div>
+
+    <div class="callout rules only-beginner">
+      <b>规则汇总</b>
+      <ul>
+        <li>URL 是<b>名词</b>：某个东西的地址（<code>/users/42</code>）。方法才是<b>动词</b>（GET、POST、DELETE…）。</li>
+        <li>列表用复数名：<code>/orders</code>、<code>/orders/17</code>。</li>
+        <li>GET 只能读取，绝不能修改任何东西。</li>
+        <li>用路径表示“属于”（<code>/users/42/orders</code>），用查询参数表示筛选（<code>?sort=price</code>）。</li>
+        <li>选定一种命名风格（小写），处处坚持。</li>
+      </ul>
+    </div>
+    <div class="callout rules only-advanced">
+      <b>设计检查清单</b>
+      <ul>
+        <li>围绕资源和集合建模，让 HTTP 方法承载语义（安全、幂等、可缓存）。</li>
+        <li>每个拥有唯一 ID 的资源都应有一个规范的顶层 URL。嵌套只用于列表（<code>/teams/12/members</code>）。</li>
+        <li>带副作用的状态转换可以做成显式动作：<code>POST /orders/42/cancel</code>，非法转换时返回 409。</li>
+        <li>可组合的查询参数：<code>filter</code>、<code>sort=-created_at</code>、<code>limit</code>、<code>cursor</code>。对未知参数返回 400。</li>
+        <li>契约先行（OpenAPI），并在 CI 里做 lint（例如 Spectral），让约定被强制执行，而不是靠记忆。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="status">
+    <div class="kicker">第 2 单元</div>
+    <h2>说清楚：状态码与错误</h2>
+    <p class="lede only-beginner">每个响应都以一个三位数的状态码开头。程序最先读取的就是它，所以它必须正确。光看第一位数字就能知道很多：</p>
+    <p class="lede only-advanced">客户端、重试、缓存、监控和告警都会根据状态码做判断。选择最具体、最正确的状态码，并返回机器可读的错误响应体（RFC 9457 问题详情）。</p>
+    <div class="families">
+      <span class="fam s2"><b>2xx</b> 成功了</span>
+      <span class="fam s4"><b>4xx</b> 客户端出错了</span>
+      <span class="fam s5"><b>5xx</b> 服务器出故障了</span>
+    </div>
+
+    <div class="scen-nav" id="scenNav"></div>
+    <div class="scenario" id="scenText"></div>
+    <div class="context" id="scenReq"></div>
+    <div class="codes" id="codes"></div>
+    <div class="feedback" id="scenFb"></div>
+
+    <div class="lane">
+      <div class="lane-end">客户端</div>
+      <div class="lane-track" id="track"></div>
+      <div class="lane-end">服务器</div>
+    </div>
+    <div class="codeblock"><div class="codeblock-head"><span>响应</span><button class="copy">复制</button></div><pre id="scenRes">（请选择一个状态码）</pre></div>
+    <div class="controls"><button class="btn primary" id="nextScen" style="display:none">下一个情境 →</button></div>
+
+    <h3 style="margin-top:28px">糟糕的错误 vs 好的错误</h3>
+    <div class="compare">
+      <div class="codeblock badc">
+        <div class="codeblock-head"><span>✗ 难以使用</span></div>
+        <pre>HTTP/1.1 200 OK
+
+{ "success": false, "msg": "Error" }</pre>
+        <ul class="only-beginner">
+          <li>写着 <b>200 OK</b>，所以程序以为成功了。</li>
+          <li>“Error” 既没说哪里错了，也没说怎么改。</li>
+        </ul>
+        <ul class="only-advanced">
+          <li>失败时返回 2xx，会让重试、缓存、指标和告警全部失效。</li>
+          <li>没有稳定的机器可读类型，客户端只能去解析字符串。</li>
+          <li>没有字段级别的细节，也没有供客服排查的关联 ID。</li>
+        </ul>
+      </div>
+      <div class="codeblock goodc">
+        <div class="codeblock-head"><span>✓ 好用</span></div>
+        <pre class="only-beginner">HTTP/1.1 400 Bad Request
+
+{
+  "error": "email is required",
+  "field": "email"
+}</pre>
+        <pre class="only-advanced">HTTP/1.1 422 Unprocessable Content
+Content-Type: application/problem+json
+
+{
+  "type": "https://api.example.com/problems/validation",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "1 field is invalid",
+  "errors": [{ "pointer": "/email", "detail": "is required" }],
+  "request_id": "req_7Hk2"
+}</pre>
+        <ul class="only-beginner">
+          <li>光看状态码，程序就知道失败了以及失败的原因。</li>
+          <li>错误信息准确指出要修改哪个字段。</li>
+        </ul>
+        <ul class="only-advanced">
+          <li>稳定的 <code>type</code> URI 让客户端可以按错误类型分支处理。</li>
+          <li>JSON pointer 把错误对应到表单字段；<code>request_id</code> 关联到你的日志。</li>
+          <li>绝不要在 <code>detail</code> 里泄露堆栈信息或 SQL。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="paging">
+    <div class="kicker">第 3 单元</div>
+    <h2>长列表：分页</h2>
+    <p class="lede only-beginner">一个信息流可能有几百万条帖子，所以 API 每次只发一小部分（一“页”）。请求下一页有两种常见方式。看看在你滚动浏览时来了一条新帖子会发生什么。</p>
+    <p class="lede only-advanced">在按最新优先排序、且两次翻页之间有写入的信息流上，对比 offset 分页和游标（keyset）分页。点击<b>播放经典 bug</b>，或者自己动手操作。</p>
+
+    <div class="callout only-beginner" style="margin-bottom:14px">
+      <b>页码（offset）</b>的意思是“跳过前 6 条，给我接下来的 3 条”。<b>游标（cursor）</b>就像书签：“给我 #7 之后的 3 条”。服务器数据上的彩色箭头标出了每种方式的下一页从哪里开始。
+    </div>
+    <div class="callout only-advanced" style="margin-bottom:14px">
+      <b>Offset</b>：<code>LIMIT 3 OFFSET 6</code>。数据库要扫描并丢弃 6 行（O(offset)），而且只要上方有行被插入或删除，窗口就会移位。<br>
+      <b>游标 / keyset</b>：<code>WHERE (created_at, id) &lt; (:ts, :id) ORDER BY created_at DESC, id DESC LIMIT 3</code>。它利用索引，在写入时依然稳定。游标对外应保持不透明，例如用 base64 编码。
+    </div>
+
+    <div class="server">
+      <div class="server-head">
+        <div class="label">服务器数据 · 最新优先</div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+
+    <div class="pg-cols">
+      <div class="pg-col off">
+        <h3><i></i><span class="only-beginner">页码（offset）</span><span class="only-advanced">Offset 分页</span></h3>
+        <code class="pg-req" id="offReq"></code>
+        <div class="label">你已收到</div>
+        <div class="feed" id="offFeed"></div>
+        <div class="stats" id="offStats"></div>
+      </div>
+      <div class="pg-col cur">
+        <h3><i></i><span class="only-beginner">书签（cursor）</span><span class="only-advanced">游标分页</span></h3>
+        <code class="pg-req" id="curReq"></code>
+        <div class="label">你已收到</div>
+        <div class="feed" id="curFeed"></div>
+        <div class="stats" id="curStats"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="pgNext">加载下一页</button>
+      <button class="btn" id="pgAdd">+ 来了一条新帖子</button>
+      <button class="btn" id="pgDel">− 删除一条你看过的帖子</button>
+      <button class="btn" id="pgPlay">▶ 播放经典 bug</button>
+      <button class="btn" id="pgReset">重置</button>
+    </div>
+    <div class="insight" id="pgInsight"></div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="compat">
+    <div class="kicker">第 4 单元</div>
+    <h2>安全地变更：是否破坏兼容？</h2>
+    <p class="lede only-beginner">一旦有应用在用你的 API，你就不能随便改了，因为它们的代码依赖旧的结构。判断每个变更是可以放心上线，还是会弄坏已有的应用。</p>
+    <p class="lede only-advanced">假设客户端已经部署，而且你无法强制它们升级。基于这一前提给每个变更分类。进阶模式会加入那些真正引发线上事故的微妙情况。</p>
+
+    <div class="sorter">
+      <div class="bin safe"><h3>✓ 可以放心上线</h3><ul id="binSafe"></ul></div>
+      <div class="change-card" id="changeCard"></div>
+      <div class="bin breaking"><h3>⚠ 破坏性变更</h3><ul id="binBreak"></ul></div>
+    </div>
+    <div class="feedback" id="changeFb"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>黄金法则：</b>你可以<b>新增</b>东西，但不要<b>改名、删除或修改</b>它们。如果确实必须修改，让旧版本继续工作一段时间，提前通知大家，之后再删除。
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>演进契约</b>
+      <ul>
+        <li><b>先扩展，再收缩：</b>新增新字段，迁移客户端，在发出 <code>Deprecation</code> 头并给出 <code>Sunset</code> 日期（RFC 8594）之后，再删除旧字段。</li>
+        <li><b>版本管理：</b>URL 前缀（<code>/v2</code>）简单直观；基于请求头或日期的版本（<code>API-Version: 2026-10-01</code>）允许按端点做更细粒度的变更。</li>
+        <li><b>宽容读取者：</b>要求客户端忽略未知字段、处理未知枚举值。这样“新增”才真正安全。</li>
+        <li>在 CI 中运行契约测试（消费者驱动，例如 Pact）或 OpenAPI diff，在发布前发现破坏性变更。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">第 5 单元</div>
+    <h2>自我检测</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../http-basics/index.zh-CN.html">一步步看懂 HTTP</a>。下一课：<a href="../database-design/index.zh-CN.html">设计数据库</a>。</footer>
+</main>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, reduced ? Math.min(ms, 120) : ms));
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ---------------- saved progress ---------------- */
+  const KEY = 'itl-api-design-v1';
+  let saved = { level: 'beginner', fixed: [], answered: [], sorted: {}, pgDone: false, quizDone: false };
+  try { Object.assign(saved, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+  let level = saved.level === 'advanced' ? 'advanced' : 'beginner';
+  // Pick the beginner or advanced variant of a value.
+  const L = (beginner, advanced) => level === 'advanced' ? advanced : beginner;
+
+  const fixed = new Set(saved.fixed);
+  const answered = new Set(saved.answered);
+  const sorted = saved.sorted || {};
+
+  function updateProgress() {
+    const done = {
+      urls: fixed.size >= 5,
+      status: answered.size >= 5,
+      paging: saved.pgDone,
+      compat: Object.keys(sorted).length >= 6,
+      quiz: saved.quizDone,
+    };
+    const n = Object.values(done).filter(Boolean).length;
+    $('progressText').textContent = `${n} / 5 单元`;
+    $('progressBar').style.width = `${(n / 5) * 100}%`;
+    for (const k in done) $('unit-' + k).classList.toggle('done', done[k]);
+    saved.fixed = [...fixed]; saved.answered = [...answered]; saved.sorted = sorted;
+    persist();
+  }
+
+  /* =========================================================
+     UNIT 1: API doctor
+     ========================================================= */
+  const CASES = [
+    {
+      id: 'get-by-id',
+      before: 'GET /getUserById?id=42', bad: ['getUserById', 'id'],
+      after: 'GET /users/42', good: ['users', '42'],
+      symptoms: ['URL 里有动词', 'ID 藏在查询参数里'],
+      opts: [
+        ['GET /user/get/42', false, '路径里仍然有动词（“get”）。GET 方法本身就已经表示“获取”了。'],
+        ['GET /users/42', true],
+        ['POST /users/getById  {"id": 42}', false, '读取应该用 GET。POST 不能被缓存、不能收藏，也不能安全地重试。'],
+      ],
+      rule: 'URL 给事物命名（名词），HTTP 方法才是动词。',
+      beginner: '把 URL 想成信封上的地址，把方法想成你希望对它做的事。“/users/42”是 42 号用户的地址，GET 的意思是“给我看看”。',
+      advanced: '围绕资源建模，而不是围绕 RPC 调用。集合（/users）加标识符（/users/42），就能直接用上语义明确的 GET/PUT/PATCH/DELETE，缓存、网关和日志不需要额外规则就能理解你的 API。',
+    },
+    {
+      id: 'create',
+      before: 'POST /createNewOrder', bad: ['createNewOrder'],
+      after: 'POST /orders', good: ['orders'],
+      symptoms: ['URL 里有动词', '每个动作一个 URL'],
+      opts: [
+        ['POST /order/new', false, '集合用复数，而对集合 POST 本身就表示“创建”，“new”是多余的。'],
+        ['PUT /createOrder', false, 'PUT 的意思是“把它存到这个确切的 URL”。可你还不知道新订单的 URL，因为 ID 由服务器分配。'],
+        ['POST /orders', true],
+      ],
+      rule: '创建东西：对集合发送 POST。',
+      beginner: '就像把一张表格投进“订单”收件箱：你交给集合，服务器把新订单的编号还给你。',
+      advanced: 'POST /orders 返回 201 Created，带上 Location: /orders/{id} 头和新建的资源。因为 ID 由服务器分配，POST 不是幂等的。如果客户端可能重试，请支持 Idempotency-Key。',
+    },
+    {
+      id: 'get-delete',
+      before: 'GET /users/42/delete', bad: ['GET', 'delete'],
+      after: 'DELETE /users/42', good: ['DELETE'],
+      symptoms: ['会修改数据的 GET', 'URL 里有动词'],
+      opts: [
+        ['DELETE /users/42', true],
+        ['POST /users/42/delete', false, '比 GET 好，但 HTTP 已经有专门做这件事的方法：DELETE。'],
+        ['GET /users/delete?id=42', false, '它仍然是一个会修改数据的 GET。链接预览程序光是看一眼这个链接，就可能把用户删掉。'],
+      ],
+      rule: 'GET 绝不能修改数据。',
+      beginner: '浏览器、搜索引擎和聊天软件的链接预览都会自己去打开 GET 链接。如果一个 GET 链接会删东西，那么只是访问你页面的机器人也可能把用户删掉。',
+      advanced: 'GET 被定义为安全的，所以中间环节可以预取、重试和缓存它。具有破坏性的 GET 是经典的事故原因，比如爬虫顺着管理后台的链接一路点下去。DELETE 是幂等的，而且永远不会被缓存。',
+    },
+    {
+      id: 'relationship',
+      before: 'GET /User_Orders?userId=42', bad: ['User_Orders', 'userId'],
+      after: 'GET /users/42/orders', good: ['users', '42', 'orders'],
+      symptoms: ['大小写不一致', '关联关系藏在参数里'],
+      opts: [
+        ['GET /users/orders/42', false, '这读起来像“users 的 42 号订单”。ID 应该紧跟在它所标识的东西后面。'],
+        ['GET /users/42/orders', true],
+        ['GET /UserOrders/42', false, '大小写混用，还把两个名字拼在了一起。URL 保持小写，并用路径表达关联关系。'],
+      ],
+      rule: '用路径表达关联关系，命名保持一致。',
+      beginner: '就像电脑上的文件夹：42 号用户的文件夹里有一个“orders”文件夹。到处都用小写，谁都不用猜。',
+      advanced: '子集合表达归属关系（/users/42/orders）。选定一套约定，例如路径用小写复数 kebab-case、JSON 字段用一种统一的大小写风格，并在 CI 里用 linter 强制执行。',
+    },
+    {
+      id: 'filters',
+      before: 'GET /products?getCheapOnesSortedByPrice=true', bad: ['getCheapOnesSortedByPrice', 'true'],
+      after: 'GET /products?max_price=20&sort=price', good: ['max_price', '20', 'sort', 'price'],
+      symptoms: ['一次性的标志位', '过滤条件无法组合'],
+      opts: [
+        ['GET /products/cheap/sorted', false, '每加一种过滤条件就需要一个新 URL，而且过滤条件无法组合。'],
+        ['GET /products?max_price=20&sort=price', true],
+        ['POST /products/search  {"cheap": true}', false, '用 POST 发送的搜索失去了缓存和可分享的链接。只有当查询太大、放不进 URL 时才这样做。'],
+      ],
+      rule: '用查询参数来过滤、排序和分页。',
+      beginner: '查询参数就像网店里的筛选勾选框：每个都很简单，还可以同时勾选好几个。',
+      advanced: '小而可组合的参数（filter、sort、limit、cursor）胜过一次性的标志位。在文档里写明允许的取值，对未知参数返回 400，并全站统一排序语法，例如 sort=-created_at。',
+    },
+    {
+      id: 'action', adv: true,
+      before: 'POST /orders/42/updateStatus', bad: ['updateStatus'],
+      after: 'POST /orders/42/cancel', good: ['cancel'],
+      context: '背景：取消订单会退款并发送邮件，已经发货的订单不能取消。',
+      symptoms: ['笼统的“update”掩盖了副作用'],
+      opts: [
+        ['PATCH /orders/42  {"status": "cancelled"}', false, '看起来很 RESTful，但它把一个很大的副作用（退款和邮件）藏在了一个字段修改后面。而且像“已发货 → 已取消”这样的非法状态转换也很难拒绝，很难单独做权限控制。'],
+        ['POST /orders/42/cancel', true],
+        ['DELETE /orders/42', false, '订单取消后依然存在，历史记录、退款和客服都需要它。'],
+      ],
+      rule: '对于真正的业务动作，用一个具名的动作端点完全没问题。',
+      beginner: '取消订单不只是改一个字段，所以给它一个单独、明确的按钮。',
+      advanced: '纯 CRUD 并不能覆盖所有情况。当一个操作是带副作用的状态转换时，POST /orders/{id}/cancel（或 /cancellations 子集合）更明确，易于授权和审计，并且可以在转换不被允许时返回 409 Conflict。',
+    },
+    {
+      id: 'nesting', adv: true,
+      before: 'GET /companies/7/departments/3/teams/12/members/99', bad: ['companies', '7', 'departments', '3', 'teams', '12'],
+      after: 'GET /members/99', good: ['members', '99'],
+      symptoms: ['嵌套过深', '让客户端依赖组织架构'],
+      opts: [
+        ['GET /members/99', true],
+        ['GET /companies/7/members/99', false, '更短了，但调用方仍然需要知道公司。成员本身已经有唯一的 ID。'],
+        ['GET /members?company=7&department=3&team=12&id=99', false, '这只是把同样的问题挪到了查询参数里。'],
+      ],
+      rule: '避免深层嵌套，一层就够了。',
+      beginner: '如果一样东西有自己唯一的编号，就给它一个自己的短地址。',
+      advanced: '拥有全局唯一 ID 的资源应该有一个规范的顶层 URL。深层路径把客户端和你的层级结构绑在一起，有人换团队时就会失效。嵌套用于列表（/teams/12/members），而不是用于定位单个资源。',
+    },
+  ];
+  let caseIdx = 0;
+  const visibleCases = () => CASES.filter(c => !c.adv || level === 'advanced');
+
+  function tokens(str, marks, cls) {
+    const sp = str.indexOf(' ');
+    const parts = [str.slice(0, sp), ' ', ...str.slice(sp + 1).split(/([\/?&=])/).filter(Boolean)];
+    return parts.map((t, i) => {
+      const c = ['tok', i === 0 ? 'method' : '', marks.includes(t) ? cls : ''].join(' ');
+      return `<span class="${c}" style="--i:${i}">${esc(t)}</span>`;
+    }).join('');
+  }
+
+  function renderCaseList() {
+    const cs = visibleCases();
+    $('caselist').innerHTML = '';
+    cs.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.className = 'casebtn' + (fixed.has(c.id) ? ' fixed' : '');
+      b.setAttribute('aria-current', String(i === caseIdx));
+      b.innerHTML = `<span class="dot"></span><span>${esc(fixed.has(c.id) ? c.after : c.before)}</span>`;
+      b.addEventListener('click', () => { caseIdx = i; renderCase(); });
+      $('caselist').appendChild(b);
+    });
+  }
+
+  function caseFeedback(c) {
+    $('caseFb').className = 'feedback show good';
+    $('caseFb').innerHTML = `<b>${esc(c.rule)}</b> ${esc(c[level])}`;
+  }
+
+  function renderCase() {
+    const cs = visibleCases();
+    if (caseIdx >= cs.length) caseIdx = 0;
+    const c = cs[caseIdx];
+    const isFixed = fixed.has(c.id);
+    renderCaseList();
+    $('ep').className = 'ep';
+    $('ep').innerHTML = isFixed ? tokens(c.after, c.good, 'good') : tokens(c.before, c.bad, 'bad');
+    $('epLabel').textContent = isFixed ? '修复后 ✓' : '修复前';
+    $('context').textContent = c.context || '';
+    $('context').style.display = c.context ? '' : 'none';
+    $('symptoms').innerHTML = c.symptoms.map(s => `<span class="prop bad">✗ ${esc(s)}</span>`).join('');
+    $('caseFb').className = 'feedback';
+    $('nextCase').style.display = 'none';
+    $('caseOpts').innerHTML = '';
+    c.opts.forEach(([text, ok, why], i) => {
+      const b = document.createElement('button');
+      b.className = 'opt mono'; b.textContent = text;
+      if (isFixed) { b.disabled = true; if (ok) b.classList.add('right'); }
+      b.addEventListener('click', () => chooseFix(c, i, b));
+      $('caseOpts').appendChild(b);
+    });
+    if (isFixed) { caseFeedback(c); $('nextCase').style.display = ''; }
+  }
+
+  async function chooseFix(c, i, btn) {
+    const [, ok, why] = c.opts[i];
+    if (!ok) {
+      btn.classList.add('wrong'); btn.disabled = true;
+      if (!reduced) btn.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 260 });
+      $('caseFb').className = 'feedback show bad';
+      $('caseFb').innerHTML = `<b>不太对。</b>${esc(why)} 再试试别的。`;
+      return;
+    }
+    $('caseOpts').querySelectorAll('.opt').forEach(b => b.disabled = true);
+    btn.classList.add('right');
+    const ep = $('ep');
+    ep.className = 'ep leave';
+    await sleep(320 + ep.children.length * 35);
+    ep.innerHTML = tokens(c.after, c.good, 'good');
+    ep.className = 'ep enter';
+    $('epLabel').textContent = '修复后 ✓';
+    caseFeedback(c);
+    fixed.add(c.id);
+    renderCaseList();
+    updateProgress();
+    $('nextCase').style.display = '';
+  }
+
+  $('nextCase').addEventListener('click', () => {
+    const cs = visibleCases();
+    const next = cs.findIndex((c, i) => i > caseIdx && !fixed.has(c.id));
+    const any = cs.findIndex(c => !fixed.has(c.id));
+    caseIdx = next >= 0 ? next : any >= 0 ? any : (caseIdx + 1) % cs.length;
+    renderCase();
+  });
+
+  /* =========================================================
+     UNIT 2: status codes
+     ========================================================= */
+  const CODES = {
+    200: ['OK', '成功，这是结果。'],
+    201: ['Created', '成功，新东西已创建。'],
+    204: ['No Content', '成功，并且没有内容需要返回。'],
+    400: ['Bad Request', '请求本身有错误或无效。'],
+    401: ['Unauthorized', '我们不知道你是谁（没有登录或登录信息无效）。'],
+    403: ['Forbidden', '我们知道你是谁，但你没有权限这样做。'],
+    404: ['Not Found', '那个东西不存在。'],
+    409: ['Conflict', '与当前状态冲突，例如数据重复。'],
+    422: ['Unprocessable Content', '请求格式正确，但违反了校验规则。'],
+    429: ['Too Many Requests', '慢一点，你触发了限流。'],
+    500: ['Internal Server Error', '服务器内部出错了。'],
+    503: ['Service Unavailable', '服务器暂时不可用或过载。'],
+  };
+  const BEGINNER_CODES = [200, 201, 400, 401, 403, 404, 500];
+  const problem = (code, type, title, detail, extra = '') =>
+    `{\n  "type": "https://api.example.com/problems/${type}",\n  "title": "${title}",\n  "status": ${code},\n  "detail": "${detail}"${extra}\n}`;
+
+  const SCEN = [
+    { id: 'signup', text: '一个新用户注册成功。', ok: [201], req: 'POST /users  {"email": "ana@example.com"}',
+      why: '201 Created 告诉客户端：一个新东西现在存在了。',
+      bodyB: '{ "id": 42, "email": "ana@example.com" }',
+      headA: 'Location: /users/42\nContent-Type: application/json',
+      bodyA: () => '{ "id": 42, "email": "ana@example.com", "created_at": "2026-10-19T08:00:00Z" }' },
+    { id: 'missing', text: '应用请求 999 号用户，但这个用户不存在。', ok: [404], req: 'GET /users/999',
+      why: '404 Not Found：地址本身没问题，只是那里什么都没有。',
+      bodyB: '{ "error": "user 999 not found" }',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'not-found', 'Resource not found', 'No user with id 999') },
+    { id: 'invalid', text: '注册表单提交时没有填写邮箱地址。', ok: [400], okA: [400, 422], req: 'POST /users  {"name": "Ana"}',
+      why: '是客户端的错，所以是 4xx。400 是经典的选择。在进阶模式下 422 也算对：JSON 本身没问题，但违反了校验规则。',
+      bodyB: '{ "error": "email is required", "field": "email" }',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'validation', 'Validation failed', '1 field is invalid', ',\n  "errors": [{ "pointer": "/email", "detail": "is required" }]') },
+    { id: 'nologin', text: '请求里完全没有登录令牌。', ok: [401], req: 'GET /me',
+      why: '401 的意思是“我们不知道你是谁”。客户端应该先登录再重试。',
+      bodyB: '{ "error": "please log in" }',
+      headA: 'WWW-Authenticate: Bearer realm="api"\nContent-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'unauthenticated', 'Authentication required', 'Missing bearer token') },
+    { id: 'crash', text: '服务器上有个 bug：数据库连接崩溃了。', ok: [500], okA: [500, 503], req: 'GET /orders',
+      why: '不是客户端的错，所以是 5xx。在进阶模式下，如果故障是暂时的，503（带 Retry-After）也算对。',
+      bodyB: '{ "error": "something went wrong on our side" }',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'internal', 'Internal error', 'Please retry later', ',\n  "request_id": "req_7Hk2"') },
+    { id: 'forbidden', adv: true, text: '一个普通（非管理员）用户试图删除另一个用户的账号。', ok: [403], okA: [403, 404], req: 'DELETE /users/7',
+      why: '403：我们知道你是谁，但你没有权限。如果你不想暴露这个资源是否存在，返回 404 也算对。',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'forbidden', 'Not allowed', 'Only admins can delete other users') },
+    { id: 'dupe', adv: true, text: '有人用一个已经注册过的邮箱地址注册。', ok: [409], okA: [409], req: 'POST /users  {"email": "ana@example.com"}',
+      why: '409 Conflict：请求本身是合法的，但与现有状态冲突。',
+      headA: 'Content-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'conflict', 'Email already registered', 'ana@example.com is taken') },
+    { id: 'ratelimit', adv: true, text: '某个客户端一分钟内发送了 120 个请求，而上限是 100 个。', ok: [429], okA: [429], req: 'GET /search?q=books',
+      why: '429 Too Many Requests，并带上 Retry-After 头，让守规矩的客户端知道何时再来。',
+      headA: 'Retry-After: 30\nRateLimit-Policy: 100;w=60\nContent-Type: application/problem+json',
+      bodyA: (c) => problem(c, 'rate-limited', 'Too many requests', 'Limit is 100 requests per minute') },
+    { id: 'deleted', adv: true, text: '一个 DELETE 成功了，没有内容需要返回。', ok: [204], okA: [204, 200], req: 'DELETE /users/42',
+      why: '204 No Content 是最准确的答案。返回带响应体的 200 也可以。',
+      headA: '', bodyA: () => '' },
+  ];
+  let si = 0;
+  const visibleScen = () => SCEN.filter(s => !s.adv || level === 'advanced');
+  const accepted = (s) => L(s.ok, s.okA || s.ok);
+
+  function renderScenNav() {
+    const ss = visibleScen();
+    $('scenNav').innerHTML = '';
+    ss.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.textContent = i + 1;
+      b.className = (answered.has(s.id) ? 'done ' : '') + (i === si ? 'current' : '');
+      b.setAttribute('aria-label', `第 ${i + 1} 个情境`);
+      b.addEventListener('click', () => { si = i; renderScenario(); });
+      $('scenNav').appendChild(b);
+    });
+  }
+
+  function renderScenario() {
+    const ss = visibleScen();
+    if (si >= ss.length) si = 0;
+    const s = ss[si];
+    renderScenNav();
+    $('scenText').textContent = s.text;
+    $('scenReq').innerHTML = `请求：<code>${esc(s.req)}</code>`;
+    $('scenFb').className = 'feedback';
+    $('scenRes').textContent = '（请选择一个状态码）';
+    $('nextScen').style.display = 'none';
+    $('codes').innerHTML = '';
+    for (const code of L(BEGINNER_CODES, Object.keys(CODES).map(Number))) {
+      const b = document.createElement('button');
+      b.className = 'code';
+      b.innerHTML = `<b>${code}</b><small>${CODES[code][0]}</small>`;
+      b.addEventListener('click', () => pickCode(s, code, b));
+      $('codes').appendChild(b);
+    }
+  }
+
+  function responseText(s, code) {
+    const line = `HTTP/1.1 ${code} ${CODES[code][0]}`;
+    if (level === 'beginner') return s.bodyB ? `${line}\n\n${s.bodyB}` : line;
+    const body = s.bodyA(code);
+    return line + (s.headA ? '\n' + s.headA : '') + (body ? '\n\n' + body : '\n\n（没有响应体）');
+  }
+
+  function lanePacket(label, color, dir) {
+    return new Promise(resolve => {
+      const track = $('track');
+      const p = document.createElement('span');
+      p.className = 'lpacket'; p.textContent = label; p.style.background = color;
+      track.appendChild(p);
+      const W = Math.max(0, track.clientWidth - p.offsetWidth);
+      const [from, to] = dir > 0 ? [0, W] : [W, 0];
+      const a = p.animate(
+        [{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
+        { duration: reduced ? 150 : 800, easing: 'ease-in-out', fill: 'forwards' }
+      );
+      a.onfinish = () => { p.remove(); resolve(); };
+    });
+  }
+
+  async function pickCode(s, code, btn) {
+    const ok = accepted(s).includes(code);
+    if (!ok) {
+      btn.classList.add('wrong'); btn.disabled = true;
+      $('scenFb').className = 'feedback show bad';
+      $('scenFb').innerHTML = `<b>不太对。</b>${code} 的意思是：${esc(CODES[code][1])} 再试一次。`;
+      return;
+    }
+    $('codes').querySelectorAll('.code').forEach(b => b.disabled = true);
+    btn.classList.add('right');
+    $('scenFb').className = 'feedback show good';
+    $('scenFb').innerHTML = `<b>回答正确。</b>${esc(s.why)}`;
+    $('scenRes').textContent = '…';
+    await lanePacket(s.req.split('  ')[0], cssVar('--accent'), 1);
+    const color = code >= 500 ? cssVar('--bad') : code >= 400 ? cssVar('--warn') : cssVar('--ok');
+    await lanePacket(`${code} ${CODES[code][0]}`, color, -1);
+    $('scenRes').textContent = responseText(s, code);
+    answered.add(s.id);
+    renderScenNav();
+    updateProgress();
+    $('nextScen').style.display = '';
+  }
+
+  $('nextScen').addEventListener('click', () => {
+    const ss = visibleScen();
+    const next = ss.findIndex((s, i) => i > si && !answered.has(s.id));
+    const any = ss.findIndex(s => !answered.has(s.id));
+    si = next >= 0 ? next : any >= 0 ? any : (si + 1) % ss.length;
+    renderScenario();
+  });
+
+  /* =========================================================
+     UNIT 3: pagination
+     ========================================================= */
+  const PAGE = 3;
+  let posts, nextPostId, off, cur, pgBusy = false, justAdded = null;
+  const newClient = () => ({ received: [], dups: 0, startTop: null, pages: 0, shown: 0 });
+
+  function pgReset() {
+    posts = Array.from({ length: 12 }, (_, i) => 12 - i);   // newest first
+    nextPostId = 13;
+    off = { ...newClient(), offset: 0 };
+    cur = { ...newClient(), after: null };
+    justAdded = null;
+    renderPaging();
+    pgSay(L('先点几次“加载下一页”，然后添加一条新帖子，再加载一次。', '先加载一页，修改数据，再加载下一页，比较两种策略的结果。'));
+  }
+
+  const cursorToken = (id) => btoa(JSON.stringify({ id })).replace(/=+$/, '');
+  function offRequest() {
+    return L(`GET /posts?page=${off.pages + 1}`, `GET /posts?offset=${off.offset}&limit=${PAGE}`);
+  }
+  function curRequest() {
+    if (cur.after === null) return L('GET /posts', `GET /posts?limit=${PAGE}`);
+    return L(`GET /posts?after=${cur.after}`, `GET /posts?cursor=${cursorToken(cur.after)}&limit=${PAGE}`);
+  }
+
+  function missed(c) {
+    if (c.startTop === null || !c.received.length) return [];
+    const got = new Set(c.received);
+    const lowest = Math.min(...c.received);
+    return posts.filter(id => id <= c.startTop && id >= lowest && !got.has(id));
+  }
+
+  function renderPaging(gone) {
+    const offNext = off.offset < posts.length ? off.offset : -1;
+    const curNext = cur.after === null ? 0 : posts.findIndex(id => id < cur.after);
+    const gotO = new Set(off.received), gotC = new Set(cur.received);
+    $('strip').innerHTML = posts.map((id, i) => {
+      const atO = i === offNext, atC = i === curNext;
+      const marks = atO || atC
+        ? `<span class="mk">${atO ? '<i class="arrow o"></i>' : ''}${atC ? '<i class="arrow c"></i>' : ''}</span>` : '';
+      const cls = [id === justAdded ? 'new' : '', id === gone ? 'gone' : '', atO ? 'at-o' : '', atC ? 'at-c' : ''].join(' ');
+      return `<div class="schip ${cls}">${marks}#${id}
+        <div class="seen"><i class="o ${gotO.has(id) ? 'on' : ''}"></i><i class="c ${gotC.has(id) ? 'on' : ''}"></i></div></div>`;
+    }).join('');
+    $('legend').innerHTML =
+      `<span><i class="arrow o"></i>${L('下一页从这里开始（offset）', '下一个 OFFSET 窗口')}</span>` +
+      `<span><i class="arrow c"></i>${L('书签：下一页从这里开始（cursor）', '下一个游标位置')}</span>`;
+    $('offReq').textContent = '下一页 → ' + offRequest();
+    $('curReq').textContent = '下一页 → ' + curRequest();
+    for (const [c, feed, stats] of [[off, 'offFeed', 'offStats'], [cur, 'curFeed', 'curStats']]) {
+      const seen = new Set();
+      $(feed).innerHTML = c.received.map((id, i) => {
+        const sep = i > 0 && i % PAGE === 0 ? '<span class="fchip sep">|</span>' : '';
+        const dup = seen.has(id); seen.add(id);
+        const fresh = i >= c.shown ? 'fresh' : '';
+        return `${sep}<span class="fchip ${dup ? 'dup' : ''} ${fresh}" style="--i:${i - c.shown}">#${id}</span>`;
+      }).join('') || '<span class="stats">还没有内容</span>';
+      c.shown = c.received.length;
+      const m = missed(c).length;
+      $(stats).innerHTML = `页数：${c.pages} · 重复：<b class="${c.dups ? 'badn' : 'okn'}">${c.dups}</b> · 漏掉：<b class="${m ? 'badn' : 'okn'}">${m}</b>`;
+    }
+  }
+
+  function pgSay(text) { $('pgInsight').textContent = text; }
+
+  function loadNext() {
+    const prevAfter = cur.after;
+    const before = { od: off.dups, om: missed(off).length };
+    // offset
+    const oPage = posts.slice(off.offset, off.offset + PAGE);
+    if (off.startTop === null) off.startTop = posts[0];
+    oPage.forEach(id => { if (off.received.includes(id)) off.dups++; off.received.push(id); });
+    off.offset += oPage.length;
+    if (oPage.length) off.pages++;
+    // cursor
+    const start = cur.after === null ? 0 : posts.findIndex(id => id < cur.after);
+    const cPage = start < 0 ? [] : posts.slice(start, start + PAGE);
+    if (cur.startTop === null) cur.startTop = posts[0];
+    cPage.forEach(id => { if (cur.received.includes(id)) cur.dups++; cur.received.push(id); });
+    if (cPage.length) { cur.after = cPage[cPage.length - 1]; cur.pages++; }
+    justAdded = null;
+    renderPaging();
+
+    const newDups = off.dups - before.od, newMiss = missed(off).length - before.om;
+    if (newDups > 0) {
+      pgSay(L(`页码方式让你看到了 ${newDups} 条重复的帖子！新帖子把所有内容往后挤了一位，所以“跳过 ${off.offset - oPage.length} 条”现在落在了一条你已经看过的帖子上。书签方式不在乎上面新增了什么。`,
+              `重复：插入让每一行都往后移了一位，所以 OFFSET ${off.offset - oPage.length} 又读到了上一个窗口里的一行。keyset 条件（id < ${prevAfter ?? '∞'}）锚定的是一个值，而不是一个位置。`));
+      saved.pgDone = true; updateProgress();
+    } else if (newMiss > 0) {
+      pgSay(L(`页码方式悄悄漏掉了 ${newMiss} 条帖子！一条你看过的帖子被删除后，所有内容往前挪了一位，“跳过”恰好跳过了一条你从没看到的帖子。这种 bug 没有人会注意到。`,
+              `漏读：删除让后面的行都往前移，所以下一个 OFFSET 窗口晚了一行才开始。漏掉的行比重复的行更糟，因为没人会发现。keyset 分页不受影响。`));
+      saved.pgDone = true; updateProgress();
+    } else if (!oPage.length && !cPage.length) {
+      pgSay('这是最后一页了。点击“重置”重新开始。');
+    } else {
+      pgSay(L('两种方式返回的帖子一样。现在试试添加或删除一条帖子，再加载下一页。', '上一页之后没有写入，所以两种策略结果一致。修改数据后再加载一次。'));
+    }
+  }
+
+  function addPost() {
+    const id = nextPostId++;
+    posts.unshift(id);
+    justAdded = id;
+    renderPaging();
+    pgSay(L(`新帖子 #${id} 出现在最上面。看看箭头：橙色箭头（页码方式）现在指向一条你已经看过的帖子，而蓝色的书签没有动。`,
+            `在头部 INSERT #${id}。offset 窗口现在在数据中提前了一行（落在一条已经返回过的行上）。游标仍然指向第一条 id < ${cur.after ?? '∞'} 的行。`));
+  }
+
+  async function delPost() {
+    const seenByBoth = posts.find(id => off.received.includes(id));
+    const victim = seenByBoth ?? posts[0];
+    if (victim === undefined) return;
+    renderPaging(victim);
+    await sleep(450);
+    posts = posts.filter(id => id !== victim);
+    justAdded = null;
+    renderPaging();
+    pgSay(L(`帖子 #${victim}（你已经看过）被删除了，它后面的所有内容都往前挪了一位。加载下一页，仔细数一数…`,
+            `从已经返回的范围里 DELETE #${victim}。它后面的每一行都往前移一位，所以下一个 OFFSET 窗口会跳过一行。`));
+  }
+
+  async function lock(fn) {
+    if (pgBusy) return;
+    pgBusy = true;
+    document.querySelectorAll('#paging .controls .btn').forEach(b => b.disabled = true);
+    try { await fn(); } finally {
+      pgBusy = false;
+      document.querySelectorAll('#paging .controls .btn').forEach(b => b.disabled = false);
+    }
+  }
+
+  $('pgNext').addEventListener('click', () => lock(async () => loadNext()));
+  $('pgAdd').addEventListener('click', () => lock(async () => addPost()));
+  $('pgDel').addEventListener('click', () => lock(delPost));
+  $('pgReset').addEventListener('click', () => lock(async () => pgReset()));
+  $('pgPlay').addEventListener('click', () => lock(async () => {
+    pgReset(); await sleep(500);
+    loadNext(); pgSay(L('第 1 步：两个客户端都加载第 1 页。', '第 1 步：两个客户端都获取第一个窗口。')); await sleep(1800);
+    addPost(); await sleep(2600);
+    loadNext();
+  }));
+
+  /* =========================================================
+     UNIT 4: breaking-change sorter
+     ========================================================= */
+  const CHANGES = [
+    { id: 'add-field', text: '在用户响应中新增一个可选字段 "nickname"。', code: '{ "id": 42, "name": "Ana", "nickname": "ana_b" }', breaking: false,
+      beginner: '旧应用会直接忽略它们不认识的字段。新增是安全的。',
+      advanced: '对“宽容读取者”是安全的。所以你应该在文档里写明“忽略未知字段”，并在 SDK 里避免严格的反序列化。' },
+    { id: 'rename', text: '把字段 "name" 改名为 "fullName"。', code: '- "name": "Ana"\n+ "fullName": "Ana"', breaking: true,
+      beginner: '所有读取 "name" 的应用现在什么都拿不到了。改名的正确做法是：新增新字段，同时保留旧字段一段时间。',
+      advanced: '改名 = 删除 + 新增。采用扩展/收缩（expand/contract）：同时发布两个字段，把 "name" 标记为弃用，过了下线日期再删除。' },
+    { id: 'new-endpoint', text: '新增一个端点 GET /users/42/badges。', code: 'GET /users/42/badges → 200', breaking: false,
+      beginner: '以前没人用过它，所以不会破坏任何已有的功能。',
+      advanced: '纯新增。确保它遵循现有约定，免得以后还要“修正”它，那才会是破坏性变更。' },
+    { id: 'type', text: '把 "price" 从数字改成字符串。', code: '- "price": 9.99\n+ "price": "9.99"', breaking: true,
+      beginner: '用价格做计算的应用会出错或算错。改类型永远不安全。',
+      advanced: '改类型会让强类型客户端在反序列化时失败，让动态类型客户端在运行时出错（变成字符串拼接而不是相加）。应该新增 "price_decimal"。' },
+    { id: 'remove-endpoint', text: '删除旧端点 GET /reports/legacy。', code: 'GET /reports/legacy → 404', breaking: true,
+      beginner: '还在调用它的应用会突然报错。先通知大家，等没人再用时才删除。',
+      advanced: '检查访问日志里还有哪些调用方，发送 Deprecation 和 Sunset 头，过了下线日期后返回 410 Gone（而不是悄无声息的 404）。' },
+    { id: 'optional-param', text: '给 GET /posts 新增一个可选查询参数 ?sort=…。', code: 'GET /posts?sort=-created_at', breaking: false,
+      beginner: '应用不传它的话，什么都不会变。安全。',
+      advanced: '只要默认行为（不带参数时）和以前完全一样，就是安全的。' },
+    { id: 'required', adv: true, text: '把可选的请求字段 "phone" 改为必填。', code: 'POST /users  {"email": "…"}  → 现在返回 422', breaking: true,
+      advanced: '现有客户端发出的、没有 "phone" 的请求现在都会失败。收紧请求校验是破坏性的，放宽则是安全的。' },
+    { id: 'enum', adv: true, text: '在响应的 "status" 枚举中新增一个值 "refunded"。', code: '"status": "paid" | "shipped" | "refunded"', breaking: true,
+      advanced: '在实践中这经常是破坏性的：穷举式的 switch 或严格的枚举反序列化器遇到未知值会崩溃。只有当契约从第一天起就要求客户端处理未知值时，它才是安全的。' },
+    { id: 'page-size', adv: true, text: '把默认分页大小从 50 改成 20。', code: 'GET /posts → 20 条（原来是 50 条）', breaking: true,
+      advanced: '行为上的破坏：以为一次调用就能拿到全部（或最多 50 条）的客户端会悄悄丢数据。默认值也是契约的一部分。' },
+    { id: 'header', adv: true, text: '开始在响应中返回新的响应头 X-Request-Id。', code: 'X-Request-Id: req_7Hk2', breaking: false,
+      advanced: '安全。客户端会忽略不认识的响应头，而且它有助于客服排查和链路追踪。' },
+  ];
+  let lastSorted = null;
+  const visibleChanges = () => CHANGES.filter(c => !c.adv || level === 'advanced');
+
+  function renderBins() {
+    const vis = visibleChanges();
+    const li = (c) => `<li class="${sorted[c.id] ? 'hit' : 'miss'} ${c.id === lastSorted ? 'fresh' : ''}">${esc(c.text)}</li>`;
+    $('binSafe').innerHTML = vis.filter(c => c.id in sorted && !c.breaking).map(li).join('');
+    $('binBreak').innerHTML = vis.filter(c => c.id in sorted && c.breaking).map(li).join('');
+  }
+
+  function renderChange() {
+    const vis = visibleChanges();
+    const left = vis.filter(c => !(c.id in sorted));
+    renderBins();
+    const card = $('changeCard');
+    card.style.cssText = '';
+    if (!left.length) {
+      const right = vis.filter(c => sorted[c.id]).length;
+      card.innerHTML = `<div class="count">全部分完了</div><div class="what">答对 ${right} / ${vis.length}</div>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:12px">${right === vis.length ? '你对兼容性很有感觉。' : '框里标着 ✗ 的那些值得再看一看。'}</p>
+        <button class="btn" id="sortAgain">重新分类</button>`;
+      $('sortAgain').addEventListener('click', () => {
+        vis.forEach(c => delete sorted[c.id]);
+        updateProgress(); $('changeFb').className = 'feedback'; renderChange();
+      });
+      return;
+    }
+    const c = left[0];
+    card.innerHTML = `<div class="count">第 ${vis.length - left.length + 1} 个变更，共 ${vis.length} 个</div>
+      <div class="what">${esc(c.text)}</div><pre>${esc(c.code)}</pre>
+      <div class="choice"><button class="btn safe-btn" data-b="0">✓ 安全</button><button class="btn break-btn" data-b="1">⚠ 破坏性</button></div>`;
+    card.querySelectorAll('.choice button').forEach(b => b.addEventListener('click', () => sortChange(c, b.dataset.b === '1')));
+  }
+
+  async function sortChange(c, saysBreaking) {
+    const correct = saysBreaking === c.breaking;
+    const card = $('changeCard');
+    card.querySelectorAll('button').forEach(b => b.disabled = true);
+    $('changeFb').className = 'feedback show ' + (correct ? 'good' : 'bad');
+    $('changeFb').innerHTML = `<b>${correct ? '回答正确' : '不太对'}：它是${c.breaking ? '破坏性变更' : '安全的'}。</b>${esc(c[level] || c.advanced)}`;
+    const bin = c.breaking ? $('binBreak') : $('binSafe');
+    const cr = card.getBoundingClientRect(), br = bin.getBoundingClientRect();
+    const dx = (br.left + br.width / 2) - (cr.left + cr.width / 2);
+    const dy = (br.top + 40) - (cr.top + cr.height / 2);
+    if (!reduced) {
+      await card.animate([
+        { transform: 'none', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(.25) rotate(${c.breaking ? 8 : -8}deg)`, opacity: 0 },
+      ], { duration: 550, easing: 'cubic-bezier(.5,0,.75,0)' }).finished;
+    }
+    sorted[c.id] = correct;
+    lastSorted = c.id;
+    updateProgress();
+    renderChange();
+    if (!reduced) $('changeCard').animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 300 });
+  }
+
+  /* =========================================================
+     UNIT 5: quiz
+     ========================================================= */
+  const QUIZ_BEGINNER = [
+    { q: '获取 17 号订单，哪个请求最好？',
+      opts: ['GET /getOrder?id=17', 'GET /orders/17', 'POST /orders/17/get', 'GET /order-17'], a: 1,
+      why: 'URL 给事物命名（/orders/17），GET 方法表示“读取它”。' },
+    { q: '提交的表单缺少一个必填字段。应该返回哪个状态码？',
+      opts: ['200 OK', '400 Bad Request', '404 Not Found', '500 Internal Server Error'], a: 1,
+      why: '是客户端的错（4xx），而且请求本身无效：400。' },
+    { q: '为什么 GET 请求绝不能删除或修改数据？',
+      opts: ['GET 比 POST 慢', '浏览器、机器人和链接预览会自动打开 GET 链接', 'GET 请求不能包含 ID', '服务器会拦截 GET 请求'], a: 1,
+      why: '很多软件会自己去访问 GET 链接。如果某个链接会删除数据，机器人光是访问就可能把东西删掉。' },
+    { q: '下面哪种变更会破坏已经在使用你 API 的应用？',
+      opts: ['新增一个可选字段', '新增一个端点', '给字段改名', '新增一个可选查询参数'], a: 2,
+      why: '读取旧字段名的应用会突然什么都拿不到。新增是安全的，改名或删除则不是。' },
+    { q: '4xx 和 5xx：分别是谁的错？',
+      opts: ['4xx 是客户端的错，5xx 是服务器的错', '4xx 是服务器的错，5xx 是客户端的错', '两者都是服务器的错', '两者都是客户端的错'], a: 0,
+      why: '4xx：请求有问题，要改请求。5xx：服务器出了故障，同样的请求稍后可能就成功了。' },
+    { q: '一个无限滚动的社交信息流不断有新帖子出现。哪种分页方式能避免同一条帖子出现两次？',
+      opts: ['页码（offset）', '游标 / 书签（cursor）', '一次性全部返回', '随机排序'], a: 1,
+      why: '游标表示“#7 之后的帖子”，所以顶部的新帖子不会影响你接下来拿到的内容。' },
+    { type: 'order',
+      q: '你需要给一个字段改名，又不能影响任何人。把步骤按顺序排好。',
+      items: ['在旧字段旁边新增新字段', '通知所有人旧字段将被移除', '等待应用都完成切换', '删除旧字段'],
+      why: '先新增，再通知，给大家时间，最后删除。' },
+  ];
+  const QUIZ_ADVANCED = [
+    { q: 'JSON 格式正确，但 "email" 的格式不合法。最准确的状态码是什么？',
+      opts: ['400 Bad Request', '409 Conflict', '422 Unprocessable Content', '500 Internal Server Error'], a: 2,
+      why: '422 表示语法没问题，但语义校验失败。很多 API 两种情况都用 400；不管选哪个，保持一致就好。' },
+    { q: '429 响应应该包含什么，才能让客户端正确地退避？',
+      opts: ['Location', 'Retry-After', 'ETag', 'Allow'], a: 1,
+      why: 'Retry-After（最好再加上 RateLimit 系列头）准确告诉客户端何时重试，而不是让它靠指数退避瞎猜、不停地冲击你。' },
+    { q: '你用 created_at 做游标分页。为什么还要加上 id 作为决胜字段？',
+      opts: ['让游标更短', '时间戳相同的行可能被跳过或重复', 'HTTP 要求这样做', '让 JSON 解析更快'], a: 1,
+      why: 'keyset 必须唯一且完全有序。(created_at, id) 保证“下一行”恰好只有一行。' },
+    { q: '为什么在 SQL 里 OFFSET 100000 会变慢？',
+      opts: ['数据库必须遍历并丢弃所有被跳过的行', 'offset 是以字符串存储的', 'HTTP 限制了大数字', '索引不能和 ORDER BY 一起用'], a: 0,
+      why: 'OFFSET 是 O(n) 的：这些行被生成出来又被扔掉。keyset 分页直接在索引中定位到正确的位置。' },
+    { q: '机器可读的 HTTP 错误响应体，标准格式是什么？',
+      opts: ['RFC 9457 问题详情（application/problem+json）', 'SOAP Fault', 'text/plain 格式的堆栈信息', 'JSON-RPC 错误对象'], a: 0,
+      why: '问题详情提供 type、title、status、detail 和 instance，你还可以加上自己的扩展字段。' },
+    { q: '在响应的枚举中新增一个值有风险，因为…',
+      opts: ['使用穷举 switch 或严格反序列化的客户端可能会崩溃', '枚举不是合法的 JSON', '它会改变 URL', '它会让数据量翻倍'], a: 0,
+      why: '只有对那些被要求处理未知值的客户端来说，它才是纯新增。从第一天起就在契约里写明这条规则。' },
+    { q: '取消订单会退款，且发货后不能再取消。哪种设计最能清楚地表达这一点？',
+      opts: ['PATCH /orders/42 {"status":"cancelled"}', 'POST /orders/42/cancel，已发货时返回 409', 'DELETE /orders/42', 'GET /orders/42/cancel'], a: 1,
+      why: '显式的动作让副作用一目了然，易于授权和审计，而 409 表达了非法的状态转换。' },
+    { type: 'order',
+      q: '用扩展/收缩的方式下线一个字段。把步骤按顺序排好。',
+      items: ['在旧字段旁边发布新字段', '发送 Deprecation + Sunset 头', '监控旧字段的使用情况', '过了下线日期后删除该字段'],
+      why: '扩展 → 通知 → 观察 → 收缩。无法证明没人在用的东西，永远不要删。' },
+  ];
+  let QUIZ = QUIZ_BEGINNER;
+  let qi = 0, score = 0;
+
+  function renderQuiz() {
+    const box = $('quizBox');
+    if (qi >= QUIZ.length) {
+      const pct = Math.round((score / QUIZ.length) * 100);
+      box.innerHTML = `<div class="result"><div class="score">${score} / ${QUIZ.length}</div>
+        <p>${pct === 100 ? '满分！你已经可以设计 API 了。' : pct >= 70 ? '做得不错。复习一下答错的题，再试一次。' : '开了个好头。回顾各单元后再试一次。'}</p>
+        <button class="btn primary" id="retry">再试一次</button></div>`;
+      $('retry').addEventListener('click', () => { qi = 0; score = 0; renderQuiz(); });
+      saved.quizDone = true; updateProgress();
+      return;
+    }
+    const item = QUIZ[qi];
+    box.innerHTML = `<div class="quiz-meta"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>
+      <div class="q">${esc(item.q)}</div><div id="qBody"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="controls"><button class="btn primary" id="qNext" style="display:none">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`;
+    $('qNext').addEventListener('click', () => { qi++; renderQuiz(); });
+    (item.type === 'order' ? renderOrder : renderMC)(item);
+  }
+
+  function reveal(ok, why) {
+    if (ok) score++;
+    const fb = $('fb');
+    fb.className = 'feedback show ' + (ok ? 'good' : 'bad');
+    fb.innerHTML = `<b>${ok ? '回答正确。' : '不太对。'}</b> ${esc(why)}`;
+    $('qNext').style.display = '';
+    $('qNext').focus();
+  }
+
+  function renderMC(item) {
+    const wrap = document.createElement('div'); wrap.className = 'opts';
+    item.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        wrap.querySelectorAll('.opt').forEach((x, j) => {
+          x.disabled = true;
+          if (j === item.a) x.classList.add('right');
+        });
+        if (i !== item.a) b.classList.add('wrong');
+        reveal(i === item.a, item.why);
+      });
+      wrap.appendChild(b);
+    });
+    $('qBody').appendChild(wrap);
+  }
+
+  function renderOrder(item) {
+    const shuffled = [...item.items];
+    do { shuffled.sort(() => Math.random() - 0.5); } while (shuffled.join() === item.items.join());
+    const picked = [];
+    $('qBody').innerHTML = `<div class="chips" id="chips"></div><div class="slots" id="slots"></div>
+      <div class="controls"><button class="btn" id="oClear">清空</button><button class="btn primary" id="oCheck" disabled>检查顺序</button></div>`;
+    const draw = () => {
+      $('chips').innerHTML = ''; $('slots').innerHTML = '';
+      shuffled.forEach(s => {
+        const c = document.createElement('button');
+        c.className = 'chip'; c.textContent = s; c.disabled = picked.includes(s);
+        c.addEventListener('click', () => { picked.push(s); draw(); });
+        $('chips').appendChild(c);
+      });
+      item.items.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'slot' + (picked[i] ? ' filled' : '');
+        d.textContent = picked[i] || '';
+        $('slots').appendChild(d);
+      });
+      $('oCheck').disabled = picked.length !== item.items.length;
+    };
+    $('oClear').addEventListener('click', () => { picked.length = 0; draw(); });
+    $('oCheck').addEventListener('click', () => {
+      const slots = $('slots').children;
+      let ok = true;
+      picked.forEach((s, i) => {
+        const right = s === item.items[i];
+        ok = ok && right;
+        slots[i].classList.add(right ? 'right' : 'wrong');
+        if (!right) slots[i].textContent = `${s}（正确答案：${item.items[i]}）`;
+      });
+      $('chips').querySelectorAll('button').forEach(b => b.disabled = true);
+      $('oCheck').disabled = true; $('oClear').disabled = true;
+      reveal(ok, item.why);
+    });
+    draw();
+  }
+
+  /* ---------------- shared ---------------- */
+  document.querySelectorAll('.codeblock .copy').forEach(btn => btn.addEventListener('click', async () => {
+    const text = btn.closest('.codeblock').querySelector('pre').textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = '已复制'; }
+    catch (e) { btn.textContent = '复制失败'; }
+    setTimeout(() => { btn.textContent = '复制'; }, 1200);
+  }));
+
+  function applyLevel() {
+    document.body.dataset.level = level;
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+    renderCase();
+    renderScenario();
+    renderPaging();
+    $('changeFb').className = 'feedback';
+    renderChange();
+    QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
+    qi = 0; score = 0;
+    renderQuiz();
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.level === level) return;
+    level = b.dataset.level;
+    saved.level = level; persist();
+    applyLevel();
+  }));
+
+  /* ---------------- init ---------------- */
+  pgReset();
+  applyLevel();
+  updateProgress();
+})();
+</script>
+</body>
+</html>
