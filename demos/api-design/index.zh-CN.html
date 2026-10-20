@@ -175,6 +175,7 @@
 
   /* ---------- unit 1: API doctor ---------- */
   .doctor { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+  .doctor > * { min-width: 0; }
   .caselist { display: flex; flex-direction: column; gap: 6px; }
   .casebtn {
     display: flex; gap: 8px; align-items: center; text-align: left;
@@ -329,7 +330,7 @@
   footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
 
   @media (max-width: 760px) {
-    .doctor, .io, .compare, .pg-cols { grid-template-columns: 1fr; }
+    .doctor, .io, .compare, .pg-cols { grid-template-columns: minmax(0, 1fr); }
     .caselist { flex-direction: row; flex-wrap: wrap; }
     .casebtn { flex: 1 1 140px; }
     .sorter { grid-template-columns: 1fr 1fr; }
@@ -579,7 +580,7 @@ Content-Type: application/problem+json
     <div id="quizBox" style="margin-top:14px"></div>
   </section>
 
-  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../http-basics/index.zh-CN.html">一步步看懂 HTTP</a>。下一课：<a href="../database-design/index.zh-CN.html">设计数据库</a>。</footer>
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../http-basics/index.zh-CN.html">一步步看懂 HTTP</a>。下一课：<a href="../sql/index.zh-CN.html">动手学 SQL</a>。</footer>
 </main>
 
 <script>

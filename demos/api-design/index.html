@@ -175,6 +175,7 @@
 
   /* ---------- unit 1: API doctor ---------- */
   .doctor { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+  .doctor > * { min-width: 0; }
   .caselist { display: flex; flex-direction: column; gap: 6px; }
   .casebtn {
     display: flex; gap: 8px; align-items: center; text-align: left;
@@ -329,7 +330,7 @@
   footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
 
   @media (max-width: 760px) {
-    .doctor, .io, .compare, .pg-cols { grid-template-columns: 1fr; }
+    .doctor, .io, .compare, .pg-cols { grid-template-columns: minmax(0, 1fr); }
     .caselist { flex-direction: row; flex-wrap: wrap; }
     .casebtn { flex: 1 1 140px; }
     .sorter { grid-template-columns: 1fr 1fr; }
@@ -579,7 +580,7 @@ Content-Type: application/problem+json
     <div id="quizBox" style="margin-top:14px"></div>
   </section>
 
-  <footer>A demo for interactive-tech-learning. Plain HTML, CSS and JS with no dependencies, so it also works offline. Previous lesson: <a href="../http-basics/index.html">HTTP, step by step</a>. Next lesson: <a href="../database-design/index.html">Designing a database</a>.</footer>
+  <footer>A demo for interactive-tech-learning. Plain HTML, CSS and JS with no dependencies, so it also works offline. Previous lesson: <a href="../http-basics/index.html">HTTP, step by step</a>. Next lesson: <a href="../sql/index.html">SQL, hands on</a>.</footer>
 </main>
 
 <script>
