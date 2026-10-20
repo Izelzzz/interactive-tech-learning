@@ -1,0 +1,1571 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>形式化验证</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efeee8;
+    --text: #1c1c1a;
+    --muted: #64635d;
+    --border: #dcdbd3;
+    --accent: #3b5bdb;
+    --accent-soft: #e5eaff;
+    --ok: #2b8a3e;
+    --ok-soft: #e3f5e6;
+    --bad: #c92a2a;
+    --bad-soft: #fde8e8;
+    --warn: #b35c00;
+    --warn-soft: #fff1e0;
+    --line: #b9b8b0;
+    --chunk-a: #4c6ef5;
+    --chunk-b: #7048e8;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-2: #282826;
+      --text: #ecebe6;
+      --muted: #a3a29b;
+      --border: #3a3a37;
+      --accent: #7d97ff;
+      --accent-soft: #252c48;
+      --ok: #5fcf75;
+      --ok-soft: #1c3322;
+      --bad: #ff7b7b;
+      --bad-soft: #3d1f1f;
+      --warn: #ffa94d;
+      --warn-soft: #3a2a17;
+      --line: #5a5a55;
+      --chunk-a: #5c7cfa;
+      --chunk-b: #9775fa;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --surface-2: #282826;
+    --text: #ecebe6;
+    --muted: #a3a29b;
+    --border: #3a3a37;
+    --accent: #7d97ff;
+    --accent-soft: #252c48;
+    --ok: #5fcf75;
+    --ok-soft: #1c3322;
+    --bad: #ff7b7b;
+    --bad-soft: #3d1f1f;
+    --warn: #ffa94d;
+    --warn-soft: #3a2a17;
+    --line: #5a5a55;
+    --chunk-a: #5c7cfa;
+    --chunk-b: #9775fa;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  }
+  body[data-level="advanced"] .only-beginner, body[data-level="beginner"] .only-advanced { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  code, pre { font-family: var(--mono); }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 0.95rem; margin-right: auto; }
+  .brand a { color: var(--muted); text-decoration: none; font-weight: 500; margin-right: 6px; }
+  .progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+  .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s ease; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 12px; font-size: 0.85rem; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline-offset: -3px; }
+  .lang-switch {
+    font-size: 0.85rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface);
+  }
+  .lang-switch:hover { border-color: var(--accent); color: var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 48px 0 24px; }
+  .hero p { color: var(--muted); max-width: 660px; margin-top: 12px; font-size: 1.05rem; }
+  .units { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 28px; }
+  .unit {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .unit:hover { border-color: var(--accent); }
+  .unit small { color: var(--muted); display: block; }
+  .unit b { display: block; margin: 2px 0; }
+  .unit .tick { float: right; color: var(--ok); font-weight: 700; visibility: hidden; }
+  .unit.done .tick { visibility: visible; }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin: 24px 0; scroll-margin-top: 70px;
+  }
+  .kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .lede { color: var(--muted); margin: 6px 0 18px; }
+  .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 14px; font-size: 0.9rem;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .callout { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; font-size: 0.95rem; }
+  .callout ul { margin: 6px 0 0; padding-left: 20px; }
+  .callout li { margin: 3px 0; }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; display: none; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--ok-soft); }
+  .feedback.bad { background: var(--bad-soft); }
+  .insight { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.92rem; }
+  .insight.bad { background: var(--bad-soft); }
+  .insight.good { background: var(--ok-soft); }
+  .insight.warn { background: var(--warn-soft); }
+
+  .codeblock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; min-width: 0; }
+  .codeblock-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .codeblock-head .copy { border: 0; background: none; color: var(--muted); font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+  .codeblock-head .copy:hover { background: var(--surface-2); color: var(--text); }
+  .codeblock pre { margin: 0; padding: 12px 14px; flex: 1; font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .codeblock.nowrap pre { white-space: pre; word-break: normal; overflow-x: auto; }
+  .codeblock pre .hl { background: var(--accent-soft); color: var(--accent); border-radius: 3px; }
+  .codeblock pre .cm { color: var(--muted); }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .75; }
+  .opt.picked { border-color: var(--accent); background: var(--accent-soft); }
+
+  @keyframes pop { from { opacity: 0; transform: scale(.85); } }
+  @keyframes flash { from { background: var(--warn-soft); } }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .tbl-wrap { overflow-x: auto; min-width: 0; }
+  table.data { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
+  table.data th, table.data td { padding: 5px 9px; border: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  table.data th { font-size: 0.72rem; font-weight: 700; letter-spacing: .03em; color: var(--muted); background: var(--surface-2); }
+  table.data td { font-family: var(--mono); font-size: 0.78rem; background: var(--surface); }
+  table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.data td.ok { color: var(--ok); font-weight: 700; }
+  table.data td.no { color: var(--bad); font-weight: 700; }
+  table.data tr.new td { animation: flash 1.2s ease-out; }
+  table.data td.wrap { white-space: normal; font-family: inherit; font-size: 0.82rem; }
+  .meter { font-size: 0.85rem; margin-top: 10px; color: var(--muted); }
+  .meter b { font-family: var(--mono); font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .legend { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin: 8px 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid var(--border); }
+
+  /* ---------- unit 1: tests vs every input ---------- */
+  .u1 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+  .gridbox { background: var(--surface-2); border-radius: 12px; padding: 12px; text-align: center; min-width: 0; }
+  .gridbox canvas { width: 100%; max-width: 340px; height: auto; display: block; margin: 0 auto; image-rendering: pixelated; border-radius: 6px; }
+  .gridbox .cap { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
+  .testlog { list-style: none; margin: 10px 0 0; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font: 0.78rem/1.7 var(--mono); min-height: 70px; max-height: 150px; overflow-y: auto; }
+  .testlog li.fail { color: var(--bad); font-weight: 700; }
+  .testlog li.pass { color: var(--muted); }
+
+  /* ---------- unit 2: specs ---------- */
+  .clauses { display: grid; gap: 8px; }
+  .clause { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; cursor: pointer; background: var(--surface); }
+  .clause:hover { border-color: var(--accent); }
+  .clause:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .clause:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .clause input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--accent); flex: none; }
+  .clause code { font-size: 0.8rem; overflow-wrap: anywhere; }
+  .clause small { display: block; color: var(--muted); }
+  .impls { display: grid; gap: 8px; }
+  .impl { border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; transition: border-color .3s, background .3s; }
+  .impl .nm { font-weight: 600; }
+  .impl code { grid-column: 1 / -1; font-size: 0.78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .impl .why { grid-column: 1 / -1; font-size: 0.83rem; }
+  .pill { font-size: 0.75rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .pill.pass { background: var(--ok-soft); color: var(--ok); }
+  .pill.fail { background: var(--bad-soft); color: var(--bad); }
+  .impl.wrongpass { border-color: var(--warn); background: var(--warn-soft); }
+  .impl.wrongpass .pill.pass { background: var(--warn); color: #fff; }
+  .impl.caught { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+
+  /* ---------- unit 3: model checking ---------- */
+  .ptabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ptabs button { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 4px 13px; font-size: 0.85rem; color: var(--muted); }
+  .ptabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .sg { background: var(--surface-2); border-radius: 12px; margin-top: 14px; overflow-x: auto; }
+  .sg svg { display: block; height: auto; }
+  .sg .nd rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; transition: fill .25s, stroke .25s; }
+  .sg .nd { opacity: 0; transition: opacity .3s; }
+  .sg .nd.show { opacity: 1; }
+  .sg .nd text { fill: var(--text); font: 10.5px var(--mono); }
+  .sg .nd.init rect { stroke: var(--accent); stroke-width: 2; }
+  .sg .nd.bad rect { fill: var(--bad-soft); stroke: var(--bad); stroke-width: 2.5; }
+  .sg .nd.dead rect { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 2.5; }
+  .sg .nd.ok rect { stroke: color-mix(in srgb, var(--ok) 60%, var(--border)); }
+  .sg .nd.trace rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  .sg .nd.trace.bad rect { fill: var(--bad-soft); stroke: var(--bad); stroke-width: 3.5; }
+  .sg .nd.trace.dead rect { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 3.5; }
+  .sg .nd.cur rect { stroke-width: 4; }
+  .sg .ed { fill: none; stroke: var(--line); stroke-width: 1.2; opacity: 0; transition: opacity .3s; }
+  .sg .ed.show { opacity: .8; }
+  .sg .ed.back { stroke-dasharray: 3 3; }
+  .sg .ed.show.back { opacity: .45; }
+  .sg .ed.trace { stroke: var(--accent); stroke-width: 3; opacity: 1; stroke-dasharray: none; }
+  .sg marker path { fill: var(--line); }
+  .sg marker.hi path { fill: var(--accent); }
+  .procs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .proc { border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 0.85rem; background: var(--surface); }
+  .proc b { font-family: var(--mono); }
+  .proc .loc { font: 700 1.05rem var(--mono); }
+  .proc.incrit { border-color: var(--warn); background: var(--warn-soft); }
+  .proc.alarm { border-color: var(--bad); background: var(--bad-soft); }
+  .steps { margin: 10px 0 0; padding: 10px 12px 10px 34px; background: var(--surface-2); border-radius: 10px; font-size: 0.85rem; min-height: 48px; }
+  .steps li { margin: 2px 0; animation: pop .3s ease-out both; }
+  .steps li.last { font-weight: 600; }
+  .steps li.badstep { color: var(--bad); font-weight: 700; }
+
+  /* ---------- unit 4: loop invariants ---------- */
+  .arr { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+  .arr span { min-width: 40px; text-align: center; padding: 6px 4px; border-radius: 8px; border: 1.5px solid var(--border); font: 600 0.95rem var(--mono); background: var(--surface); transition: background .3s, border-color .3s; }
+  .arr span small { display: block; font-size: 0.65rem; color: var(--muted); font-weight: 400; }
+  .arr span.in { background: var(--ok-soft); border-color: var(--ok); }
+  .arr span.next { border-color: var(--accent); border-style: dashed; }
+  .divbar { display: flex; gap: 2px; margin: 8px 0 4px; flex-wrap: nowrap; }
+  .divbar i { flex: 1; height: 26px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); transition: background .3s; }
+  .divbar i.ca { background: var(--chunk-a); border-color: var(--chunk-a); }
+  .divbar i.cb { background: var(--chunk-b); border-color: var(--chunk-b); }
+  .vars { display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 0.9rem; margin: 6px 0; }
+  .vars b { font: 700 1.1rem var(--mono); }
+  .cands { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+  .cands .opt code { font-size: 0.82rem; overflow-wrap: anywhere; }
+  .cands .opt small { display: block; color: var(--muted); font-size: 0.82rem; }
+  .obls { display: grid; gap: 6px; margin-top: 12px; }
+  .obl { display: grid; grid-template-columns: 26px 1fr; gap: 2px 8px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 0.88rem; animation: pop .3s ease-out both; }
+  .obl .mk { font-weight: 800; font-size: 1.05rem; }
+  .obl.ok .mk { color: var(--ok); }
+  .obl.no { background: var(--bad-soft); }
+  .obl.no .mk { color: var(--bad); }
+  .obl .cx { grid-column: 2; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .obl .cx.note { font-family: inherit; font-size: 0.82rem; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin-top: 10px; }
+  .tools div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; }
+  .tools b { display: block; }
+
+  /* ---------- quiz ---------- */
+  .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; text-align: left; }
+  .chip:disabled { opacity: .3; cursor: default; }
+  .slots { counter-reset: slot; display: grid; gap: 6px; margin: 14px 0; }
+  .slot { counter-increment: slot; border: 1.5px dashed var(--border); border-radius: 10px; padding: 7px 12px; min-height: 40px; color: var(--muted); font-size: 0.9rem; }
+  .slot::before { content: counter(slot) ". "; color: var(--muted); }
+  .slot.filled { border-style: solid; color: var(--text); }
+  .slot.right { border-color: var(--ok); background: var(--ok-soft); }
+  .slot.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .result { text-align: center; padding: 20px 0; }
+  .result .score { font: 700 3rem system-ui, sans-serif; }
+  .result p { color: var(--muted); margin: 6px 0 16px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
+
+  @media (max-width: 760px) {
+    .u1, .two-col { grid-template-columns: 1fr; }
+    .procs { grid-template-columns: 1fr 1fr; }
+    section.card { padding: 18px 16px; }
+    .bar { width: 70px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+  }
+</style>
+</head>
+<body data-level="beginner">
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.zh-CN.html">← 课程</a> 形式化验证</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 单元</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="讲解深度">
+      <button data-level="beginner" aria-pressed="true">小白</button>
+      <button data-level="advanced" aria-pressed="false">进阶</button>
+    </div>
+    <a class="lang-switch" href="index.html" lang="en" hreflang="en">English</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">第 5 课</div>
+    <h1>形式化验证：检查每一种情况，而不只是一部分</h1>
+    <p class="only-beginner">测试只试一部分输入，然后指望剩下的也没问题。形式化验证用数学和巧妙的搜索把所有输入都检查一遍。在这节课里，你会抓住一个测试漏掉的 bug，精确写下代码应该做什么，让计算机探索一个小程序的每一个状态，并证明一个循环是正确的。</p>
+    <p class="only-advanced">形式化验证要证明的是：系统对每一个输入、或每一个可达状态都满足规约。手段有两类：穷举搜索（模型检测、SMT），或演绎证明（霍尔逻辑、证明助手）。它给出的保证，恰好和规约以及背后的假设一样强，不会更强。</p>
+    <nav class="units">
+      <a class="unit" href="#tests" id="unit-tests"><span class="tick">✓</span><small>第 1 单元</small><b>测试与全部输入</b><small>两种检查都跑一遍</small></a>
+      <a class="unit" href="#spec" id="unit-spec"><span class="tick">✓</span><small>第 2 单元</small><b>规约</b><small>排除所有错误的排序</small></a>
+      <a class="unit" href="#mc" id="unit-mc"><span class="tick">✓</span><small>第 3 单元</small><b>模型检测</b><small>重放 bug，检查 Peterson</small></a>
+      <a class="unit" href="#proof" id="unit-proof"><span class="tick">✓</span><small>第 4 单元</small><b>循环不变式</b><small>运行循环，选出不变式</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>第 5 单元</small><b>自我检测</b><small>完成测验</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="tests">
+    <div class="kicker">第 1 单元</div>
+    <h2>为什么光靠测试不够</h2>
+    <p class="lede only-beginner">这个 <code>abs</code> 函数永远不应该返回负数。它处理的是 8 位小整数，范围从 −128 到 127，一共只有 256 种可能的输入。先跑 100 个随机测试，再检查每一个输入。</p>
+    <p class="lede only-advanced">同一个 <code>abs</code>，现在换成 16 位补码整数：65,536 个输入，恰好一个反例。比较随机测试和穷举检查，然后看看为什么穷举检查无法扩展，以及 SMT 求解器是怎么做的。</p>
+
+    <div class="u1">
+      <div>
+        <div class="codeblock only-beginner">
+          <div class="codeblock-head"><span>8 位整数的 abs</span><button class="copy">复制</button></div>
+          <pre>// 8 位有符号整数：-128 … 127
+function abs(x) {
+  if (x &lt; 0) return -x;
+  return x;
+}
+// 承诺：对每个 x，abs(x) &gt;= 0</pre>
+        </div>
+        <div class="codeblock only-advanced">
+          <div class="codeblock-head"><span>C，16 位</span><button class="copy">复制</button></div>
+          <pre>#include &lt;stdint.h&gt;
+
+int16_t abs16(int16_t x) {
+  return x &lt; 0 ? (int16_t)-x : x;
+}
+// 性质：对所有 x，abs16(x) &gt;= 0</pre>
+        </div>
+        <div class="controls">
+          <button class="btn" id="u1Random">跑 100 个随机测试</button>
+          <button class="btn primary" id="u1All">检查每一个输入</button>
+        </div>
+        <div class="meter">已检查输入：<b id="u1Count">0</b> · 发现失败：<b id="u1Fails">0</b></div>
+        <ul class="testlog" id="u1Log" aria-live="polite"></ul>
+      </div>
+      <div class="gridbox">
+        <canvas id="u1Canvas" width="340" height="340" role="img" aria-label="全部输入的网格"></canvas>
+        <div class="cap" id="u1Cap"></div>
+        <div class="legend" style="justify-content:center">
+          <span><i style="background:var(--surface)"></i>未测试</span>
+          <span><i style="background:var(--ok)"></i>通过</span>
+          <span><i style="background:var(--bad)"></i>失败</span>
+        </div>
+      </div>
+    </div>
+    <div class="insight" id="u1Insight">先跑随机测试。大多数测试套件就是这么做的。</div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>哪里出错了？</b> 8 位整数能存下 −128，却存不下 +128。所以 <code>-(-128)</code> 装不下，会回绕成 −128。256 个输入里只有 1 个会暴露这个 bug，所以随机测试通常会错过它。检查<b>每一个</b>输入则每次都能找到。真实程序的输入多到不可能逐个尝试，所以验证工具会一次性推理所有输入。
+    </div>
+
+    <div class="only-advanced" style="margin-top:20px">
+      <h3>穷举检查无法扩展</h3>
+      <p class="lede" style="margin-bottom:8px">以每秒十亿次检查的速度，试遍所有输入需要的时间：</p>
+      <div class="tbl-wrap">
+        <table class="data">
+          <thead><tr><th>输入</th><th>数量</th><th>时间</th></tr></thead>
+          <tbody>
+            <tr><td>一个 int8</td><td class="num">256</td><td>不到 1 µs</td></tr>
+            <tr><td>一个 int16</td><td class="num">65,536</td><td>约 66 µs</td></tr>
+            <tr><td>一个 int32</td><td class="num">4.3 × 10⁹</td><td>约 4.3 秒</td></tr>
+            <tr><td>一个 int64</td><td class="num">1.8 × 10¹⁹</td><td>约 585 年</td></tr>
+            <tr><td>两个 int64</td><td class="num">3.4 × 10³⁸</td><td>约 10²² 年</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="two-col" style="margin-top:14px">
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>SMT-LIB：是否存在 x 使 abs(x) &lt; 0？</span><button class="copy">复制</button></div>
+          <pre>(declare-const x (_ BitVec 32))
+(define-fun abs32 ((v (_ BitVec 32))) (_ BitVec 32)
+  (ite (bvslt v #x00000000) (bvneg v) v))
+(assert (bvslt (abs32 x) #x00000000))
+(check-sat)   ; sat
+(get-model)   ; x = #x80000000  (-2147483648)</pre>
+        </div>
+        <div class="callout">
+          <b>符号推理，而不是逐个枚举。</b> SMT 求解器拿到的是性质的否定，形式是一个位向量公式。它不会一个一个地试输入，而是传播约束、从冲突中学习、拆分情况，最后回答：
+          <ul>
+            <li><b>sat</b>，并给出一个模型：一个具体的反例，这里是 <code>x = INT_MIN</code>。</li>
+            <li><b>unsat</b>：没有任何输入违反该性质。这就是对全部 2³² 个输入的证明。加上前置条件 <code>x != INT_MIN</code>，查询结果就变成 unsat。</li>
+          </ul>
+          在 C 语言里，对 32 位 <code>int</code> 的 <code>INT_MIN</code> 求 <code>-x</code> 是未定义行为，比算错还糟。同类 bug 曾在 Java 标准库二分查找的 <code>(low + high) / 2</code> 里藏了好多年，直到数组长度超过 2³⁰ 才暴露出来。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="spec">
+    <div class="kicker">第 2 单元</div>
+    <h2>规约：把“正确”的含义说清楚</h2>
+    <p class="lede only-beginner">要检查一个程序，首先得写下它应该做什么。这就是<b>规约</b>（specification）。这里的任务是给一列数排序。勾选你想要求的规则，检查器会试遍所有短列表，并告诉你四个程序中哪些仍然通过。</p>
+    <p class="lede only-advanced">规约是一组关于输入和输出的后置条件（以及前置条件）。一条子句一条子句地构建 <code>Sort</code> 的规约。有界检查器会在 {0, 1, 2} 上长度为 0 到 4 的每个列表（共 121 个输入）上运行每个实现，并对每组子句报告第一个反例。</p>
+
+    <div class="two-col">
+      <div>
+        <div class="label">规约：输出必须……</div>
+        <div class="clauses" id="clauses"></div>
+        <div class="insight" id="specInsight"></div>
+      </div>
+      <div>
+        <div class="label">候选程序</div>
+        <div class="impls" id="impls"></div>
+        <div class="meter" id="specMeter"></div>
+      </div>
+    </div>
+
+    <div class="codeblock nowrap only-advanced" style="margin-top:16px">
+      <div class="codeblock-head"><span>用 Dafny 风格语法写出的规约</span><button class="copy">复制</button></div>
+      <pre id="dafnySpec"></pre>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>三种规则</b>
+      <ul>
+        <li><b>前置条件</b>：代码运行之前必须成立的事情。例如：取第一个元素之前，“列表不为空”。</li>
+        <li><b>后置条件</b>：代码结束时承诺成立的事情。例如：“结果是有序的”。</li>
+        <li><b>不变式</b>：始终保持成立的事情。例如：“账户余额永远不为负”。</li>
+      </ul>
+      太弱的规约会放过错误的程序，比如那个总是返回空列表的程序。验证能证明代码符合规约，却无法告诉你这份规约是不是你真正想要的。
+    </div>
+    <div class="only-advanced" style="margin-top:16px">
+      <div class="two-col">
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>前置条件：requires</span><button class="copy">复制</button></div>
+          <pre>method BinarySearch(a: seq&lt;int&gt;, key: int) returns (i: int)
+  requires forall p, q :: 0 &lt;= p &lt; q &lt; |a| ==&gt; a[p] &lt;= a[q]
+  ensures 0 &lt;= i ==&gt; i &lt; |a| &amp;&amp; a[i] == key
+  ensures i &lt; 0 ==&gt; key !in a</pre>
+        </div>
+        <div class="callout">
+          <b>谁负责证明什么</b>
+          <ul>
+            <li><code>requires</code> 是每个<i>调用者</i>的义务。在方法内部，它是一个假设。</li>
+            <li><code>ensures</code> 是<i>方法体</i>的义务，调用者可以依赖它。</li>
+            <li>类不变式或循环<b>不变式</b>必须在规定的位置成立（方法进入和退出时、每次循环迭代时）。</li>
+            <li>上面这种有界检查不是证明。它依赖“小范围假设”：大多数 bug 在小输入上就会出现。像 Dafny 这样的验证器能对任意长度的列表证明这些子句。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="mc">
+    <div class="kicker">第 3 单元</div>
+    <h2>模型检测：探索每一个状态</h2>
+    <p class="lede only-beginner">两个程序共用一台打印机，同一时间只能有一个在打印：这段代码叫做<b>临界区</b>。每个程序都有一面旗子，举起来表示“我想进去”。模型检测器会尝试两个程序执行步骤的每一种可能顺序，寻找坏状态。</p>
+    <p class="lede only-advanced">两个进程、共享的旗子和一条互斥性质。检测器在交错语义上做广度优先搜索：一个状态是 (pc₀, pc₁, flag₀, flag₁, turn)，每条迁移是某个进程的一个原子步骤。它在每个可达状态上检查不变式，并寻找死锁。</p>
+
+    <div class="ptabs" id="ptabs" role="group" aria-label="协议"></div>
+    <div class="two-col">
+      <div class="codeblock nowrap">
+        <div class="codeblock-head"><span id="protoTitle"></span><button class="copy">复制</button></div>
+        <pre id="protoCode"></pre>
+      </div>
+      <div>
+        <p id="protoDesc" style="font-size:.92rem"></p>
+        <div class="controls">
+          <button class="btn primary" id="mcRun">探索每一个状态</button>
+        </div>
+        <div class="meter">找到的状态：<b id="mcStates">0</b> · 坏状态：<b id="mcBad">0</b><span class="only-advanced"> · 死锁：<b id="mcDead">0</b></span></div>
+      </div>
+    </div>
+
+    <div class="sg" id="sg"></div>
+    <div class="legend">
+      <span><i style="border:2px solid var(--accent)"></i>起点</span>
+      <span><i style="background:var(--bad-soft);border:2px solid var(--bad)"></i>两个都在临界区</span>
+      <span class="only-advanced"><i style="background:var(--warn-soft);border:2px solid var(--warn)"></i>死锁</span>
+      <span><i style="background:var(--accent-soft);border:2px solid var(--accent)"></i>反例路径</span>
+    </div>
+    <div class="insight" id="mcInsight">点“探索每一个状态”。</div>
+
+    <div id="traceBox" style="display:none">
+      <h3 style="margin-top:16px" id="traceTitle">反例，一步一步来</h3>
+      <div class="procs" id="procs"></div>
+      <ol class="steps" id="steps"></ol>
+      <div class="controls">
+        <button class="btn" id="trBack">◀ 上一步</button>
+        <button class="btn primary" id="trNext">下一步 ▶</button>
+      </div>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>为什么不直接测试？</b> 只有当两个程序几乎同时检查旗子时，这个 bug 才会出现。在真实测试中这种时机很少见，所以 bug 可能在成千上万次运行中都溜过去。模型检测器不靠运气：它访问每一个可达状态，所以只要坏状态存在就一定能找到，还会告诉你到达那里的确切步骤。代价是它检查的是程序的<i>模型</i>，而模型可能省略了真实程序的一些细节。
+    </div>
+    <div class="only-advanced" style="margin-top:20px">
+      <div class="two-col">
+        <div>
+          <h3>状态爆炸</h3>
+          <p class="lede" style="margin-bottom:8px">这里每个进程有 4 个位置。还没算共享变量，N 个进程就最多有 4<sup>N</sup> 种组合：</p>
+          <div class="tbl-wrap">
+            <table class="data">
+              <thead><tr><th>进程数</th><th>位置组合数</th></tr></thead>
+              <tbody>
+                <tr><td>2</td><td class="num">16</td></tr>
+                <tr><td>4</td><td class="num">256</td></tr>
+                <tr><td>8</td><td class="num">65,536</td></tr>
+                <tr><td>16</td><td class="num">4.3 × 10⁹</td></tr>
+                <tr><td>32</td><td class="num">1.8 × 10¹⁹</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:.9rem;margin-top:10px">真正的检测器用这些办法对抗状态爆炸：偏序归约（跳过独立步骤的不同排列）、对称性归约、符号表示（BDD），以及基于 SAT/SMT 的有界模型检测，它检查不超过 k 步的所有运行。</p>
+          <h3 style="margin-top:16px">安全性与活性</h3>
+          <ul style="font-size:.9rem;padding-left:20px;margin:6px 0 0">
+            <li><b>安全性</b>：坏事永远不会发生。“永远不会两个都在临界区。”违反它的证据是一条通向坏状态的有限轨迹。</li>
+            <li><b>活性</b>：好事最终会发生。“想进入的进程最终能进入。”违反它的证据是一次无限运行，表现为套索形：一条路径进入一个永远到不了好状态的环。检查活性需要公平性假设，否则一个从不调度某个进程的调度器会让任何进程“饿死”。</li>
+            <li>“先举旗”协议是安全的，但可能死锁：两面旗子都举着，两个进程永远互相等待。没有死锁是活性的必要条件，但还不够。Peterson 算法在弱公平性下还能保证不会饿死。</li>
+          </ul>
+        </div>
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>TLA+ 写的 Peterson（用 TLC 检查）</span><button class="copy">复制</button></div>
+          <pre>---- MODULE Peterson ----
+VARIABLES pc, flag, turn
+vars == &lt;&lt;pc, flag, turn&gt;&gt;
+Other(i) == 1 - i
+
+Init == /\ pc = [i \in {0, 1} |-&gt; "idle"]
+        /\ flag = [i \in {0, 1} |-&gt; FALSE]
+        /\ turn = 0
+
+Raise(i) == /\ pc[i] = "idle"
+            /\ flag' = [flag EXCEPT ![i] = TRUE]
+            /\ pc' = [pc EXCEPT ![i] = "turn"]
+            /\ UNCHANGED turn
+Yield(i) == /\ pc[i] = "turn"
+            /\ turn' = Other(i)
+            /\ pc' = [pc EXCEPT ![i] = "wait"]
+            /\ UNCHANGED flag
+Enter(i) == /\ pc[i] = "wait"
+            /\ (~flag[Other(i)] \/ turn = i)
+            /\ pc' = [pc EXCEPT ![i] = "crit"]
+            /\ UNCHANGED &lt;&lt;flag, turn&gt;&gt;
+Leave(i) == /\ pc[i] = "crit"
+            /\ flag' = [flag EXCEPT ![i] = FALSE]
+            /\ pc' = [pc EXCEPT ![i] = "idle"]
+            /\ UNCHANGED turn
+
+Proc(i) == Yield(i) \/ Enter(i) \/ Leave(i)
+Next == \E i \in {0, 1} : Raise(i) \/ Proc(i)
+Spec == Init /\ [][Next]_vars
+             /\ \A i \in {0, 1} : WF_vars(Proc(i))
+
+MutualExclusion ==                \* 安全性
+  ~(pc[0] = "crit" /\ pc[1] = "crit")
+NoStarvation ==                   \* 活性
+  \A i \in {0, 1} : pc[i] = "turn" ~&gt; pc[i] = "crit"
+====</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="proof">
+    <div class="kicker">第 4 单元</div>
+    <h2>证明循环是正确的</h2>
+    <p class="lede only-beginner">模型检测器需要一个小的、有限的世界。要证明代码对<i>任意</i>输入都正确，我们得靠推理。循环是最难的部分，诀窍是<b>循环不变式</b>：每次循环准备检查条件时都成立的一个事实。先运行下面的循环，再选出能证明它正确求和的不变式。</p>
+    <p class="lede only-advanced">霍尔逻辑证明的是三元组 {P} S {Q}。对一个循环，你要给出不变式 I，完成三个验证条件，再给出一个变式来证明终止。运行用反复减法实现的整数除法，然后选出 I 和变式。每条证明义务都在 n ≤ 12、d ≤ 4 以及较小的 q、r 的所有状态上检查；像 Dafny 这样的验证器会借助 SMT 求解器对所有整数证明它们。</p>
+
+    <div class="two-col">
+      <div class="codeblock nowrap">
+        <div class="codeblock-head"><span id="loopTitle"></span><button class="copy">复制</button></div>
+        <pre id="loopCode"></pre>
+      </div>
+      <div>
+        <div class="label" id="runLabel">运行它</div>
+        <div id="loopVis"></div>
+        <div class="vars" id="loopVars"></div>
+        <div class="controls" style="margin-top:8px">
+          <button class="btn primary" id="loopStep">运行一次迭代 ▶</button>
+          <button class="btn" id="loopReset">重置</button>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:12px"><table class="data" id="loopTable" style="width:auto"></table></div>
+    <div class="insight" id="loopInsight"></div>
+
+    <h3 style="margin-top:24px" id="candTitle">哪个不变式能证明它？</h3>
+    <p class="lede" style="margin-bottom:10px" id="candLede"></p>
+    <div class="cands" id="cands"></div>
+    <div class="obls" id="obls"></div>
+
+    <div class="only-advanced" style="margin-top:20px">
+      <h3>终止性：选一个变式</h3>
+      <p class="lede" style="margin-bottom:10px">部分正确性说的是“如果循环停下，结果就是对的”。要得到完全正确性，需要给出一个整数表达式：循环运行时它永远不为负，并且每次迭代都严格变小。它不可能无限地变小下去，所以循环一定会停。</p>
+      <div class="cands" id="variants"></div>
+      <div class="obls" id="vobls"></div>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>任何循环不变式都要回答的三个问题</b>
+      <ul>
+        <li>它在<b>一开始</b>、第一次迭代之前成立吗？</li>
+        <li>如果它在某次迭代之前成立，那么这次迭代<b>之后</b>它还成立吗？</li>
+        <li>当循环<b>停下</b>时，不变式加上“条件现在为假”，能得出我们承诺的结果吗？</li>
+      </ul>
+      如果三条都成立，循环就对每一个可能的列表都正确，而不只是你跑过的那一个。像 Dafny 这样的工具会让计算机替你检查这三个问题。
+    </div>
+    <div class="only-advanced" style="margin-top:16px">
+      <div class="callout">
+        <b>证明义务的形式化表述</b>
+        <ul>
+          <li><b>初始化</b>：{P} init {I}。前置条件和初始赋值建立 I。</li>
+          <li><b>保持性</b>：{I ∧ B} body {I}。从任何满足 I 和守卫 B 的状态出发，执行一次迭代后仍满足 I。</li>
+          <li><b>退出</b>：I ∧ ¬B ⇒ Q。I 加上守卫的否定，推出后置条件。</li>
+          <li><b>终止</b>：I ∧ B ⇒ V ≥ 0，并且 {I ∧ B ∧ V = V₀} body {V &lt; V₀}。</li>
+        </ul>
+        保持性要对<i>每一个</i>满足 I ∧ B 的状态检查，而不只是程序实际到达的状态。这就是为什么像 <code>q * d &lt;= n</code> 这样成立却太弱的不变式会失败：它说的信息不够，撑不过一步。加强不变式，正是日常证明工作的主要内容。
+      </div>
+      <h3 style="margin-top:18px">各种工具的定位</h3>
+      <div class="tools">
+        <div><b>Dafny、Why3、Verus、SPARK</b>在代码里写 requires、ensures 和不变式。验证器把它们转换成交给 SMT 求解器（Z3、cvc5）的条件。基本自动。</div>
+        <div><b>Lean、Coq（Rocq）、Isabelle/HOL</b>交互式证明助手。证明由你来写，由一个小而可信的内核检查。能力最强，但工作量大得多。</div>
+        <div><b>TLA+、Alloy、SPIN、NuSMV</b>把设计描述成状态和迁移，然后做模型检测。在代码写出来之前就能发现协议 bug。TLAPS 还能证明 TLA+ 规约。</div>
+        <div><b>CBMC、Kani、KLEE</b>对真实的 C、Rust 或 LLVM 代码做有界模型检测和符号执行，范围以循环展开的上限为界。</div>
+      </div>
+      <h3 style="margin-top:18px">在现实世界中</h3>
+      <ul style="font-size:.92rem;padding-left:20px;margin:6px 0 0">
+        <li><b>seL4</b>：一个微内核，它的 C 代码在 Isabelle/HOL 中被证明实现了其抽象规约，在此之上还证明了安全性质。证明假设编译器、启动代码和硬件是正确的；后续工作还检查了编译出的二进制代码。</li>
+        <li><b>CompCert</b>：一个在 Coq 中被证明会保持所编译程序语义的 C 编译器。研究人员用数以百万计的随机程序测试许多编译器时，在 CompCert 经过验证的部分没有发现生成错误代码的 bug，只在未经验证的前端里发现了。</li>
+        <li><b>AWS</b>：从 2011 年起，工程师就在 S3、DynamoDB 等系统上使用 TLA+。模型检测发现了一些微妙的设计 bug，需要几十步的轨迹才能触发，测试和代码审查都漏掉了它们。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">第 5 单元</div>
+    <h2>自我检测</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../database-design/index.zh-CN.html">设计数据库</a>。</footer>
+</main>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, reduced ? Math.min(ms, 20) : ms));
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const NS = 'http://www.w3.org/2000/svg';
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  /* ---------------- saved progress ---------------- */
+  const KEY = 'itl-formal-verification-v1';
+  let saved = { level: 'beginner', u1Random: false, u1All: false, specDone: false, mcTrace: false, mcPeterson: false, invDone: false, loopDone: false, varDone: false, quizDone: false };
+  try { Object.assign(saved, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+  let level = saved.level === 'advanced' ? 'advanced' : 'beginner';
+  // Pick the beginner or advanced variant of a value.
+  const L = (beginner, advanced) => level === 'advanced' ? advanced : beginner;
+
+  function updateProgress() {
+    const done = {
+      tests: saved.u1Random && saved.u1All,
+      spec: saved.specDone,
+      mc: saved.mcTrace && saved.mcPeterson,
+      proof: saved.invDone && saved.loopDone,
+      quiz: saved.quizDone,
+    };
+    const n = Object.values(done).filter(Boolean).length;
+    $('progressText').textContent = `${n} / 5 单元`;
+    $('progressBar').style.width = `${(n / 5) * 100}%`;
+    for (const k in done) $('unit-' + k).classList.toggle('done', done[k]);
+    persist();
+  }
+
+  function svgEl(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function insight(id, text, kind = '') {
+    $(id).className = 'insight ' + kind;
+    $(id).textContent = text;
+  }
+
+  /* =========================================================
+     UNIT 1: tests vs every input
+     ========================================================= */
+  let u1 = null, u1Run = 0;
+  // Wrap an integer to a signed two's complement value of the given width.
+  const wrapInt = (v, bits) => { const m = 2 ** bits, h = m / 2; return ((v + h) % m + m) % m - h; };
+
+  function u1Setup() {
+    const bits = L(8, 16);
+    const size = 2 ** bits, side = Math.sqrt(size);
+    u1 = { bits, size, side, min: -(size / 2), status: new Uint8Array(size), count: 0, fails: [] };
+    u1Run++;
+    const cv = $('u1Canvas');
+    if (bits === 8) { cv.width = cv.height = 16 * 20 + 2; }
+    else { cv.width = cv.height = 256 + 16; }
+    cv.setAttribute('aria-label', L('全部 256 个输入的网格：左上角是 -128，右下角是 127',
+      '全部 65,536 个输入的网格：左上角是 -32768，右下角是 32767'));
+    $('u1Cap').textContent = L('每个方格是一个输入：左上角是 -128，右下角是 127。',
+      '每个像素是一个输入：左上角是 -32768，右下角是 32767。');
+    $('u1Log').innerHTML = '';
+    u1Meter();
+    u1Draw();
+    insight('u1Insight', L('先跑随机测试。大多数测试套件就是这么做的。',
+      '先跑 100 个随机测试，就像普通的单元测试或模糊测试那样。'));
+  }
+  const absImpl = (x) => x < 0 ? wrapInt(-x, u1.bits) : x;
+  const absOk = (x) => absImpl(x) >= 0;
+
+  function u1Meter() {
+    $('u1Count').textContent = u1.count.toLocaleString('en-US');
+    $('u1Fails').textContent = u1.fails.length;
+  }
+
+  function hexRgb(h) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(h);
+    if (!m) return [128, 128, 128];
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function u1Draw() {
+    const cv = $('u1Canvas'), ctx = cv.getContext('2d');
+    const col = { 0: cssVar('--surface'), 1: cssVar('--ok'), 2: cssVar('--bad') };
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (u1.bits === 8) {
+      for (let k = 0; k < u1.size; k++) {
+        const x = (k % 16) * 20 + 2, y = Math.floor(k / 16) * 20 + 2;
+        ctx.fillStyle = col[u1.status[k]];
+        ctx.fillRect(x, y, 18, 18);
+      }
+      u1.fails.forEach(v => {
+        const k = v - u1.min, x = (k % 16) * 20 + 2, y = Math.floor(k / 16) * 20 + 2;
+        ctx.strokeStyle = cssVar('--text'); ctx.lineWidth = 2;
+        ctx.strokeRect(x - 1, y - 1, 20, 20);
+      });
+    } else {
+      const img = ctx.createImageData(256, 256);
+      const rgb = { 0: hexRgb(col[0]), 1: hexRgb(col[1]), 2: hexRgb(col[2]) };
+      for (let k = 0; k < u1.size; k++) {
+        const c = rgb[u1.status[k]];
+        img.data[k * 4] = c[0]; img.data[k * 4 + 1] = c[1]; img.data[k * 4 + 2] = c[2]; img.data[k * 4 + 3] = 255;
+      }
+      ctx.putImageData(img, 8, 8);
+      u1.fails.forEach(v => {
+        const k = v - u1.min, x = (k % 256) + 8.5, y = Math.floor(k / 256) + 8.5;
+        ctx.fillStyle = cssVar('--bad'); ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+        ctx.strokeStyle = cssVar('--bad'); ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
+      });
+    }
+  }
+
+  function u1Log(x, ok) {
+    const li = document.createElement('li');
+    li.className = ok ? 'pass' : 'fail';
+    li.textContent = `abs(${x}) = ${absImpl(x)}  ${ok ? '✓' : '✗ 负数！'}`;
+    const log = $('u1Log');
+    log.appendChild(li);
+    while (log.children.length > 40) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function u1Clear() {
+    u1.status.fill(0); u1.count = 0; u1.fails = []; $('u1Log').innerHTML = '';
+  }
+
+  $('u1Random').addEventListener('click', async () => {
+    const id = ++u1Run;
+    u1Clear();
+    let found = 0;
+    for (let t = 0; t < 100; t++) {
+      const x = u1.min + Math.floor(Math.random() * u1.size);
+      const ok = absOk(x);
+      u1.status[x - u1.min] = ok ? 1 : 2;
+      if (!ok && !u1.fails.includes(x)) { u1.fails.push(x); found++; }
+      u1.count++;
+      u1Log(x, ok);
+      if (t % 4 === 3) { u1Meter(); u1Draw(); await sleep(40); if (id !== u1Run) return; }
+    }
+    u1Meter(); u1Draw();
+    const miss = ((1 - 1 / u1.size) ** 100 * 100).toFixed(u1.bits === 8 ? 0 : 2);
+    if (found) {
+      insight('u1Insight', L(`运气不错！100 个随机测试中有一个恰好选中了 -128。再跑一次试试：大约 ${miss}% 的情况下会完全错过它。`,
+        `运气好：有一个随机测试命中了 -32768。这种概率只有大约 ${(100 - miss).toFixed(2)}%。再跑一次试试。`), 'warn');
+    } else {
+      const tried = u1.status.reduce((n, v) => n + (v ? 1 : 0), 0);
+      insight('u1Insight', L(`100 个测试全部通过，看起来没问题！但 256 个输入中只试了 ${tried} 个不同的值。大约 ${miss}% 的随机测试会错过那个出错的输入。现在点“检查每一个输入”。`,
+        `100/100 通过，最多只覆盖了输入空间的 ${(100 / u1.size * 100).toFixed(2)}%。100 个均匀随机测试错过唯一一个坏输入的概率是 (1 - 1/65536)^100 ≈ ${miss}%。`), 'good');
+    }
+    saved.u1Random = true; updateProgress();
+  });
+
+  $('u1All').addEventListener('click', async () => {
+    const id = ++u1Run;
+    u1Clear();
+    const chunk = u1.size / 32;
+    for (let k = 0; k < u1.size; k++) {
+      const x = u1.min + k;
+      const ok = absOk(x);
+      u1.status[k] = ok ? 1 : 2;
+      u1.count++;
+      if (!ok) { u1.fails.push(x); u1Log(x, false); }
+      if ((k + 1) % chunk === 0) { u1Meter(); u1Draw(); await sleep(45); if (id !== u1Run) return; }
+    }
+    u1Meter(); u1Draw();
+    const f = u1.fails[0];
+    insight('u1Insight', L(`256 个输入全部检查完毕。恰好有一个失败：abs(${f}) 返回 ${absImpl(f)}，是个负数。在这里，随机测试本来就靠不住。`,
+      `穷举检查：${u1.size.toLocaleString('en-US')} 个输入，${u1.fails.length} 个反例：abs16(${f}) = ${absImpl(f)}。这证明了该性质不成立。修复后（例如返回更宽的类型）再跑一遍，就能证明它成立，但这只是因为 2¹⁶ 个输入很少。`), 'bad');
+    saved.u1All = true; updateProgress();
+  });
+
+  /* =========================================================
+     UNIT 2: specifications
+     ========================================================= */
+  const LISTS = [[]];
+  for (let len = 1; len <= 4; len++) {
+    const out = [];
+    const rec = (pre) => { if (pre.length === len) { out.push(pre); return; } for (const v of [0, 1, 2]) rec([...pre, v]); };
+    rec([]);
+    LISTS.push(...out);
+  }
+  const sorted = (xs) => [...xs].sort((a, b) => a - b);
+  const counts = (xs) => xs.reduce((m, v) => (m[v] = (m[v] || 0) + 1, m), {});
+  const CLAUSES = [
+    { id: 'sorted', text: '有序（每个数 ≤ 下一个数）', adv: '有序',
+      code: 'forall i, j :: 0 <= i < j < |b| ==> b[i] <= b[j]', test: (a, b) => b.every((v, i) => i === 0 || b[i - 1] <= v),
+      fail: '不是有序的', failB: '它不是有序的' },
+    { id: 'len', text: '和输入一样长', adv: '长度相同',
+      code: '|b| == |a|', test: (a, b) => a.length === b.length, fail: '长度不同', failB: '长度和输入不同' },
+    { id: 'set', advOnly: true, adv: '包含相同的值（作为集合）',
+      code: 'forall x :: x in a <==> x in b', test: (a, b) => a.every(v => b.includes(v)) && b.every(v => a.includes(v)),
+      fail: '值的集合不同' },
+    { id: 'ms', text: '包含相同的数，而且每个数出现的次数也相同', adv: '是输入的一个排列（多重集相同）',
+      code: 'multiset(b) == multiset(a)', test: (a, b) => { const x = counts(a), y = counts(b); return Object.keys(x).length === Object.keys(y).length && Object.keys(x).every(k => x[k] === y[k]); },
+      fail: '不是输入的排列', failB: '它包含的数和输入不一样' },
+  ];
+  const IMPLS = [
+    { id: 'real', ok: true, name: '真排序', story: '真的把列表排好序。', code: 'return sorted(xs)', run: (xs) => sorted(xs) },
+    { id: 'empty', name: '偷懒排序', story: '总是返回空列表。', code: 'return []', run: () => [] },
+    { id: 'copy', name: '照抄', story: '原样返回输入。', code: 'return xs', run: (xs) => [...xs] },
+    { id: 'min', name: '抹平', story: '把每个数都换成最小的那个。', code: 'return [min(xs)] * len(xs)', run: (xs) => xs.map(() => Math.min(...xs)) },
+    { id: 'dedup', advOnly: true, name: '去重排序', story: '先排序，再去掉重复的数。', code: 'return unique(sorted(xs))', run: (xs) => [...new Set(sorted(xs))] },
+    { id: 'pad', advOnly: true, name: '补齐', story: '先排序、去重，再用最后一个值补齐到原来的长度。', code: 'u = unique(sorted(xs)); return u + [u[-1]] * (len(xs) - len(u))',
+      run: (xs) => { const u = [...new Set(sorted(xs))]; while (u.length < xs.length) u.push(u[u.length - 1]); return u; } },
+  ];
+  let specSel = new Set(['sorted']);
+  const visClauses = () => CLAUSES.filter(c => !c.advOnly || level === 'advanced');
+  const visImpls = () => IMPLS.filter(m => !m.advOnly || level === 'advanced');
+  const fmtList = (xs) => `[${xs.join(', ')}]`;
+
+  function specCheck(impl) {
+    const cl = visClauses().filter(c => specSel.has(c.id));
+    for (const a of LISTS) {
+      const b = impl.run(a);
+      const bad = cl.find(c => !c.test(a, b));
+      if (bad) return { a, b, clause: bad };
+    }
+    return null;
+  }
+
+  function renderClauses() {
+    const box = $('clauses');
+    box.innerHTML = '';
+    visClauses().forEach(c => {
+      const lab = document.createElement('label');
+      lab.className = 'clause';
+      lab.innerHTML = `<input type="checkbox" ${specSel.has(c.id) ? 'checked' : ''}><span>${esc(L(c.text, c.adv))}<small><code>${esc(c.code)}</code></small></span>`;
+      lab.querySelector('input').addEventListener('change', (e) => {
+        if (e.target.checked) specSel.add(c.id); else specSel.delete(c.id);
+        renderSpec();
+      });
+      box.appendChild(lab);
+    });
+  }
+
+  function renderSpec() {
+    const box = $('impls');
+    box.innerHTML = '';
+    let wrongPass = 0, realPass = false;
+    visImpls().forEach(m => {
+      const cx = specCheck(m);
+      const div = document.createElement('div');
+      const pass = !cx;
+      if (pass && !m.ok) wrongPass++;
+      if (pass && m.ok) realPass = true;
+      div.className = 'impl' + (pass && !m.ok ? ' wrongpass' : '') + (!pass && !m.ok ? ' caught' : '');
+      const why = pass
+        ? (m.ok ? L('正确，理应如此。', '在全部 121 个输入上满足每一条子句。') : L('是错的，但规约放过了它！', '程序是错的，却没有违反任何子句。'))
+        : L(`被抓到了：${fmtList(cx.a)} 得到 ${fmtList(cx.b)}，${cx.clause.failB}。`, `反例：${fmtList(cx.a)} ↦ ${fmtList(cx.b)}（${cx.clause.fail}）。`);
+      div.innerHTML = `<span class="nm">${esc(m.name)}</span><span class="pill ${pass ? 'pass' : 'fail'}">${pass ? L('通过', '满足规约') : L('失败', '违反规约')}</span>
+        <code>${esc(m.code)}</code><span class="why">${esc(L(m.story, '') + why)}</span>`;
+      box.appendChild(div);
+    });
+    const n = specSel.size;
+    $('specMeter').innerHTML = L(`检查了长度不超过 4 的每一个列表：共 <b>${LISTS.length}</b> 个。`, `有界检查：<b>${LISTS.length}</b> 个输入 × <b>${visImpls().length}</b> 个实现。`);
+    if (n === 0) insight('specInsight', L('一条规则都没有时，每个程序都“通过”。空规约什么也没承诺。', '空规约就是“true”：每个实现都满足它。'), 'warn');
+    else if (!realPass) insight('specInsight', '真排序失败了？这不应该发生。', 'bad');
+    else if (wrongPass) insight('specInsight', L(`有 ${wrongPass} 个错误程序通过了（橙色）。你的规约太弱了。哪条规则能抓住${wrongPass === 1 ? '它' : '它们'}？`,
+      `有 ${wrongPass} 个错误实现满足这个规约。请加强它。`), 'warn');
+    else {
+      insight('specInsight', L('只有真排序通过了。“有序”加上“数相同”就是排序的完整规约。注意：一旦要求数相同，“长度相同”就是多余的。',
+        '只有正确的实现留了下来。sorted ∧ multiset(b) == multiset(a) 是完整的规约；|b| == |a| 和集合相等都可以由它推出。'), 'good');
+      saved.specDone = true; updateProgress();
+    }
+    renderDafny();
+  }
+
+  function renderDafny() {
+    const lines = visClauses().filter(c => specSel.has(c.id)).map(c => `  ensures ${c.code}`);
+    $('dafnySpec').textContent = `method Sort(a: seq<int>) returns (b: seq<int>)\n${lines.length ? lines.join('\n') : '  // 没有 ensures 子句：怎么写都行'}`;
+  }
+
+  /* =========================================================
+     UNIT 3: model checking
+     ========================================================= */
+  const PROTOS = {
+    naive: {
+      name: '朴素标志', adv: false, pcs: ['idle', 'check', 'raise', 'crit'], turn: false,
+      code: '// shared: flag[0] = flag[1] = false\nloop forever:\n  idle:  // 做别的事，然后想进入\n  check: wait until flag[other] == false\n  raise: flag[me] = true\n  crit:  // 使用打印机（临界区）\n         flag[me] = false',
+      desc: ['先看一眼，再举起自己的旗子。听起来挺合理。', '先检查再设置，但不是原子操作：检查和写入是两个独立的步骤。'],
+      moves(s, i) {
+        const j = 1 - i, pc = s.pc[i];
+        if (pc === 'idle') return [{ pc: 'check', text: `P${i} 想进入` }];
+        if (pc === 'check') return s.flag[j] ? [] : [{ pc: 'raise', text: `P${i} 看到 flag[${j}] = false，继续往下走` }];
+        if (pc === 'raise') return [{ pc: 'crit', flag: true, text: `P${i} 设置 flag[${i}] = true 并进入` }];
+        return [{ pc: 'idle', flag: false, text: `P${i} 离开并设置 flag[${i}] = false` }];
+      },
+    },
+    flags: {
+      name: '先举旗', adv: true, pcs: ['idle', 'wait', 'crit'], turn: false,
+      code: '// shared: flag[0] = flag[1] = false\nloop forever:\n  idle: flag[me] = true\n  wait: wait until flag[other] == false\n  crit: // 临界区\n        flag[me] = false',
+      desc: ['', '先举旗，再等待。这修复了竞态，但两个进程可能互相等下去。'],
+      moves(s, i) {
+        const j = 1 - i, pc = s.pc[i];
+        if (pc === 'idle') return [{ pc: 'wait', flag: true, text: `P${i} 设置 flag[${i}] = true` }];
+        if (pc === 'wait') return s.flag[j] ? [] : [{ pc: 'crit', text: `P${i} 看到 flag[${j}] = false 并进入` }];
+        return [{ pc: 'idle', flag: false, text: `P${i} 离开并设置 flag[${i}] = false` }];
+      },
+    },
+    peterson: {
+      name: "Peterson 算法", adv: false, pcs: ['idle', 'turn', 'wait', 'crit'], turn: true,
+      code: '// shared: flag[0] = flag[1] = false, turn = 0\nloop forever:\n  idle: flag[me] = true\n  turn: turn = other\n  wait: wait until flag[other] == false\n             or turn == me\n  crit: // 临界区\n        flag[me] = false',
+      desc: ['举起旗子，然后礼貌地把轮次让给另一个程序。只有当对方也想进入、而且轮到对方时，才等待。', '旗子加上一个打破平局的 turn 变量。最后写 turn 的那个进程负责等待。'],
+      moves(s, i) {
+        const j = 1 - i, pc = s.pc[i];
+        if (pc === 'idle') return [{ pc: 'turn', flag: true, text: `P${i} 设置 flag[${i}] = true` }];
+        if (pc === 'turn') return [{ pc: 'wait', turn: j, text: `P${i} 设置 turn = ${j}` }];
+        if (pc === 'wait') return (!s.flag[j] || s.turn === i) ? [{ pc: 'crit', text: `P${i} 进入（flag[${j}] = ${s.flag[j]}，turn = ${s.turn}）` }] : [];
+        return [{ pc: 'idle', flag: false, text: `P${i} 离开并设置 flag[${i}] = false` }];
+      },
+    },
+  };
+  let proto = 'naive', mc = null, mcRunId = 0, trStep = 0;
+  const skey = (s) => `${s.pc[0]},${s.pc[1]},${+s.flag[0]}${+s.flag[1]},${s.turn}`;
+
+  // Breadth-first search over every interleaving of the two processes.
+  function explore(p) {
+    const init = { pc: ['idle', 'idle'], flag: [false, false], turn: 0 };
+    const nodes = [{ s: init, depth: 0, parent: -1, via: null }];
+    const idx = new Map([[skey(init), 0]]);
+    const edges = [];
+    for (let h = 0; h < nodes.length; h++) {
+      const s = nodes[h].s;
+      let out = 0;
+      for (const i of [0, 1]) for (const m of p.moves(s, i)) {
+        out++;
+        const t = { pc: [...s.pc], flag: [...s.flag], turn: s.turn };
+        t.pc[i] = m.pc;
+        if ('flag' in m) t.flag[i] = m.flag;
+        if ('turn' in m) t.turn = m.turn;
+        const k = skey(t);
+        if (!idx.has(k)) { idx.set(k, nodes.length); nodes.push({ s: t, depth: nodes[h].depth + 1, parent: h, via: m.text }); }
+        edges.push({ from: h, to: idx.get(k) });
+      }
+      nodes[h].bad = s.pc[0] === 'crit' && s.pc[1] === 'crit';
+      nodes[h].dead = out === 0;
+    }
+    return { nodes, edges };
+  }
+
+  function renderPtabs() {
+    const box = $('ptabs');
+    box.innerHTML = '';
+    Object.entries(PROTOS).forEach(([k, p]) => {
+      if (p.adv && level !== 'advanced') return;
+      const b = document.createElement('button');
+      b.textContent = p.name;
+      b.setAttribute('aria-pressed', String(k === proto));
+      b.addEventListener('click', () => { if (k !== proto) { proto = k; renderProto(); } });
+      box.appendChild(b);
+    });
+  }
+
+  function renderProto() {
+    if (PROTOS[proto].adv && level !== 'advanced') proto = 'naive';
+    renderPtabs();
+    const p = PROTOS[proto];
+    mcRunId++;
+    mc = null;
+    $('protoTitle').textContent = p.name;
+    $('protoCode').textContent = p.code;
+    $('protoDesc').textContent = L(p.desc[0], p.desc[1]);
+    $('mcStates').textContent = '0'; $('mcBad').textContent = '0'; $('mcDead').textContent = '0';
+    $('traceBox').style.display = 'none';
+    $('mcRun').disabled = false;
+    drawGraph(null);
+    insight('mcInsight', L('点“探索每一个状态”。每个方框都是两个程序可能处于的一种情况。',
+      '点“探索每一个状态”运行广度优先搜索（BFS）。节点按发现顺序出现，每一列是一层 BFS 深度。'));
+  }
+
+  const NW = 84, NH = 46, CW = 112, RH = 56, PAD = 14;
+  function layout(g) {
+    const cols = {};
+    g.nodes.forEach((n, i) => (cols[n.depth] ||= []).push(i));
+    const maxRows = Math.max(...Object.values(cols).map(c => c.length));
+    const ncols = Object.keys(cols).length;
+    const W = PAD * 2 + (ncols - 1) * CW + NW, H = PAD * 2 + (maxRows - 1) * RH + NH + 24;
+    for (const d in cols) {
+      const c = cols[d], off = (maxRows - c.length) * RH / 2;
+      c.forEach((i, r) => { g.nodes[i].x = PAD + d * CW; g.nodes[i].y = PAD + off + r * RH; });
+    }
+    return { W, H };
+  }
+
+  function drawGraph(g) {
+    const host = $('sg');
+    host.innerHTML = '';
+    if (!g) { host.style.display = 'none'; return; }
+    host.style.display = '';
+    const { W, H } = layout(g);
+    const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': L('状态图', '可达状态图') }, host);
+    svg.style.minWidth = W + 'px';
+    const defs = svgEl('defs', {}, svg);
+    for (const [id, cls] of [['arr', ''], ['arrHi', 'hi']]) {
+      const mk = svgEl('marker', { id, class: cls, viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 8, markerHeight: 8, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' }, defs);
+      svgEl('path', { d: 'M0,0 L8,4 L0,8 z' }, mk);
+    }
+    const eg = svgEl('g', {}, svg), ng = svgEl('g', {}, svg);
+    g.edges.forEach(e => {
+      const a = g.nodes[e.from], b = g.nodes[e.to];
+      let d, back = false;
+      if (b.depth === a.depth + 1) {
+        const x1 = a.x + NW, y1 = a.y + NH / 2, x2 = b.x, y2 = b.y + NH / 2;
+        d = `M${x1},${y1} C${x1 + 18},${y1} ${x2 - 18},${y2} ${x2},${y2}`;
+      } else {
+        back = true;
+        const x1 = a.x + NW / 2, y1 = a.y + NH, x2 = b.x + NW / 2, y2 = b.y + NH;
+        const dip = Math.min(H - 4, Math.max(y1, y2) + 18 + Math.abs(a.depth - b.depth) * 4);
+        d = `M${x1},${y1} C${x1},${dip} ${x2},${dip} ${x2},${y2}`;
+      }
+      e.el = svgEl('path', { class: 'ed' + (back ? ' back' : ''), d, 'marker-end': 'url(#arr)' }, eg);
+    });
+    g.nodes.forEach((n, i) => {
+      const grp = svgEl('g', { class: 'nd' + (i === 0 ? ' init' : '') }, ng);
+      svgEl('rect', { x: n.x, y: n.y, width: NW, height: NH, rx: 7 }, grp);
+      const lines = [`P0 ${n.s.pc[0]}`, `P1 ${n.s.pc[1]}`, `f=${+n.s.flag[0]}${+n.s.flag[1]}` + (PROTOS[proto].turn ? ` t=${n.s.turn}` : '')];
+      lines.forEach((t, k) => { const tx = svgEl('text', { x: n.x + 8, y: n.y + 14 + k * 13 }, grp); tx.textContent = t; });
+      const title = svgEl('title', {}, grp); title.textContent = lines.join(', ');
+      n.el = grp;
+    });
+  }
+
+  $('mcRun').addEventListener('click', async () => {
+    const id = ++mcRunId;
+    const p = PROTOS[proto];
+    const g = explore(p);
+    mc = g;
+    drawGraph(g);
+    $('traceBox').style.display = 'none';
+    $('mcRun').disabled = true;
+    let bad = 0, dead = 0;
+    for (let i = 0; i < g.nodes.length; i++) {
+      const n = g.nodes[i];
+      n.el.classList.add('show');
+      g.edges.forEach(e => { if (e.to === i || e.from === i) { if (g.nodes[e.from].el.classList.contains('show') && g.nodes[e.to].el.classList.contains('show')) e.el.classList.add('show'); } });
+      if (n.bad) { n.el.classList.add('bad'); bad++; }
+      else if (n.dead) { n.el.classList.add('dead'); dead++; }
+      else n.el.classList.add('ok');
+      $('mcStates').textContent = i + 1; $('mcBad').textContent = bad; $('mcDead').textContent = dead;
+      await sleep(110);
+      if (id !== mcRunId) return;
+    }
+    $('mcRun').disabled = false;
+    const N = g.nodes.length, E = g.edges.length;
+    const target = g.nodes.findIndex(n => n.bad) >= 0 ? g.nodes.findIndex(n => n.bad) : (level === 'advanced' ? g.nodes.findIndex(n => n.dead) : -1);
+    if (bad) {
+      insight('mcInsight', L(`检测器找到了 ${N} 种可能的情况。其中一种（红色）是两个程序同时在打印。一步一步看看是怎么走到那里的。`,
+        `${N} 个可达状态，${E} 条迁移。互斥性在 ${bad} 个状态中被违反。BFS 给出最短反例：${g.nodes[target].depth} 步。`), 'bad');
+    } else if (dead && level === 'advanced') {
+      insight('mcInsight', `${N} 个可达状态，${E} 条迁移。互斥性在每个状态都成立，但有 ${dead} 个状态没有任何出边：这是死锁。一步一步看看。`, 'warn');
+    } else {
+      insight('mcInsight', L(`全部 ${N} 种可能的情况都检查过了。没有任何一种情况下两个程序同时在临界区，程序也从不会卡住。对这个模型来说，这是证明，而不只是一次走运的测试。`,
+        `${N} 个可达状态，${E} 条迁移，全部检查完毕。互斥性在每个可达状态中都成立，也没有死锁。对这个有限模型来说，这是证明，不是抽样。`), 'good');
+      if (proto === 'peterson') { saved.mcPeterson = true; updateProgress(); }
+    }
+    if (target >= 0) {
+      const path = [];
+      for (let i = target; i >= 0; i = g.nodes[i].parent) path.unshift(i);
+      g.path = path;
+      trStep = 0;
+      $('traceBox').style.display = '';
+      $('traceTitle').textContent = bad ? L('一步一步看它怎么出错', '反例轨迹（违反安全性）') : '反例轨迹（死锁）';
+      renderTrace();
+    }
+  });
+
+  function renderTrace() {
+    const g = mc, path = g.path, p = PROTOS[proto];
+    g.nodes.forEach(n => n.el.classList.remove('trace', 'cur'));
+    g.edges.forEach(e => { e.el.classList.remove('trace'); e.el.setAttribute('marker-end', 'url(#arr)'); });
+    for (let k = 0; k <= trStep; k++) {
+      g.nodes[path[k]].el.classList.add('trace');
+      if (k > 0) {
+        const e = g.edges.find(x => x.from === path[k - 1] && x.to === path[k]);
+        if (e) { e.el.classList.add('trace'); e.el.setAttribute('marker-end', 'url(#arrHi)'); }
+      }
+    }
+    const cur = g.nodes[path[trStep]];
+    cur.el.classList.add('cur');
+    const s = cur.s, both = s.pc[0] === 'crit' && s.pc[1] === 'crit';
+    $('procs').innerHTML = [0, 1].map(i => `<div class="proc ${both ? 'alarm' : s.pc[i] === 'crit' ? 'incrit' : ''}">P${i}<div class="loc">${s.pc[i]}</div>flag[${i}] = <b>${s.flag[i]}</b></div>`).join('')
+      + `<div class="proc">${p.turn ? `turn = <b>${s.turn}</b>` : '没有 turn 变量'}<div class="loc">${L(`第 ${trStep} / ${path.length - 1} 步`, `第 ${trStep} / ${path.length - 1} 步`)}</div></div>`;
+    const items = [L('开始：两个程序都空闲，两面旗子都是 false。', '初始：pc = (idle, idle)，flag = (false, false)。')];
+    for (let k = 1; k <= trStep; k++) items.push(g.nodes[path[k]].via);
+    $('steps').innerHTML = items.map((t, k) => `<li class="${k === trStep ? 'last' : ''} ${k === path.length - 1 && k === trStep ? 'badstep' : ''}">${esc(t)}</li>`).join('');
+    if (trStep === path.length - 1) {
+      $('steps').insertAdjacentHTML('beforeend', `<li class="badstep">${esc(cur.bad ? L('两个程序同时在临界区。规则被打破了。', '不变式被违反：pc[0] = crit ∧ pc[1] = crit。') : '死锁：两个进程都在等一面永远不会放下的旗子。')}</li>`);
+      if (proto === 'naive') { saved.mcTrace = true; updateProgress(); }
+    }
+    $('trBack').disabled = trStep === 0;
+    $('trNext').disabled = trStep === path.length - 1;
+  }
+  $('trNext').addEventListener('click', () => { if (mc && mc.path && trStep < mc.path.length - 1) { trStep++; renderTrace(); } });
+  $('trBack').addEventListener('click', () => { if (mc && mc.path && trStep > 0) { trStep--; renderTrace(); } });
+
+  /* =========================================================
+     UNIT 4: loop invariants
+     ========================================================= */
+  const ZIG = (lo, hi) => { const out = []; for (let k = 0; out.length < hi - lo + 1; k++) { if (k >= lo && k <= hi) out.push(k); if (k > 0 && -k >= lo && -k <= hi) out.push(-k); } return out; };
+  const sumFirst = (a, k) => a.slice(0, Math.max(0, Math.min(k, a.length))).reduce((x, y) => x + y, 0);
+  const SMALL_ARRAYS = [[]];
+  for (let len = 1; len <= 3; len++) {
+    const rec = (pre) => { if (pre.length === len) { SMALL_ARRAYS.push(pre); return; } for (const v of ZIG(-2, 2)) rec([...pre, v]); };
+    rec([]);
+  }
+  const PROGS = {
+    sum: {
+      title: '列表求和',
+      inputs: () => SMALL_ARRAYS.map(a => ({ a })),
+      states: function* (inp) { for (let i = 0; i <= inp.a.length + 1; i++) for (const s of ZIG(-8, 8)) yield { a: inp.a, i, s }; },
+      init: (inp) => ({ a: inp.a, i: 0, s: 0 }),
+      guard: (st) => st.i < st.a.length,
+      body: (st) => ({ a: st.a, i: st.i + 1, s: st.s + st.a[st.i] }),
+      post: (st) => st.s === sumFirst(st.a, st.a.length),
+      show: (st) => `a = ${fmtList(st.a)}, i = ${st.i}, s = ${st.s}`,
+      showAfter: (st) => `i = ${st.i}, s = ${st.s}`,
+      cands: [
+        { id: 'A', ok: true, code: 's == a[0] + … + a[i-1]  and  i <= n', plain: 's 是前 i 个数之和，并且 i 永远不超过 n',
+          inv: (st) => st.i <= st.a.length && st.s === sumFirst(st.a, st.i) },
+        { id: 'B', code: 's >= 0', plain: 's 永远不是负数', inv: (st) => st.s >= 0 },
+        { id: 'C', code: 's == a[0] + … + a[i]', plain: 's 是前 i + 1 个数之和', inv: (st) => st.s === sumFirst(st.a, st.i + 1) },
+        { id: 'D', code: 'i < n', plain: 'i 小于 n', inv: (st) => st.i < st.a.length },
+      ],
+    },
+    div: {
+      title: '整数除法',
+      inputs: function* () { for (let n = 0; n <= 12; n++) for (let d = 1; d <= 4; d++) yield { n, d }; },
+      states: function* (inp) { for (const q of ZIG(0, 13)) for (const r of ZIG(-4, 13)) yield { n: inp.n, d: inp.d, q, r }; },
+      init: (inp) => ({ n: inp.n, d: inp.d, q: 0, r: inp.n }),
+      guard: (st) => st.r >= st.d,
+      body: (st) => ({ n: st.n, d: st.d, q: st.q + 1, r: st.r - st.d }),
+      post: (st) => st.n === st.q * st.d + st.r && 0 <= st.r && st.r < st.d,
+      show: (st) => `n = ${st.n}, d = ${st.d}, q = ${st.q}, r = ${st.r}`,
+      showAfter: (st) => `q = ${st.q}, r = ${st.r}`,
+      cands: [
+        { id: 'A', ok: true, code: 'n == q * d + r && 0 <= r', inv: (st) => st.n === st.q * st.d + st.r && st.r >= 0 },
+        { id: 'B', code: 'n == q * d + r', inv: (st) => st.n === st.q * st.d + st.r },
+        { id: 'C', code: '0 <= r && r < d', inv: (st) => st.r >= 0 && st.r < st.d },
+        { id: 'D', code: 'q * d <= n', inv: (st) => st.q * st.d <= st.n },
+      ],
+      variants: [
+        { id: 'r', ok: true, code: 'decreases r', V: (st) => st.r },
+        { id: 'q', code: 'decreases q', V: (st) => st.q },
+        { id: 'd', code: 'decreases d', V: (st) => st.d },
+      ],
+    },
+  };
+  const prog = () => PROGS[L('sum', 'div')];
+
+  // Check the three Hoare-logic obligations for an invariant over every small state.
+  function checkObligations(P, inv) {
+    const r = { init: null, pres: null, exit: null, presAny: false, exitAny: false };
+    for (const inp of P.inputs()) {
+      const s0 = P.init(inp);
+      if (!r.init && !inv(s0)) r.init = { st: s0 };
+      for (const st of P.states(inp)) {
+        if (!inv(st)) continue;
+        if (P.guard(st)) {
+          r.presAny = true;
+          const t = P.body(st);
+          if (!r.pres && !inv(t)) r.pres = { st, t };
+        } else {
+          r.exitAny = true;
+          if (!r.exit && !P.post(st)) r.exit = { st };
+        }
+      }
+    }
+    return r;
+  }
+
+  function checkVariant(P, inv, V) {
+    const r = { bound: null, dec: null };
+    for (const inp of P.inputs()) for (const st of P.states(inp)) {
+      if (!inv(st) || !P.guard(st)) continue;
+      if (!r.bound && V(st) < 0) r.bound = { st };
+      const t = P.body(st);
+      if (!r.dec && !(V(t) < V(st))) r.dec = { st, t };
+    }
+    return r;
+  }
+
+  // Concrete run shown in the stepper.
+  let run = null;
+  function loopReset() {
+    const P = prog();
+    run = level === 'advanced' ? { st: P.init({ n: 17, d: 5 }), rows: [] } : { st: P.init({ a: [3, -1, 4, 1, 5] }), rows: [] };
+    run.rows.push({ ...run.st });
+    renderLoop();
+    insight('loopInsight', L('点“运行一次迭代”。注意最后一列：每次循环检查条件时，不变式都成立。',
+      '单步执行循环。每次检查守卫条件时，不变式 n == q * d + r && 0 <= r 都成立，变式 r 严格递减。'));
+  }
+
+  function renderLoop() {
+    const P = prog(), st = run.st;
+    const correct = P.cands[0].inv;
+    if (level === 'advanced') {
+      $('loopTitle').textContent = 'Dafny';
+      const sel = P.cands.find(c => c.id === candSel);
+      $('loopCode').innerHTML = esc('method Div(n: int, d: int) returns (q: int, r: int)\n  requires n >= 0 && d > 0\n  ensures n == q * d + r && 0 <= r < d\n{\n  q, r := 0, n;\n  while r >= d\n    invariant ') + `<span class="hl">${esc(sel ? sel.code : '???')}</span>` + esc('\n    ') + `<span class="hl">${esc(varSel ? PROGS.div.variants.find(v => v.id === varSel).code : 'decreases ???')}</span>` + esc('\n  {\n    q, r := q + 1, r - d;\n  }\n}');
+      let bar = '';
+      for (let k = 0; k < st.n; k++) bar += `<i class="${k < st.q * st.d ? (Math.floor(k / st.d) % 2 ? 'cb' : 'ca') : ''}"></i>`;
+      $('loopVis').innerHTML = `<div class="divbar" aria-hidden="true">${bar}</div><div style="font-size:.8rem;color:var(--muted)">n = 17 个单位：${st.q} 块大小为 d = 5 的整块，余数 r = ${st.r}</div>`;
+      $('loopVars').innerHTML = `<span>q = <b>${st.q}</b></span><span>r = <b>${st.r}</b></span><span>守卫 r ≥ d：<b>${P.guard(st)}</b></span>`;
+      $('loopTable').innerHTML = `<thead><tr><th>检查次数</th><th>q</th><th>r</th><th>q·d + r</th><th>不变式</th><th>变式 r</th></tr></thead><tbody>` +
+        run.rows.map((x, k) => `<tr class="${k === run.rows.length - 1 && k ? 'new' : ''}"><td class="num">${k}</td><td class="num">${x.q}</td><td class="num">${x.r}</td><td class="num">${x.q * x.d + x.r}</td><td class="${correct(x) ? 'ok' : 'no'}">${correct(x) ? '✓' : '✗'}</td><td class="num">${x.r}</td></tr>`).join('') + '</tbody>';
+    } else {
+      $('loopTitle').textContent = '列表求和';
+      const sel = P.cands.find(c => c.id === candSel);
+      $('loopCode').innerHTML = esc('// 承诺：s == a[0] + a[1] + … + a[n-1]\ni = 0\ns = 0\nwhile i < n:\n  // 不变式：') + `<span class="hl">${esc(sel ? sel.code : '???')}</span>` + esc('\n  s = s + a[i]\n  i = i + 1');
+      $('loopVis').innerHTML = `<div class="arr">${st.a.map((v, k) => `<span class="${k < st.i ? 'in' : k === st.i ? 'next' : ''}"><small>a[${k}]</small>${v}</span>`).join('')}</div>`;
+      $('loopVars').innerHTML = `<span>i = <b>${st.i}</b></span><span>s = <b>${st.s}</b></span><span>i &lt; n: <b>${P.guard(st)}</b></span>`;
+      $('loopTable').innerHTML = `<thead><tr><th>检查次数</th><th>i</th><th>s</th><th>前 i 个数之和</th><th>不变式</th></tr></thead><tbody>` +
+        run.rows.map((x, k) => `<tr class="${k === run.rows.length - 1 && k ? 'new' : ''}"><td class="num">${k}</td><td class="num">${x.i}</td><td class="num">${x.s}</td><td>${x.i ? x.a.slice(0, x.i).join(' + ').replace(/\+ -/g, '− ') + ' = ' + sumFirst(x.a, x.i) : '0（还没加任何数）'}</td><td class="${correct(x) ? 'ok' : 'no'}">${correct(x) ? '✓' : '✗'}</td></tr>`).join('') + '</tbody>';
+    }
+    $('loopStep').disabled = !P.guard(st);
+  }
+
+  $('loopStep').addEventListener('click', () => {
+    const P = prog();
+    if (!P.guard(run.st)) return;
+    run.st = P.body(run.st);
+    run.rows.push({ ...run.st });
+    renderLoop();
+    if (!P.guard(run.st)) {
+      insight('loopInsight', L(`循环停下了，因为 i < n 为 false，所以 i = n = 5。不变式说 s 是前 i 个数之和，而现在就是全部的数：s = ${run.st.s}。这正是我们的承诺。`,
+        `守卫为 false：r = ${run.st.r} < d。不变式 ∧ ¬守卫 推出 n == q·d + r ∧ 0 ≤ r < d，即 17 = ${run.st.q}·5 + ${run.st.r}。变式依次是 17、12、7、2：每次都减小，并且始终 ≥ 0。`), 'good');
+      saved.loopDone = true; updateProgress();
+    } else {
+      insight('loopInsight', L('仍然成立。这一步保持了不变式，而第二个问题要求的是：对每一个可能的状态都如此，而不只是这一个。',
+        '循环体执行后不变式重新成立。保持性必须对每个满足 I ∧ B 的状态都成立，而不只是这一个。'));
+    }
+  });
+  $('loopReset').addEventListener('click', loopReset);
+
+  let candSel = null, varSel = null;
+  function oblRow(ok, title, cx, note) {
+    return `<div class="obl ${ok ? 'ok' : 'no'}"><span class="mk">${ok ? '✓' : '✗'}</span><span>${title}</span>${cx ? `<span class="cx${note ? ' note' : ''}">${esc(cx)}</span>` : ''}</div>`;
+  }
+
+  function renderCands() {
+    const P = prog();
+    $('candTitle').textContent = L('哪个不变式能证明它？', '选择循环不变式');
+    $('candLede').textContent = L('检查器会对每一个小列表（最多 3 个数，取值 −2 到 2）以及 i 和 s 的每个取值，问下面这三个问题。',
+      '每条证明义务都在有界域内的所有状态上检查。✗ 会附带一个具体的反例状态。');
+    const box = $('cands');
+    box.innerHTML = '';
+    P.cands.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (candSel === c.id ? (c.ok ? ' right' : ' wrong') : '');
+      b.innerHTML = `<code>${esc(c.code)}</code>${c.plain ? `<small>${esc(c.plain)}</small>` : ''}`;
+      b.addEventListener('click', () => { candSel = c.id; renderCands(); renderLoop(); });
+      box.appendChild(b);
+    });
+    const c = P.cands.find(x => x.id === candSel);
+    if (!c) { $('obls').innerHTML = ''; renderVariants(); return; }
+    const r = checkObligations(P, c.inv);
+    const vac = (any, beg, adv) => any ? '' : L(beg, adv);
+    $('obls').innerHTML =
+      oblRow(!r.init, L('一开始就成立', '初始化：{P} init {I}'), r.init ? L(`在 ${P.show(r.init.st)} 时不成立`, `反例：${P.show(r.init.st)}`) : '') +
+      oblRow(!r.pres, L('每次迭代都保持它成立', '保持性：{I ∧ B} body {I}'), r.pres ? L(`不成立：从 ${P.show(r.pres.st)} 走一步得到 ${P.showAfter(r.pres.t)}`, `反例：${P.show(r.pres.st)} → ${P.showAfter(r.pres.t)}`) : vac(r.presAny, '成立，但只是因为循环继续执行时这个不变式根本不可能成立。', '空真：没有状态满足 I ∧ B。'), !r.pres && !r.presAny) +
+      oblRow(!r.exit, L('循环停下时，能得出承诺的结果', '退出：I ∧ ¬B ⇒ Q'), r.exit ? L(`不成立：循环可能停在 ${P.show(r.exit.st)}，而此时结果是错的`, `反例：${P.show(r.exit.st)} 满足 I ∧ ¬B，但不满足 Q`) : vac(r.exitAny, '成立，但只是因为循环停下时这个不变式根本不可能成立。', '空真：没有状态满足 I ∧ ¬B。'), !r.exit && !r.exitAny);
+    if (c.ok && (level === 'beginner' || varSel === 'r')) { saved.invDone = true; updateProgress(); }
+    renderVariants();
+  }
+
+  function renderVariants() {
+    if (level !== 'advanced') return;
+    const P = PROGS.div, box = $('variants');
+    box.innerHTML = '';
+    P.variants.forEach(v => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (varSel === v.id ? (v.ok ? ' right' : ' wrong') : '');
+      b.innerHTML = `<code>${esc(v.code)}</code>`;
+      b.addEventListener('click', () => {
+        varSel = v.id;
+        if (v.ok && candSel === 'A') { saved.invDone = true; updateProgress(); }
+        renderVariants(); renderLoop();
+      });
+      box.appendChild(b);
+    });
+    const v = P.variants.find(x => x.id === varSel);
+    if (!v) { $('vobls').innerHTML = ''; return; }
+    const r = checkVariant(P, P.cands[0].inv, v.V);
+    $('vobls').innerHTML =
+      oblRow(!r.bound, '有下界：I ∧ B ⇒ V ≥ 0', r.bound ? `反例：${P.show(r.bound.st)}` : '') +
+      oblRow(!r.dec, '递减：执行循环体后的 V < 执行前的 V', r.dec ? `反例：${P.show(r.dec.st)} → ${P.showAfter(r.dec.t)}` : '');
+  }
+
+  /* =========================================================
+     UNIT 5: quiz
+     ========================================================= */
+  const QUIZ_BEGINNER = [
+    { q: '一个函数通过了 100 个随机测试。你真正知道的是什么？',
+      opts: ['它对每个输入都正确', '它对这 100 个输入是对的', '它已经没有 bug 了', '它会通过接下来的 100 个测试'], a: 1,
+      why: '测试能证明 bug 存在，却永远不能证明 bug 不存在。没试过的输入仍然是未知的。' },
+    { q: '为什么对 8 位整数来说 abs(-128) 返回 -128？',
+      opts: ['函数里有拼写错误', '8 位装不下 +128，于是发生了回绕', '不允许负数', '计算机无法存储 -128'], a: 1,
+      why: '8 位整数的范围是 -128 到 127。-(-128) 的结果会回绕成 -128。' },
+    { q: '什么是后置条件？',
+      opts: ['文件末尾的一段注释', '代码承诺在结束时成立的事情', '代码运行之前必须成立的事情', '部署之后运行的测试'], a: 1,
+      why: '前置条件描述调用者必须提供什么，后置条件描述代码承诺返回什么。' },
+    { q: '一个总是返回空列表的“排序”通过了规约“输出是有序的”。问题出在哪里？',
+      opts: ['检查器坏了', '规约太弱了', '空列表不算有序', '没问题，它是合法的排序'], a: 1,
+      why: '规约还必须说明输出包含的数和输入相同。否则错误的程序也能满足它。' },
+    { q: '模型检测器做什么？',
+      opts: ['用随机的时序把程序跑几遍', '访问模型的每一个可达状态，并在每个状态上检查性质', '检查代码风格', '证明规约就是你想要的'], a: 1,
+      why: '因为它会探索每一个状态，所以能找到测试几乎碰不到的罕见交错执行。' },
+    { q: '循环不变式是……',
+      opts: ['一个永远不变的变量', '每次循环检查条件时都成立的一个事实', '循环执行的次数', '让循环结束的条件'], a: 1,
+      why: '它一开始就成立，并且在每次迭代后仍然成立。再加上退出条件，就能得到结果。' },
+    { type: 'order',
+      q: '把验证一个函数的步骤按顺序排好。',
+      items: ['写下代码必须做什么（规约）', '编写代码', '运行验证器', '在失败的地方修改代码或规约'],
+      why: '先写规约，再写代码，然后检查，再修复。重复直到验证器通过，同时也要不断审视规约本身。' },
+  ];
+  const QUIZ_ADVANCED = [
+    { q: '以每秒 10⁹ 次检查的速度，穷举测试两个 64 位整数参数的 f(x, y) 大约需要……',
+      opts: ['几个小时', '大约 585 年', '大约 10²² 年', '用 GPU 几秒钟'], a: 2,
+      why: '2¹²⁸ ≈ 3.4 × 10³⁸ 个输入。585 年是单个 64 位输入的数字。' },
+    { q: 'SMT 求解器是怎么找到 abs(INT_MIN) 这个 bug 的？',
+      opts: ['它飞快地用随机输入运行 abs', '它把“abs(x) < 0”编码成位向量公式，并找到一个满足它的赋值', '它阅读代码里的注释', '它用 sanitizer 编译代码'], a: 1,
+      why: 'sat 会给出一个模型，也就是反例。unsat 表示没有任何输入违反该性质。' },
+    { q: '哪条子句能排除“排序、去重、再用最后一个值补齐”？',
+      opts: ['|b| == |a|', 'forall x :: x in a <==> x in b', 'multiset(b) == multiset(a)', 'b 是有序的'], a: 2,
+      why: '补齐程序保持了长度、顺序和值的集合。只有多重集子句能发现次数变了。' },
+    { q: '“每个请求最终都会得到响应”是……',
+      opts: ['安全性质', '活性性质', 'A precondition', '不变式'], a: 1,
+      why: '活性：好事最终会发生。它的反例是无限长的运行（套索形），检查它需要公平性假设。' },
+    { q: '对 Div 来说，不变式 n == q * d + r（不带 0 <= r）违反了哪条证明义务？',
+      opts: ['Initiation', 'Preservation', '退出：I ∧ ¬B ⇒ Q', '都没违反，它没问题'], a: 2,
+      why: '它能被建立，也能被保持，但在退出时允许 r < 0，所以推不出 0 <= r < d。' },
+    { q: '为什么“q * d <= n”在每次真实运行中都成立，却不满足保持性？',
+      opts: ['保持性要从每个满足 I ∧ B 的状态出发检查，而 I 太弱，无法让自己保持下去', '因为 q 是负数', '因为循环不终止', '因为 Dafny 不会做乘法'], a: 0,
+      why: '从 q = 0, r = 1, n = 0, d = 1 出发，不变式成立、守卫为真，但走一步就被打破了。有用的不变式必须是归纳的。' },
+    { q: 'seL4 的证明保证了什么？',
+      opts: ['内核没有任何种类的 bug', '在明确的假设（例如硬件正确）下，它的 C 代码实现了它的抽象规约', '在它上面运行的每个程序都是安全的', '它比其他内核跑得更快'], a: 1,
+      why: '证明总是相对于它的规约和假设而言的。它排除了整类 bug，而不是所有可能的问题。' },
+    { type: 'order',
+      q: '把模型检测的工作流程按顺序排好。',
+      items: ['把系统建模为状态和迁移', '写出要检查的性质，例如互斥', '探索所有可达状态', '查看反例轨迹'],
+      why: '先建模，再写性质，然后搜索，最后读轨迹。修改设计或模型，然后重复。' },
+  ];
+  let QUIZ = QUIZ_BEGINNER;
+  let qi = 0, score = 0;
+
+  function renderQuiz() {
+    const box = $('quizBox');
+    if (qi >= QUIZ.length) {
+      const pct = Math.round((score / QUIZ.length) * 100);
+      box.innerHTML = `<div class="result"><div class="score">${score} / ${QUIZ.length}</div>
+        <p>${pct === 100 ? '满分。这是证明出来的，不只是测出来的。' : pct >= 70 ? '做得不错。复习一下答错的题，再试一次。' : '开了个好头。重新玩一遍各单元，然后再试一次。'}</p>
+        <button class="btn primary" id="retry">再试一次</button></div>`;
+      $('retry').addEventListener('click', () => { qi = 0; score = 0; renderQuiz(); });
+      saved.quizDone = true; updateProgress();
+      return;
+    }
+    const item = QUIZ[qi];
+    box.innerHTML = `<div class="quiz-meta"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>
+      <div class="q">${esc(item.q)}</div><div id="qBody"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="controls"><button class="btn primary" id="qNext" style="display:none">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`;
+    $('qNext').addEventListener('click', () => { qi++; renderQuiz(); });
+    (item.type === 'order' ? renderOrder : renderMC)(item);
+  }
+
+  function reveal(ok, why) {
+    if (ok) score++;
+    const fb = $('fb');
+    fb.className = 'feedback show ' + (ok ? 'good' : 'bad');
+    fb.innerHTML = `<b>${ok ? '正确。' : '不太对。'}</b> ${esc(why)}`;
+    $('qNext').style.display = '';
+    $('qNext').focus();
+  }
+
+  function renderMC(item) {
+    const wrap = document.createElement('div'); wrap.className = 'opts';
+    item.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        wrap.querySelectorAll('.opt').forEach((x, j) => {
+          x.disabled = true;
+          if (j === item.a) x.classList.add('right');
+        });
+        if (i !== item.a) b.classList.add('wrong');
+        reveal(i === item.a, item.why);
+      });
+      wrap.appendChild(b);
+    });
+    $('qBody').appendChild(wrap);
+  }
+
+  function renderOrder(item) {
+    const shuffled = [...item.items];
+    do { shuffled.sort(() => Math.random() - 0.5); } while (shuffled.join() === item.items.join());
+    const picked = [];
+    $('qBody').innerHTML = `<div class="chips" id="chips"></div><div class="slots" id="slots"></div>
+      <div class="controls"><button class="btn" id="oClear">清空</button><button class="btn primary" id="oCheck" disabled>检查顺序</button></div>`;
+    const draw = () => {
+      $('chips').innerHTML = ''; $('slots').innerHTML = '';
+      shuffled.forEach(s => {
+        const c = document.createElement('button');
+        c.className = 'chip'; c.textContent = s; c.disabled = picked.includes(s);
+        c.addEventListener('click', () => { picked.push(s); draw(); });
+        $('chips').appendChild(c);
+      });
+      item.items.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'slot' + (picked[i] ? ' filled' : '');
+        d.textContent = picked[i] || '';
+        $('slots').appendChild(d);
+      });
+      $('oCheck').disabled = picked.length !== item.items.length;
+    };
+    $('oClear').addEventListener('click', () => { picked.length = 0; draw(); });
+    $('oCheck').addEventListener('click', () => {
+      const slots = $('slots').children;
+      let ok = true;
+      picked.forEach((s, i) => {
+        const right = s === item.items[i];
+        ok = ok && right;
+        slots[i].classList.add(right ? 'right' : 'wrong');
+        if (!right) slots[i].textContent = `${s}（应为：${item.items[i]}）`;
+      });
+      $('chips').querySelectorAll('button').forEach(b => b.disabled = true);
+      $('oCheck').disabled = true; $('oClear').disabled = true;
+      reveal(ok, item.why);
+    });
+    draw();
+  }
+
+  /* ---------------- shared ---------------- */
+  document.querySelectorAll('.codeblock .copy').forEach(btn => btn.addEventListener('click', async () => {
+    const text = btn.closest('.codeblock').querySelector('pre').textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = '已复制'; }
+    catch (e) { btn.textContent = '复制失败'; }
+    setTimeout(() => { btn.textContent = '复制'; }, 1200);
+  }));
+
+  function applyLevel() {
+    document.body.dataset.level = level;
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+    u1Setup();
+    specSel = new Set(['sorted']);
+    renderClauses();
+    renderSpec();
+    renderProto();
+    candSel = null; varSel = null;
+    loopReset();
+    renderCands();
+    QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
+    qi = 0; score = 0;
+    renderQuiz();
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.level === level) return;
+    level = b.dataset.level;
+    saved.level = level; persist();
+    applyLevel();
+  }));
+
+  // Redraw the canvas if the colour scheme changes.
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => u1 && u1Draw());
+
+  /* ---------------- init ---------------- */
+  applyLevel();
+  updateProgress();
+})();
+</script>
+</body>
+</html>
