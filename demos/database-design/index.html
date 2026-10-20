@@ -764,7 +764,8 @@ CREATE TABLE orders (
   const box = (name, cols) => ({ name, cols });
   const REL = [
     { id: 'passport', text: 'A person has one passport; a passport belongs to exactly one person.', a: '1:1',
-      A: box('people', [['PK', 'id'], ['', 'name']]), B: box('passports', [['PK', 'id'], ['FK', 'person_id  UNIQUE'], ['', 'number']]),
+      A: box('people', [['PK', 'id'], ['', 'name']]), B: box('passports', [['PK', 'id'], ['FK UQ', 'person_id'], ['', 'number']]),
+      note: 'UQ = unique: no two passports can point to the same person.',
       beginner: 'One on each side. The passports table stores which person it belongs to, and no two passports may point to the same person.',
       advanced: '1:1 is a 1:N with a UNIQUE constraint on the foreign key. Put the FK on the side that is optional or created later. Often the two tables could be merged, so split only for optionality, security or very wide rows.',
       ddl: 'CREATE TABLE passports (\n  id        bigint PRIMARY KEY,\n  person_id bigint NOT NULL UNIQUE REFERENCES people(id),\n  number    text NOT NULL\n);' },
@@ -866,9 +867,10 @@ CREATE TABLE orders (
       const b = drawBox(svg, r.B, 430, 20, { appear: true });
       connect(svg, a, b, 'one', r.a === '1:1' ? 'one' : 'many');
     }
-    if (r.self) {
+    const note = r.self ? `Both "${r.A.name}" boxes are the same table.` : r.note;
+    if (note) {
       const n = svgEl('text', { class: 'note', x: 320, y: 160, 'text-anchor': 'middle' }, svg);
-      n.textContent = `Both "${r.A.name}" boxes are the same table.`;
+      n.textContent = note;
     }
   }
 
