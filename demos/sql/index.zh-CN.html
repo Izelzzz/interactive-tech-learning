@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用 SQL 向数据库提问</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efeee8;
+    --text: #1c1c1a;
+    --muted: #64635d;
+    --border: #dcdbd3;
+    --accent: #3b5bdb;
+    --accent-soft: #e5eaff;
+    --ok: #2b8a3e;
+    --ok-soft: #e3f5e6;
+    --bad: #c92a2a;
+    --bad-soft: #fde8e8;
+    --warn: #b35c00;
+    --warn-soft: #fff1e0;
+    --line: #b9b8b0;
+    --c-cust: #1971c2;
+    --c-cust-soft: #e3f0fc;
+    --c-prod: #2b8a3e;
+    --c-prod-soft: #e3f5e6;
+    --c-ord: #d9480f;
+    --c-ord-soft: #fdeee6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-2: #282826;
+      --text: #ecebe6;
+      --muted: #a3a29b;
+      --border: #3a3a37;
+      --accent: #7d97ff;
+      --accent-soft: #252c48;
+      --ok: #5fcf75;
+      --ok-soft: #1c3322;
+      --bad: #ff7b7b;
+      --bad-soft: #3d1f1f;
+      --warn: #ffa94d;
+      --warn-soft: #3a2a17;
+      --line: #5a5a55;
+      --c-cust: #4dabf7;
+      --c-cust-soft: #1a2c3d;
+      --c-prod: #5fcf75;
+      --c-prod-soft: #1c3322;
+      --c-ord: #f0703a;
+      --c-ord-soft: #3a2418;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --surface-2: #282826;
+    --text: #ecebe6;
+    --muted: #a3a29b;
+    --border: #3a3a37;
+    --accent: #7d97ff;
+    --accent-soft: #252c48;
+    --ok: #5fcf75;
+    --ok-soft: #1c3322;
+    --bad: #ff7b7b;
+    --bad-soft: #3d1f1f;
+    --warn: #ffa94d;
+    --warn-soft: #3a2a17;
+    --line: #5a5a55;
+    --c-cust: #4dabf7;
+    --c-cust-soft: #1a2c3d;
+    --c-prod: #5fcf75;
+    --c-prod-soft: #1c3322;
+    --c-ord: #f0703a;
+    --c-ord-soft: #3a2418;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  }
+  body[data-level="advanced"] .only-beginner, body[data-level="beginner"] .only-advanced { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  code, pre { font-family: var(--mono); }
+  code { overflow-wrap: anywhere; }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 0.95rem; margin-right: auto; }
+  .brand a { color: var(--muted); text-decoration: none; font-weight: 500; margin-right: 6px; }
+  .progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+  .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s ease; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 12px; font-size: 0.85rem; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .lang-switch {
+    font-size: 0.85rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface);
+  }
+  .lang-switch:hover { border-color: var(--accent); color: var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 48px 0 24px; }
+  .hero > p { color: var(--muted); max-width: 660px; margin-top: 12px; font-size: 1.05rem; }
+  .units { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 28px; }
+  .unit {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .unit:hover { border-color: var(--accent); }
+  .unit small { color: var(--muted); display: block; }
+  .unit b { display: block; margin: 2px 0; }
+  .unit .tick { float: right; color: var(--ok); font-weight: 700; visibility: hidden; }
+  .unit.done .tick { visibility: visible; }
+
+  .dataset { margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; }
+  .dataset summary { cursor: pointer; font-weight: 600; font-size: 0.95rem; }
+  .dataset .three { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; margin: 12px 0 4px; }
+  .dataset .note { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin: 24px 0; scroll-margin-top: 70px;
+  }
+  .kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .lede { color: var(--muted); margin: 6px 0 18px; }
+  .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 14px; font-size: 0.9rem;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .callout { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; font-size: 0.95rem; }
+  .callout ul { margin: 6px 0 0; padding-left: 20px; }
+  .callout li { margin: 3px 0; }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; display: none; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--ok-soft); }
+  .feedback.bad { background: var(--bad-soft); }
+  .insight { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.92rem; }
+  .insight.bad { background: var(--bad-soft); }
+  .insight.good { background: var(--ok-soft); }
+  .insight.warn { background: var(--warn-soft); }
+  .insight p + p { margin-top: 6px; }
+
+  .codeblock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; }
+  .codeblock-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .codeblock-head .copy { border: 0; background: none; color: var(--muted); font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+  .codeblock-head .copy:hover { background: var(--surface-2); color: var(--text); }
+  .codeblock pre { margin: 0; padding: 12px 14px; flex: 1; font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .75; }
+
+  @keyframes pop { from { opacity: 0; transform: scale(.85); } }
+  @keyframes flash { from { background: var(--warn-soft); } }
+  @keyframes drawLine { to { stroke-dashoffset: 0; } }
+
+  /* ---------- tables used as data ---------- */
+  .tbl-wrap { overflow-x: auto; min-width: 0; }
+  table.data { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
+  table.data th, table.data td { padding: 5px 9px; border: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  table.data th { font-size: 0.72rem; font-weight: 700; letter-spacing: .03em; color: var(--muted); background: var(--surface-2); }
+  table.data td { font-family: var(--mono); font-size: 0.78rem; background: var(--surface); }
+  table.data th.c { background: var(--c-cust-soft); color: var(--c-cust); }
+  table.data th.p { background: var(--c-prod-soft); color: var(--c-prod); }
+  table.data th.o { background: var(--c-ord-soft); color: var(--c-ord); }
+  table.data td.null { color: var(--warn); font-style: italic; }
+  table.data tr.nullrow td { background: var(--warn-soft); }
+  table.data tr.out td { opacity: .3; text-decoration: line-through; transition: opacity .45s; }
+  table.data tr.cut td { opacity: .3; background: var(--bad-soft); transition: opacity .45s; }
+  table.data .dim { opacity: .28; transition: opacity .45s; }
+  table.data tr.pop td { animation: pop .35s ease-out both; }
+  table.data tr.band td { background: var(--surface-2); }
+  table.data tr.band.nullrow td, table.data tr.nullrow.band td { background: var(--warn-soft); }
+  table.data td.num { text-align: right; }
+  table.data.fit { width: auto; min-width: min(100%, 380px); }
+  .tname { font: 700 0.85rem var(--mono); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .tname i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .tname.c i { background: var(--c-cust); } .tname.p i { background: var(--c-prod); } .tname.o i { background: var(--c-ord); }
+  .tname small { font: 400 0.75rem system-ui, sans-serif; color: var(--muted); }
+  .counter { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+  .counter b { color: var(--text); }
+
+  /* ---------- pill pickers ---------- */
+  .qb { display: grid; gap: 10px; margin-bottom: 14px; }
+  .qb-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: start; }
+  .qb-row > .kw { font: 700 0.8rem var(--mono); color: var(--accent); padding-top: 5px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill {
+    border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px;
+    padding: 3px 11px; font-size: 0.8rem; color: var(--text); font-family: var(--mono);
+  }
+  .pill.txt { font-family: inherit; }
+  .pill:hover { border-color: var(--accent); }
+  .pill[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pill.adv { border-style: dashed; }
+  .pill[aria-pressed="true"].adv { border-style: solid; }
+
+  .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 8px; }
+  .steps span {
+    font: 700 0.72rem var(--mono); padding: 3px 9px; border-radius: 6px;
+    border: 1px solid var(--border); color: var(--muted); background: var(--surface);
+    transition: background .25s, color .25s;
+  }
+  .steps span.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .steps span.past { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .steps span.skip { opacity: .4; text-decoration: line-through; }
+  .stepcap { font-size: 0.9rem; min-height: 1.6em; margin-bottom: 8px; }
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+
+  /* ---------- unit 2: joins ---------- */
+  .joinviz { position: relative; display: grid; grid-template-columns: auto 64px minmax(0, 1fr); align-items: start; margin-top: 14px; }
+  .joinviz svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .joinviz .rel { stroke: var(--accent); stroke-width: 1.6; fill: none; stroke-dasharray: 300; stroke-dashoffset: 300; animation: drawLine .6s ease-out forwards; }
+  .joinviz .rel.faint { stroke: var(--line); stroke-dasharray: 4 4; animation: none; stroke-dashoffset: 0; }
+  .joinviz .dot { fill: var(--accent); }
+  .joinviz table.data td, .joinviz table.data th { padding: 3px 7px; }
+  table.data tr.dropped td { opacity: .32; }
+  table.data tr.kept td { background: var(--warn-soft); }
+  table.data tr.kept td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+
+  /* ---------- unit 3: grouping ---------- */
+  .gsrc { display: flex; flex-wrap: wrap; gap: 6px; min-height: 36px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .gsrc:empty::before { content: attr(data-empty); color: var(--muted); font-size: 0.82rem; }
+  .gchip {
+    display: inline-flex; gap: 6px; align-items: center; font: 0.75rem var(--mono);
+    padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+    transition: opacity .45s;
+  }
+  .gchip b { color: var(--c-ord); }
+  .gchip .r { color: var(--muted); }
+  .gchip .r.n { color: var(--warn); font-style: italic; }
+  .gchip.out { opacity: .25; text-decoration: line-through; }
+  .buckets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+  .bucket { border: 1.5px dashed var(--line); border-radius: 12px; padding: 8px 10px; min-width: 0; animation: pop .35s ease-out both; transition: opacity .4s, border-color .3s; }
+  .bucket .bh { font: 700 0.78rem var(--mono); margin-bottom: 6px; overflow-wrap: anywhere; }
+  .bucket .bh .null { color: var(--warn); font-style: italic; }
+  .bucket .bl { display: flex; flex-wrap: wrap; gap: 4px; min-height: 26px; }
+  .bucket .agg { font: 700 0.85rem var(--mono); margin-top: 8px; color: var(--accent); min-height: 1.4em; overflow-wrap: anywhere; }
+  .bucket .agg span { display: inline-block; animation: pop .35s ease-out both; }
+  .bucket.kept { border-style: solid; border-color: var(--ok); }
+  .bucket.dropped { opacity: .4; border-color: var(--bad); }
+  .bucket.dropped .agg { text-decoration: line-through; color: var(--bad); }
+
+  /* ---------- unit 4: pipeline ---------- */
+  .sqlview { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: 0.82rem/1.5 var(--mono); }
+  .sqlline { display: flex; gap: 10px; align-items: center; padding: 2px 6px; border-radius: 6px; transition: background .25s; }
+  .sqlline .ord {
+    flex: none; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center;
+    font: 700 0.7rem system-ui, sans-serif; background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+  }
+  .sqlline .ord.set { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); animation: pop .3s ease-out both; }
+  .sqlline code { overflow-wrap: anywhere; min-width: 0; }
+  .sqlline.on { background: var(--accent-soft); }
+  .sqlline.on .ord { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pipe { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 14px 0 10px; }
+  .stage {
+    border: 1.5px solid var(--border); border-radius: 10px; padding: 6px 6px; text-align: center; background: var(--surface);
+    transition: background .25s, border-color .25s; min-width: 0;
+  }
+  .stage .n { font-size: 0.7rem; color: var(--muted); display: block; }
+  .stage .k { font: 700 0.76rem var(--mono); display: block; }
+  .stage .c { font-size: 0.7rem; color: var(--muted); display: block; min-height: 1.2em; }
+  .stage.past { border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
+  .stage.on { border-color: var(--accent); background: var(--accent-soft); }
+  .snap { margin-top: 10px; }
+  .snap .tbl-wrap { max-height: 300px; overflow-y: auto; }
+
+  .qcards { display: grid; gap: 8px; margin-top: 12px; }
+  .qcard { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+  .qcard code { font-size: 0.85rem; }
+  .qcard .three { display: flex; gap: 6px; }
+  .qcard .three .btn { font-size: 0.78rem; padding: 4px 9px; font-family: var(--mono); }
+  .qcard.right { border-color: var(--ok); background: var(--ok-soft); }
+  .qcard.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .qcard .why { grid-column: 1 / -1; font-size: 0.85rem; display: none; }
+  .qcard.right .why, .qcard.wrong .why { display: block; }
+
+  .field { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.92rem; }
+  .field input {
+    flex: 1 1 200px; min-width: 0; font: 0.9rem var(--mono); color: var(--text); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+  }
+  .sub-h { margin-top: 28px; }
+
+  /* ---------- quiz ---------- */
+  .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; }
+  .chip:disabled { opacity: .3; cursor: default; }
+  .slots { counter-reset: slot; display: grid; gap: 6px; margin: 14px 0; }
+  .slot { counter-increment: slot; border: 1.5px dashed var(--border); border-radius: 10px; padding: 7px 12px; min-height: 40px; color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+  .slot::before { content: counter(slot) ". "; color: var(--muted); }
+  .slot.filled { border-style: solid; color: var(--text); }
+  .slot.right { border-color: var(--ok); background: var(--ok-soft); }
+  .slot.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .result { text-align: center; padding: 20px 0; }
+  .result .score { font: 700 3rem system-ui, sans-serif; }
+  .result p { color: var(--muted); margin: 6px 0 16px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
+
+  @media (max-width: 760px) {
+    .two-col, .dataset .three { grid-template-columns: minmax(0, 1fr); }
+    section.card { padding: 18px 16px; }
+    .bar { width: 70px; }
+    .qcard { grid-template-columns: 1fr; }
+    .qb-row { grid-template-columns: 1fr; gap: 4px; }
+    .qb-row > .kw { padding-top: 0; }
+    .pipe { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .joinviz { grid-template-columns: auto 40px minmax(0, 1fr); }
+    .joinviz table.data td, .joinviz table.data th { padding: 3px 5px; font-size: 0.7rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+  }
+</style>
+</head>
+<body data-level="beginner">
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.zh-CN.html">← 课程</a> 动手学 SQL</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 单元</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="讲解深度">
+      <button data-level="beginner" aria-pressed="true">小白</button>
+      <button data-level="advanced" aria-pressed="false">进阶</button>
+    </div>
+    <a class="lang-switch" href="index.html" lang="en" hreflang="en">English</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">第 3 课</div>
+    <h1>用 SQL 向数据库提问</h1>
+    <p class="only-beginner">SQL 是向数据库要数据时使用的语言。你只要说清楚想要什么，数据库会自己想办法取出来。在这一课里，你会用点击来拼出查询，并亲眼看到每一步对真实的数据行做了什么。</p>
+    <p class="only-advanced">SQL 是声明式的：你描述想要的结果集，由查询规划器决定怎么算出来。本课涵盖过滤与排序、连接的语义、聚合与窗口函数、逻辑执行顺序、三值逻辑以及 SQL 注入。</p>
+    <nav class="units">
+      <a class="unit" href="#select" id="unit-select"><span class="tick">✓</span><small>第 1 单元</small><b>挑出数据行</b><small>运行 3 条不同的查询</small></a>
+      <a class="unit" href="#join" id="unit-join"><span class="tick">✓</span><small>第 2 单元</small><b>JOIN 连接</b><small>试试 INNER 和 LEFT</small></a>
+      <a class="unit" href="#group" id="unit-group"><span class="tick">✓</span><small>第 3 单元</small><b>GROUP BY 分组</b><small>分组两次，其中一次带 HAVING</small></a>
+      <a class="unit" href="#order" id="unit-order"><span class="tick">✓</span><small>第 4 单元</small><b>查询如何执行</b><small>逐步走完 + 1 道题</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>第 5 单元</small><b>自我检测</b><small>完成测验</small></a>
+    </nav>
+
+    <details class="dataset">
+      <summary>每个单元都会用到的商店数据</summary>
+      <div class="three" id="dataset"></div>
+      <p class="note only-beginner"><b>NULL</b> 的意思是“这里没有值”。Eli 没有填写城市，有一笔订单是没注册账号的访客下的，还有些订单暂时没有评分。Gus 和 Hana 什么都没买过。</p>
+      <p class="note only-advanced"><b>NULL</b> 表示缺失或未知的值：Eli 的 <code>customers.city</code>、访客下单时的 <code>orders.customer_id</code>，以及尚未评分的订单。Gus 和 Hana 没有订单，也没有任何订单引用台灯（Desk lamp）。</p>
+    </details>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="select">
+    <div class="kicker">第 1 单元</div>
+    <h2>SELECT、WHERE、ORDER BY、LIMIT</h2>
+    <p class="lede only-beginner">点一点就能拼出一条查询。选一张表，选要显示的列，再加上过滤条件、排序方式和行数上限。然后点“运行”，看看每一行会怎样。</p>
+    <p class="lede only-advanced">组合一条单表查询。虚线边框的选项是进阶情形：NULL 比较、范围条件和 OFFSET。留意关于 NULL 排序位置以及 LIMIT 边界处并列值的提示。</p>
+
+    <div class="qb" id="qb"></div>
+    <div class="codeblock">
+      <div class="codeblock-head"><span>你的查询</span><button class="copy">复制</button></div>
+      <pre id="qbSql"></pre>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="qbRun">▶ 运行查询</button>
+    </div>
+
+    <div class="steps" id="qbSteps"></div>
+    <div class="stepcap" id="qbCap" aria-live="polite"></div>
+    <div class="tbl-wrap"><table class="data fit" id="qbTable"></table></div>
+    <div class="insight" id="qbInsight">改一改查询，然后点“运行”。</div>
+    <div class="counter" id="qbCounter"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>把查询当成一句话来读：</b>“从 <code>FROM</code> 这张表里，只要 <code>WHERE</code> 条件成立的行，按 <code>ORDER BY</code> 排好序，最多给我 <code>LIMIT</code> 行，并且只显示 <code>SELECT</code> 这些列。”文本值要放在单引号里，比如 <code>'Berlin'</code>，数字则不用。
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>生产环境里容易踩的坑</b>
+      <ul>
+        <li>没有 <code>ORDER BY</code> 时，行的顺序是未定义的。换一次运行、换个版本或换个执行计划，顺序都可能变。</li>
+        <li>NULL 的位置因数据库而异：PostgreSQL 和 Oracle 在 ASC 中把 NULL 排在最后，MySQL 和 SQLite 则排在最前。支持的话就写明 <code>NULLS FIRST</code> 或 <code>NULLS LAST</code>。</li>
+        <li>用 <code>LIMIT … OFFSET</code> 分页需要唯一的排序键，否则翻页时行可能重复或丢失。页数很深时，优先用键集分页：<code>WHERE (price, id) &gt; (?, ?)</code>。</li>
+        <li>探索数据时用 <code>SELECT *</code> 没问题，但在应用代码里要写明列名，这样表结构变化时代码不会出错。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="join">
+    <div class="kicker">第 2 单元</div>
+    <h2>JOIN：把多张表合起来</h2>
+    <p class="lede only-beginner">订单里只存了顾客编号。想在每笔订单旁边显示顾客名字，就要把两张表连接起来：每笔订单都会和 <code>id</code> 等于它 <code>customer_id</code> 的那位顾客配对。选一种连接方式，顺着连线看看。</p>
+    <p class="lede only-advanced">连接谓词负责给行配对。外连接随后会把一侧或两侧没配上的行加回来，缺的部分用 NULL 补齐。把四种类型都试一遍，再看看对右表加过滤条件会让 LEFT JOIN 变成什么样。</p>
+
+    <div class="qb">
+      <div class="qb-row"><div class="kw">JOIN</div><div class="pills" id="joinType"></div></div>
+      <div class="qb-row only-advanced"><div class="kw">过滤</div><div class="pills" id="joinFilter"></div></div>
+    </div>
+    <div class="codeblock">
+      <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+      <pre id="joinSql"></pre>
+    </div>
+
+    <div class="joinviz" id="joinViz">
+      <div><div class="tname c"><i></i>customers</div><table class="data" id="jLeft"></table></div>
+      <div></div>
+      <div><div class="tname o"><i></i>orders</div><table class="data fit" id="jRight"></table></div>
+      <svg id="jSvg" aria-hidden="true"></svg>
+    </div>
+
+    <div class="label" style="margin-top:16px">结果</div>
+    <div class="tbl-wrap"><table class="data fit" id="joinRes"></table></div>
+    <div class="counter" id="joinCount"></div>
+    <div class="insight" id="joinInsight"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>该用哪一种？</b>只想要有配对的行时用 <code>INNER JOIN</code>，比如“订单及其顾客”。左表的每一行即使没有配对也必须出现时用 <code>LEFT JOIN</code>，比如“所有顾客，以及他们的订单（如果有的话）”。缺少的值会以 <code>NULL</code> 返回。
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>关于连接的几点</b>
+      <ul>
+        <li><code>RIGHT JOIN</code> 就是把两张表对调后的 LEFT JOIN。大多数团队只写 LEFT JOIN，让查询更好读。</li>
+        <li>关于可选一侧的条件应该写在 <code>ON</code> 里。写在 <code>WHERE</code> 里的条件在连接之后才执行，会把用 NULL 补齐的行过滤掉。</li>
+        <li>要找没有配对的行（反连接），用 <code>LEFT JOIN … WHERE o.id IS NULL</code> 或 <code>NOT EXISTS</code>。</li>
+        <li>一对多连接会让左表的行按匹配数重复出现。之后再聚合（比如对顾客表的某列求 <code>SUM</code>）可能会重复计算。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="group">
+    <div class="kicker">第 3 单元</div>
+    <h2>GROUP BY 与聚合函数</h2>
+    <p class="lede only-beginner">GROUP BY 会把某个值相同的行放进同一个桶，再把每个桶变成一行汇总。<code>COUNT</code> 用来计数，<code>SUM</code> 用来求和，<code>AVG</code> 用来求平均。WHERE 在分桶之前过滤行，HAVING 在分桶之后过滤整个桶。</p>
+    <p class="lede only-advanced">聚合会把每个分组压缩成一行。对比 <code>COUNT(*)</code> 和 <code>COUNT(rating)</code>，看看 <code>AVG</code> 如何跳过 NULL，以及 NULL 键为何会归入同一组。然后再把 GROUP BY 和保留每一行的窗口函数做个对比。</p>
+
+    <div class="qb" id="gb"></div>
+    <div class="codeblock">
+      <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+      <pre id="gbSql"></pre>
+    </div>
+    <div class="controls"><button class="btn primary" id="gbRun">▶ 运行分组</button></div>
+
+    <div class="stepcap" id="gbCap" style="margin-top:12px" aria-live="polite"></div>
+    <div class="label">orders</div>
+    <div class="gsrc" id="gbSrc" data-empty="所有行都已经放进下面的桶里了。"></div>
+    <div class="buckets" id="gbBuckets"></div>
+    <div class="label" style="margin-top:14px">结果</div>
+    <div class="tbl-wrap"><table class="data fit" id="gbRes"></table></div>
+    <div class="insight" id="gbInsight">选一列用来分组，然后点“运行”。</div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>要记住的规则：</b>用了 GROUP BY 之后，SELECT 里的每一列要么出现在 GROUP BY 里，要么放在 <code>COUNT</code> 这类聚合函数里。一个装了三笔订单的桶有三个金额，数据库需要知道你要的是总和、平均值还是别的什么。
+    </div>
+
+    <div class="only-advanced">
+      <h3 class="sub-h">GROUP BY 与窗口函数</h3>
+      <p class="lede" style="margin-bottom:10px">窗口函数也是在一组相关的行上计算，就像分组一样，但不会把它们压缩成一行。每一行都保持原样，只是旁边多了一个计算出来的值。</p>
+      <div class="pills" id="winPick"></div>
+      <div class="codeblock" style="margin-top:10px">
+        <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+        <pre id="winSql"></pre>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table class="data fit" id="winTable"></table></div>
+      <div class="insight" id="winInsight"></div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="order">
+    <div class="kicker">第 4 单元</div>
+    <h2>查询到底是怎么执行的</h2>
+    <p class="lede only-beginner">你先写的是 <code>SELECT</code>，但数据库并不从这里开始。它先找到表，然后过滤，再分组，最后才挑选列。逐步执行下面的查询，留意每一行旁边的数字。</p>
+    <p class="lede only-advanced">逻辑处理顺序决定了每个子句能看到什么。物理执行计划可能会把过滤条件下推、调整连接顺序或使用索引，但结果必须和按这个顺序算出来的一样。</p>
+
+    <div class="sqlview" id="pipeSql"></div>
+    <div class="pipe" id="pipe"></div>
+    <div class="controls" style="margin-top:0">
+      <button class="btn primary" id="pipeStep">下一步 →</button>
+      <button class="btn" id="pipePlay">▶ 全部播放</button>
+      <button class="btn" id="pipeReset">重置</button>
+    </div>
+    <div class="insight" id="pipeInsight"></div>
+    <div class="snap" id="pipeSnap"></div>
+
+    <h3 class="sub-h">为什么会出错？</h3>
+    <div id="aliasBox" style="margin-top:10px"></div>
+
+    <div class="only-advanced">
+      <h3 class="sub-h">NULL 与三值逻辑</h3>
+      <p class="lede" style="margin-bottom:8px">在 SQL 里，一个条件的结果可以是 TRUE、FALSE 或 NULL（未知）。WHERE 只保留条件为 TRUE 的行。预测一下每个表达式的结果。</p>
+      <div class="qcards" id="tvl"></div>
+      <div class="label" style="margin-top:16px">在数据上跑一跑</div>
+      <div class="pills" id="nullPick"></div>
+      <div class="codeblock" style="margin-top:10px">
+        <div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div>
+        <pre id="nullSql"></pre>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table class="data fit" id="nullRes"></table></div>
+      <div class="insight" id="nullInsight"></div>
+
+      <h3 class="sub-h">SQL 注入与参数化查询</h3>
+      <p class="lede" style="margin-bottom:10px">一个搜索框把名字发给服务器，服务器用它拼出查询。试试预设的输入，并在“拼接字符串”和“把值作为参数传递”之间切换。</p>
+      <div class="field">
+        <label for="injInput">用户输入的名字：</label>
+        <input id="injInput" type="text" value="Ana" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="qb" style="margin-top:10px">
+        <div class="qb-row"><div class="kw">试试</div><div class="pills" id="injPresets"></div></div>
+        <div class="qb-row"><div class="kw">代码</div><div class="pills" id="injMode"></div></div>
+      </div>
+      <div class="two-col">
+        <div class="codeblock">
+          <div class="codeblock-head"><span>服务器代码</span><button class="copy">复制</button></div>
+          <pre id="injCode"></pre>
+        </div>
+        <div class="codeblock">
+          <div class="codeblock-head"><span>数据库实际收到的内容</span><button class="copy">复制</button></div>
+          <pre id="injSent"></pre>
+        </div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:10px"><table class="data fit" id="injRes"></table></div>
+      <div class="insight" id="injInsight"></div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">第 5 单元</div>
+    <h2>自我检测</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../api-design/index.zh-CN.html">设计好用的 API</a>。下一课：<a href="../database-design/index.zh-CN.html">设计数据库</a>。</footer>
+</main>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, reduced ? Math.min(ms, 60) : ms));
+  const dur = (ms) => reduced ? 1 : ms;
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const NS = 'http://www.w3.org/2000/svg';
+
+  /* ---------------- saved progress ---------------- */
+  const KEY = 'itl-sql-v1';
+  let saved = { level: 'beginner', queries: [], joins: [], groups: [], groupHaving: false, pipeDone: false, aliasDone: false, quizDone: false };
+  try { Object.assign(saved, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+  let level = saved.level === 'advanced' ? 'advanced' : 'beginner';
+  // Pick the beginner or advanced variant of a value.
+  const L = (beginner, advanced) => level === 'advanced' ? advanced : beginner;
+  const queriesRun = new Set(saved.queries);
+  const joinsTried = new Set(saved.joins);
+  const groupsRun = new Set(saved.groups);
+
+  function updateProgress() {
+    const done = {
+      select: queriesRun.size >= 3,
+      join: joinsTried.has('INNER') && joinsTried.has('LEFT'),
+      group: groupsRun.size >= 2 && saved.groupHaving,
+      order: saved.pipeDone && saved.aliasDone,
+      quiz: saved.quizDone,
+    };
+    const n = Object.values(done).filter(Boolean).length;
+    $('progressText').textContent = `${n} / 5 单元`;
+    $('progressBar').style.width = `${(n / 5) * 100}%`;
+    for (const k in done) $('unit-' + k).classList.toggle('done', done[k]);
+    saved.queries = [...queriesRun]; saved.joins = [...joinsTried]; saved.groups = [...groupsRun];
+    persist();
+  }
+
+  /* ---------------- the data ---------------- */
+  const CUSTOMERS = [
+    { id: 1, name: 'Ana', city: 'Lisbon' },
+    { id: 2, name: 'Ben', city: 'Berlin' },
+    { id: 3, name: 'Cleo', city: 'Paris' },
+    { id: 4, name: 'Dev', city: 'Berlin' },
+    { id: 5, name: 'Eli', city: null },
+    { id: 6, name: 'Fay', city: 'Lisbon' },
+    { id: 7, name: 'Gus', city: 'Paris' },
+    { id: 8, name: 'Hana', city: 'Rome' },
+  ];
+  const PRODUCTS = [
+    { id: 1, name: 'Keyboard', category: 'accessories', price: 49 },
+    { id: 2, name: 'Mouse', category: 'accessories', price: 19 },
+    { id: 3, name: 'Monitor', category: 'displays', price: 199 },
+    { id: 4, name: 'Webcam', category: 'accessories', price: 59 },
+    { id: 5, name: 'Laptop', category: 'computers', price: 999 },
+    { id: 6, name: 'Headset', category: 'audio', price: 79 },
+    { id: 7, name: 'Speaker', category: 'audio', price: 39 },
+    { id: 8, name: 'Desk lamp', category: 'office', price: 35 },
+  ];
+  const ORDERS = [
+    { id: 1, customer_id: 1, product_id: 1, amount: 49, rating: 5, status: 'paid' },
+    { id: 2, customer_id: 1, product_id: 2, amount: 38, rating: 4, status: 'paid' },
+    { id: 3, customer_id: 2, product_id: 3, amount: 199, rating: null, status: 'shipped' },
+    { id: 4, customer_id: 3, product_id: 5, amount: 999, rating: 5, status: 'shipped' },
+    { id: 5, customer_id: 4, product_id: 2, amount: 19, rating: 3, status: 'refunded' },
+    { id: 6, customer_id: 1, product_id: 6, amount: 79, rating: null, status: 'shipped' },
+    { id: 7, customer_id: 5, product_id: 4, amount: 59, rating: 4, status: 'paid' },
+    { id: 8, customer_id: 3, product_id: 7, amount: 78, rating: null, status: 'paid' },
+    { id: 9, customer_id: 6, product_id: 1, amount: 49, rating: 2, status: 'refunded' },
+    { id: 10, customer_id: null, product_id: 2, amount: 57, rating: null, status: 'paid' },
+    { id: 11, customer_id: 2, product_id: 6, amount: 79, rating: 5, status: 'shipped' },
+  ];
+  const TABLES = {
+    customers: { rows: CUSTOMERS, cols: ['id', 'name', 'city'], cls: 'c' },
+    products: { rows: PRODUCTS, cols: ['id', 'name', 'category', 'price'], cls: 'p' },
+    orders: { rows: ORDERS, cols: ['id', 'customer_id', 'product_id', 'amount', 'rating', 'status'], cls: 'o' },
+  };
+  const NUMERIC = new Set(['id', 'customer_id', 'product_id', 'amount', 'rating', 'price', 'total', 'n', 'running']);
+
+  // One table cell. NULL gets its own style.
+  const td = (v, col, extra = '') => v === null || v === undefined
+    ? `<td class="null ${extra}">NULL</td>`
+    : `<td class="${NUMERIC.has(col) ? 'num ' : ''}${extra}">${esc(v)}</td>`;
+  // Generic table: cols = [name], rows = [[values]].
+  function tableHTML(cols, rows, opts = {}) {
+    const head = cols.map(c => `<th class="${opts.cls || ''}">${esc(c)}</th>`).join('');
+    const body = rows.map((r, i) => `<tr class="${opts.rowCls ? opts.rowCls(r, i) : ''}">${r.map((v, j) => td(v, cols[j])).join('')}</tr>`).join('');
+    return `<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" style="font-family:inherit;color:var(--muted)">${L('没有行。', '（0 行）')}</td></tr>`}</tbody>`;
+  }
+  // PostgreSQL order: NULLs last in ASC (and first in DESC, by negation).
+  function cmp(a, b) {
+    if (a === b) return 0;
+    if (a === null) return 1;
+    if (b === null) return -1;
+    return a < b ? -1 : 1;
+  }
+  const pills = (host, items, isOn, onPick, opts = {}) => {
+    host.innerHTML = '';
+    items.forEach((it) => {
+      if (it.adv && level !== 'advanced') return;
+      const b = document.createElement('button');
+      b.className = 'pill' + (it.txt ? ' txt' : '') + (it.adv ? ' adv' : '');
+      b.textContent = it.label;
+      b.setAttribute('aria-pressed', String(isOn(it)));
+      b.addEventListener('click', () => onPick(it));
+      host.appendChild(b);
+    });
+  };
+
+  function renderDataset() {
+    const t = (name, cls, cols, rows) => `<div><div class="tname ${cls}"><i></i>${name}</div><div class="tbl-wrap"><table class="data">${tableHTML(cols, rows.map(r => cols.map(c => r[c])), { cls })}</table></div></div>`;
+    $('dataset').innerHTML =
+      t('customers', 'c', TABLES.customers.cols, CUSTOMERS) +
+      t('products', 'p', TABLES.products.cols, PRODUCTS) +
+      t('orders', 'o', TABLES.orders.cols, ORDERS);
+  }
+
+  /* =========================================================
+     UNIT 1: SELECT, WHERE, ORDER BY, LIMIT
+     ========================================================= */
+  const NO_FILTER = '不过滤';
+  const WHERES = {
+    customers: [
+      { sql: '' },
+      { sql: "city = 'Berlin'", f: r => r.city === null ? null : r.city === 'Berlin' },
+      { sql: 'id > 4', f: r => r.id > 4 },
+      { sql: "city <> 'Berlin'", adv: true, f: r => r.city === null ? null : r.city !== 'Berlin', nullNote: true },
+      { sql: 'city IS NULL', adv: true, f: r => r.city === null },
+    ],
+    products: [
+      { sql: '' },
+      { sql: 'price < 60', f: r => r.price < 60 },
+      { sql: "category = 'audio'", f: r => r.category === 'audio' },
+      { sql: 'price BETWEEN 40 AND 200', adv: true, f: r => r.price >= 40 && r.price <= 200 },
+      { sql: "name LIKE '%e%'", adv: true, f: r => r.name.includes('e') },
+    ],
+    orders: [
+      { sql: '' },
+      { sql: "status = 'paid'", f: r => r.status === 'paid' },
+      { sql: 'amount >= 50', f: r => r.amount >= 50 },
+      { sql: 'rating >= 4', adv: true, f: r => r.rating === null ? null : r.rating >= 4, nullNote: true },
+      { sql: 'customer_id IS NULL', adv: true, f: r => r.customer_id === null },
+    ],
+  };
+  let qs;
+  function qsReset(table) {
+    qs = { table, cols: new Set(TABLES[table].cols), where: 0, order: '', dir: 'ASC', limit: 0, offset: 0 };
+  }
+  qsReset('products');
+
+  function buildSql() {
+    const t = TABLES[qs.table];
+    const cols = qs.cols.size === t.cols.length ? '*' : t.cols.filter(c => qs.cols.has(c)).join(', ');
+    const lines = [`SELECT ${cols}`, `FROM ${qs.table}`];
+    const w = WHERES[qs.table][qs.where];
+    if (w.sql) lines.push(`WHERE ${w.sql}`);
+    if (qs.order) lines.push(`ORDER BY ${qs.order} ${qs.dir}`);
+    if (qs.limit) lines.push(`LIMIT ${qs.limit}` + (qs.offset ? ` OFFSET ${qs.offset}` : ''));
+    return lines.join('\n') + ';';
+  }
+
+  function renderQB() {
+    const t = TABLES[qs.table];
+    $('qb').innerHTML = ['SELECT', 'FROM', 'WHERE', 'ORDER BY', 'LIMIT'].map(k => `<div class="qb-row"><div class="kw">${k}</div><div class="pills" data-k="${k}"></div></div>`).join('');
+    const host = (k) => $('qb').querySelector(`[data-k="${k}"]`);
+    const refresh = () => { renderQB(); showFrom(); };
+    pills(host('FROM'), Object.keys(TABLES).map(k => ({ label: k, v: k })), it => it.v === qs.table, it => { qsReset(it.v); refresh(); });
+    pills(host('SELECT'), t.cols.map(c => ({ label: c, v: c })), it => qs.cols.has(it.v), it => {
+      if (qs.cols.has(it.v) && qs.cols.size > 1) qs.cols.delete(it.v); else qs.cols.add(it.v);
+      refresh();
+    });
+    pills(host('WHERE'), WHERES[qs.table].map((w, i) => ({ label: w.sql || NO_FILTER, txt: !w.sql, adv: w.adv, v: i })), it => it.v === qs.where, it => { qs.where = it.v; refresh(); });
+    const ord = host('ORDER BY');
+    pills(ord, [{ label: '无', txt: true, v: '' }, ...t.cols.map(c => ({ label: c, v: c }))], it => it.v === qs.order, it => { qs.order = it.v; refresh(); });
+    if (qs.order) {
+      const d = document.createElement('span'); d.className = 'pills'; d.style.marginLeft = '6px';
+      pills(d, [{ label: 'ASC', v: 'ASC' }, { label: 'DESC', v: 'DESC' }], it => it.v === qs.dir, it => { qs.dir = it.v; refresh(); });
+      ord.appendChild(d);
+    }
+    const lim = host('LIMIT');
+    pills(lim, [{ label: '无', txt: true, v: 0 }, { label: '3', v: 3 }, { label: '5', v: 5 }], it => it.v === qs.limit, it => { qs.limit = it.v; if (!it.v) qs.offset = 0; refresh(); });
+    if (qs.limit && level === 'advanced') {
+      const d = document.createElement('span'); d.className = 'pills'; d.style.marginLeft = '6px';
+      pills(d, [{ label: 'OFFSET 0', v: 0, adv: true }, { label: 'OFFSET 2', v: 2, adv: true }], it => it.v === qs.offset, it => { qs.offset = it.v; refresh(); });
+      lim.appendChild(d);
+    }
+    $('qbSql').textContent = buildSql();
+  }
+
+  const STEP_KEYS = ['FROM', 'WHERE', 'SELECT', 'ORDER BY', 'LIMIT'];
+  function setSteps(current, skipped) {
+    const idx = STEP_KEYS.indexOf(current);
+    $('qbSteps').innerHTML = STEP_KEYS.map((k, i) => {
+      const cls = skipped.has(k) && (i < idx || current === 'DONE') ? 'skip' : i === idx ? 'on' : (i < idx || current === 'DONE') ? 'past' : '';
+      return `<span class="${cls}">${k}</span>`;
+    }).join('');
+  }
+
+  // Show the whole table, as FROM delivers it.
+  function showFrom() {
+    qRun++;
+    const t = TABLES[qs.table];
+    $('qbTable').innerHTML = `<thead><tr>${t.cols.map(c => `<th class="${t.cls}" data-col="${c}">${c}</th>`).join('')}</tr></thead><tbody>${
+      t.rows.map(r => `<tr data-id="${r.id}">${t.cols.map(c => td(r[c], c).replace('<td', `<td data-col="${c}"`)).join('')}</tr>`).join('')}</tbody>`;
+    setSteps('', new Set());
+    $('qbCap').textContent = '';
+    $('qbInsight').className = 'insight';
+    $('qbInsight').textContent = L('点“运行”，把查询发给数据库。', '点“运行”来求值这条查询。');
+  }
+
+  let qRun = 0;
+  async function runQuery() {
+    showFrom();
+    const id = qRun;
+    const alive = () => id === qRun;
+    const t = TABLES[qs.table];
+    const w = WHERES[qs.table][qs.where];
+    const skipped = new Set();
+    if (!w.f) skipped.add('WHERE');
+    if (qs.cols.size === t.cols.length) skipped.add('SELECT');
+    if (!qs.order) skipped.add('ORDER BY');
+    if (!qs.limit) skipped.add('LIMIT');
+    const tbody = $('qbTable').tBodies[0];
+    const trOf = (r) => tbody.querySelector(`tr[data-id="${r.id}"]`);
+    $('qbRun').disabled = true;
+
+    setSteps('FROM', skipped);
+    $('qbCap').textContent = L(`FROM ${qs.table}：数据库从全部 ${t.rows.length} 行开始。`, `FROM ${qs.table}：输入共 ${t.rows.length} 行。`);
+    await sleep(800); if (!alive()) return;
+
+    let rows = t.rows.slice();
+    if (w.f) {
+      setSteps('WHERE', skipped);
+      const fails = rows.filter(r => w.f(r) !== true);
+      fails.forEach(r => trOf(r).classList.add('out'));
+      rows = rows.filter(r => w.f(r) === true);
+      $('qbCap').textContent = L(`WHERE ${w.sql}：${fails.length} 行没通过检查，被移除。还剩 ${rows.length} 行。`,
+                                 `WHERE ${w.sql}：${fails.length} 行的结果不是 TRUE，被丢弃。还剩 ${rows.length} 行。`);
+      await sleep(1100); if (!alive()) return;
+      fails.forEach(r => trOf(r).remove());
+      await sleep(300); if (!alive()) return;
+    }
+    if (!skipped.has('SELECT')) {
+      setSteps('SELECT', skipped);
+      $('qbTable').querySelectorAll('[data-col]').forEach(c => { if (!qs.cols.has(c.dataset.col)) c.classList.add('dim'); });
+      $('qbCap').textContent = L(`SELECT 只保留你要的列。变淡的列会被丢掉。`,
+                                 `SELECT 投影出 ${t.cols.length} 列中的 ${[...qs.cols].length} 列。变淡的列不会出现在输出里。`);
+      await sleep(1000); if (!alive()) return;
+    }
+    if (qs.order) {
+      setSteps('ORDER BY', skipped);
+      const sign = qs.dir === 'DESC' ? -1 : 1;
+      rows.sort((a, b) => sign * cmp(a[qs.order], b[qs.order]) || 0);
+      const first = new Map(rows.map(r => [r, trOf(r).getBoundingClientRect().top]));
+      rows.forEach(r => tbody.appendChild(trOf(r)));
+      rows.forEach(r => {
+        const tr = trOf(r), dy = first.get(r) - tr.getBoundingClientRect().top;
+        if (dy) tr.animate([{ transform: `translateY(${dy}px)` }, { transform: '无' }], { duration: dur(650), easing: 'ease-in-out' });
+      });
+      $('qbCap').textContent = L(`ORDER BY ${qs.order} ${qs.dir}：行已排好序，${qs.dir === 'ASC' ? '从小到大' : '从大到小'}。`,
+                                 `ORDER BY ${qs.order} ${qs.dir}：这里展示的是稳定排序；数据库只保证按列出的键排序。`);
+      await sleep(1000); if (!alive()) return;
+    }
+    if (qs.limit) {
+      setSteps('LIMIT', skipped);
+      const keep = rows.slice(qs.offset, qs.offset + qs.limit);
+      const cut = rows.filter(r => !keep.includes(r));
+      cut.forEach(r => trOf(r).classList.add('cut'));
+      $('qbCap').textContent = qs.offset
+        ? `LIMIT ${qs.limit} OFFSET ${qs.offset}：先跳过 ${qs.offset} 行，再保留接下来的 ${qs.limit} 行。`
+        : L(`LIMIT ${qs.limit}：只保留前 ${qs.limit} 行，其余的被截掉。`, `LIMIT ${qs.limit}：前 ${qs.limit} 行保留，其余截断。`);
+      await sleep(1000); if (!alive()) return;
+      cut.forEach(r => trOf(r).remove());
+      rows = keep;
+    }
+    setSteps('DONE', skipped);
+    $('qbCap').textContent = L(`完成：返回了 ${rows.length} 行。`, `结果：${rows.length} 行。`);
+    $('qbRun').disabled = false;
+
+    // explain what happened
+    const notes = [];
+    if (!w.f && !qs.order && !qs.limit) notes.push(L('没有 WHERE、没有 ORDER BY、也没有 LIMIT：你会拿到所有行，顺序就是数据库找到它们的顺序。', '全表扫描且不排序：行的顺序取决于执行计划。'));
+    if (w.nullNote) notes.push(L('有些行在这一列上是 NULL。NULL 既不等于也不“不等于”任何值，所以这些行被丢掉了。',
+      `${qs.table === 'customers' ? 'city' : 'rating'} 为 NULL 的行求值结果是 NULL 而不是 TRUE，所以被 WHERE 丢弃。想包含它们，请用 IS NULL 或 IS DISTINCT FROM。`));
+    if (qs.limit && !qs.order) notes.push(L('没有 ORDER BY 的 LIMIT 会给你一些行，但具体是哪些行没有保证。加上 ORDER BY 才能让结果可预期。',
+      '没有 ORDER BY 的 LIMIT 是不确定的：数据库可能返回任意满足条件的行。'));
+    if (qs.order && rows.length && level === 'advanced') {
+      const all = t.rows.filter(r => !w.f || w.f(r) === true);
+      if (all.some(r => r[qs.order] === null)) notes.push(`这里 NULL 排在${qs.dir === 'ASC' ? '最后' : '最前'}，和 PostgreSQL 一致。MySQL 和 SQLite 在 ASC 中把 NULL 排在最前。加上 NULLS FIRST 或 NULLS LAST 可以写明意图。`);
+      if (qs.limit) {
+        const sign = qs.dir === 'DESC' ? -1 : 1;
+        const sorted = all.sort((a, b) => sign * cmp(a[qs.order], b[qs.order]));
+        const edge = qs.offset + qs.limit;
+        if (sorted[edge] && sorted[edge - 1] && sorted[edge][qs.order] === sorted[edge - 1][qs.order])
+          notes.push(`截断处有并列：LIMIT 边界两侧有两行的 ${qs.order} 都等于 ${sorted[edge][qs.order] === null ? 'NULL' : sorted[edge][qs.order]}，所以返回哪一行是未定义的。加一个决胜键：ORDER BY ${qs.order} ${qs.dir}, id。`);
+      }
+    }
+    if (!notes.length) notes.push(L('改一个选项再运行一次，看看结果怎么变。', '试试虚线边框的选项，看看边界情形。'));
+    $('qbInsight').className = 'insight' + (notes.length > 1 || w.nullNote ? ' warn' : '');
+    $('qbInsight').innerHTML = notes.map(n => `<p>${esc(n)}</p>`).join('');
+
+    queriesRun.add(buildSql());
+    $('qbCounter').innerHTML = L(`已运行的不同查询：<b>${Math.min(queriesRun.size, 3)} / 3</b>`, `已运行的不同查询：<b>${Math.min(queriesRun.size, 3)} / 3</b>`);
+    updateProgress();
+  }
+  $('qbRun').addEventListener('click', () => { runQuery().finally(() => { $('qbRun').disabled = false; }); });
+
+  /* =========================================================
+     UNIT 2: JOINs
+     ========================================================= */
+  let joinType = 'INNER', joinFilter = '无';
+  const JOIN_TYPES = [
+    { v: 'INNER', label: 'INNER JOIN' },
+    { v: 'LEFT', label: 'LEFT JOIN' },
+    { v: 'RIGHT', label: 'RIGHT JOIN', adv: true },
+    { v: 'FULL', label: 'FULL OUTER JOIN', adv: true },
+  ];
+  const JOIN_FILTERS = [
+    { v: '无', label: '无', txt: true },
+    { v: 'where', label: 'WHERE o.amount > 50' },
+    { v: 'on', label: 'ON … AND o.amount > 50' },
+  ];
+  const big = (o) => o.amount > 50;
+
+  function joinSql() {
+    const on = joinFilter === 'on' ? 'ON o.customer_id = c.id AND o.amount > 50' : 'ON o.customer_id = c.id';
+    const kw = joinType === 'FULL' ? 'FULL OUTER JOIN' : `${joinType} JOIN`;
+    return `SELECT c.id, c.name, o.id AS order_id, o.amount\nFROM customers c\n${kw} orders o\n  ${on}` +
+      (joinFilter === 'where' ? '\nWHERE o.amount > 50' : '') + '\nORDER BY c.id, o.id;';
+  }
+
+  // Compute the join result: rows of { c, o } with nulls for missing sides.
+  function computeJoin() {
+    const match = (c, o) => o.customer_id === c.id && (joinFilter !== 'on' || big(o));
+    const out = [];
+    const usedO = new Set();
+    for (const c of CUSTOMERS) {
+      const ms = ORDERS.filter(o => match(c, o));
+      ms.forEach(o => { out.push({ c, o }); usedO.add(o.id); });
+      if (!ms.length && (joinType === 'LEFT' || joinType === 'FULL')) out.push({ c: null, o: null, lc: c });
+    }
+    for (const o of ORDERS) if (!usedO.has(o.id) && (joinType === 'RIGHT' || joinType === 'FULL')) out.push({ c: null, o, ro: true });
+    // normalise left-only rows
+    out.forEach(r => { if (r.lc) { r.c = r.lc; r.leftOnly = true; } if (r.ro) r.rightOnly = true; });
+    // ORDER BY c.id, o.id (NULLs last)
+    out.sort((a, b) => cmp(a.c ? a.c.id : null, b.c ? b.c.id : null) || cmp(a.o ? a.o.id : null, b.o ? b.o.id : null));
+    return out;
+  }
+
+  function renderJoinTables(result) {
+    const matchedC = new Set(result.filter(r => r.c && r.o).map(r => r.c.id));
+    const matchedO = new Set(result.filter(r => r.c && r.o).map(r => r.o.id));
+    const keptC = new Set(result.filter(r => r.leftOnly).map(r => r.c.id));
+    const keptO = new Set(result.filter(r => r.rightOnly).map(r => r.o.id));
+    const clsC = (c) => matchedC.has(c.id) ? '' : keptC.has(c.id) ? 'kept' : 'dropped';
+    const clsO = (o) => matchedO.has(o.id) ? '' : keptO.has(o.id) ? 'kept' : 'dropped';
+    $('jLeft').innerHTML = `<thead><tr><th class="c">id</th><th class="c">name</th></tr></thead><tbody>${
+      CUSTOMERS.map(c => `<tr data-c="${c.id}" class="${clsC(c)}"><td class="num">${c.id}</td><td>${c.name}</td></tr>`).join('')}</tbody>`;
+    $('jRight').innerHTML = `<thead><tr><th class="o">id</th><th class="o">customer_id</th><th class="o">amount</th></tr></thead><tbody>${
+      ORDERS.map(o => `<tr data-o="${o.id}" class="${clsO(o)}"><td class="num">${o.id}</td>${td(o.customer_id, 'customer_id')}<td class="num">${o.amount}</td></tr>`).join('')}</tbody>`;
+  }
+
+  function drawJoinLines(result) {
+    const svg = $('jSvg');
+    svg.innerHTML = '';
+    const box = $('joinViz').getBoundingClientRect();
+    const pairs = new Set(result.filter(r => r.c && r.o).map(r => r.c.id + ':' + r.o.id));
+    let k = 0;
+    for (const o of ORDERS) {
+      if (o.customer_id === null) continue;
+      const lt = $('jLeft').querySelector(`tr[data-c="${o.customer_id}"]`);
+      const rt = $('jRight').querySelector(`tr[data-o="${o.id}"]`);
+      if (!lt || !rt) continue;
+      const a = lt.getBoundingClientRect(), b = rt.getBoundingClientRect();
+      const x1 = a.right - box.left, y1 = a.top + a.height / 2 - box.top;
+      const x2 = b.left - box.left, y2 = b.top + b.height / 2 - box.top;
+      const mx = (x1 + x2) / 2;
+      const on = pairs.has(o.customer_id + ':' + o.id);
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+      p.setAttribute('class', on ? 'rel' : 'rel faint');
+      if (on) p.style.animationDelay = `${k++ * 0.04}s`;
+      svg.appendChild(p);
+      if (on) for (const [x, y] of [[x1, y1], [x2, y2]]) {
+        const d = document.createElementNS(NS, 'circle');
+        d.setAttribute('cx', x); d.setAttribute('cy', y); d.setAttribute('r', 2.6); d.setAttribute('class', 'dot');
+        svg.appendChild(d);
+      }
+    }
+  }
+
+  let joinRun = 0;
+  async function renderJoin() {
+    const id = ++joinRun;
+    const tried = () => { joinsTried.add(joinType); updateProgress(); };
+    pills($('joinType'), JOIN_TYPES, it => it.v === joinType, it => { tried(); joinType = it.v; tried(); renderJoin(); });
+    pills($('joinFilter'), JOIN_FILTERS, it => it.v === joinFilter, it => { tried(); joinFilter = it.v; renderJoin(); });
+    $('joinSql').textContent = joinSql();
+    const result = computeJoin();
+    renderJoinTables(result);
+    drawJoinLines(result);
+
+    const rowCls = (r) => (!r.c || !r.o || r.leftOnly) ? 'nullrow pop' : 'pop';
+    const show = (rows, fadeIds) => {
+      $('joinRes').innerHTML = `<thead><tr><th class="c">c.id</th><th class="c">c.name</th><th class="o">order_id</th><th class="o">amount</th></tr></thead><tbody>${
+        rows.map((r, i) => {
+          const o = r.leftOnly ? null : r.o;
+          return `<tr class="${rowCls(r)}${fadeIds && fadeIds.has(i) ? ' out' : ''}" style="--d:${i}">${td(r.c ? r.c.id : null, 'id')}${td(r.c ? r.c.name : null, 'name')}${td(o ? o.id : null, 'id')}${td(o ? o.amount : null, 'amount')}</tr>`;
+        }).join('')}</tbody>`;
+      if (!reduced) $('joinRes').querySelectorAll('tr.pop td').forEach(cell => { cell.style.animationDelay = `${cell.parentElement.style.getPropertyValue('--d') * 0.03}s`; });
+    };
+    show(result);
+    let final = result;
+    if (joinFilter === 'where') {
+      await sleep(900); if (id !== joinRun) return;
+      const fails = new Set();
+      result.forEach((r, i) => { const o = r.leftOnly ? null : r.o; if (!o || !big(o)) fails.add(i); });
+      $('joinRes').querySelectorAll('tbody tr').forEach((tr, i) => { if (fails.has(i)) tr.classList.add('out'); });
+      final = result.filter((r, i) => !fails.has(i));
+      await sleep(1000); if (id !== joinRun) return;
+      $('joinRes').querySelectorAll('tbody tr.out').forEach(tr => tr.remove());
+    }
+    const nulls = final.filter(r => r.leftOnly || !r.c).length;
+    $('joinCount').innerHTML = L(`共 <b>${final.length}</b> 行，其中 <b>${nulls}</b> 行用 NULL 补齐（橙色）。`, `<b>${final.length}</b> 行 · <b>${nulls}</b> 行用 NULL 补齐`);
+
+    const msg = {
+      INNER: L('INNER JOIN 只保留能配上对的行。Gus 和 Hana 没有订单，订单 10 没有顾客，所以这三个都被排除了（变淡）。',
+               'INNER JOIN 只输出满足 ON 谓词的配对。两侧没有匹配的行（Gus、Hana、订单 10）都会消失。'),
+      LEFT: L('LEFT JOIN 会保留每一位顾客。Gus 和 Hana 没有订单，所以他们的订单列用 NULL 填充。订单 10 没有顾客，所以仍然被排除。',
+              'LEFT JOIN 保留左表的每一行；没有匹配的顾客在右侧用 NULL 补齐。右表中没有匹配的行（订单 10）被丢弃。'),
+      RIGHT: 'RIGHT JOIN 改为保留每一笔订单。访客订单 10 出现了，顾客列为 NULL，而 Gus 和 Hana 被丢弃。它等价于 orders LEFT JOIN customers。',
+      FULL: 'FULL OUTER JOIN 保留两侧所有没有匹配的行：Gus 和 Hana 的订单列为 NULL，订单 10 的顾客列为 NULL。',
+    }[joinType];
+    let extra = '', kind = '';
+    if (joinFilter === 'where' && joinType !== 'INNER') {
+      extra = joinType === 'LEFT'
+        ? ' 加上 WHERE o.amount > 50 后，用 NULL 补齐的行无法通过过滤（NULL > 50 不是 TRUE），订单都很小的顾客也一样。外连接变成了 INNER JOIN。把条件挪进 ON，才能保留每一位顾客。'
+        : joinType === 'FULL'
+          ? '加上 WHERE o.amount > 50 后，amount 为 NULL 的行都无法通过过滤（NULL > 50 不为 TRUE）：Gus 和 Hana 消失了，订单金额都很小的客户也消失了。而没有匹配客户、金额大于 50 的订单（比如订单 10）保留了下来。FULL JOIN 现在的行为等同于 RIGHT JOIN。把条件移到 ON 里就能保留每一行。'
+          : ' WHERE 在连接之后执行，所以它会去掉小额订单，这里正符合预期：过滤条件作用在被保留的那一侧。';
+      kind = joinType === 'RIGHT' ? '' : 'bad';
+    } else if (joinFilter === 'on' && joinType !== 'INNER') {
+      extra = joinType === 'RIGHT'
+        ? ' 现在条件成了被保留一侧匹配规则的一部分：小额订单仍会保留，只是没有对应的顾客。'
+        : joinType === 'FULL'
+          ? '条件放在 ON 里时，它只决定哪些订单算作匹配。每个客户都会保留，Dev 和 Fay 得到 NULL 行，而小额订单则单独出现，客户列为 NULL。'
+          : ' 条件放在 ON 里时，它只决定哪些订单算作匹配。每位顾客都会保留；只有小额订单的 Dev 和 Fay 现在得到的是 NULL 行。';
+      kind = 'good';
+    } else if (joinFilter !== '无') {
+      extra = ' 对 INNER JOIN 来说，条件放在 ON 里还是 WHERE 里，结果都一样。';
+    }
+    $('joinInsight').className = 'insight ' + kind;
+    $('joinInsight').textContent = msg + (level === 'advanced' ? extra : '');
+  }
+  let resizeT;
+  addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => drawJoinLines(computeJoin()), 120); });
+
+  /* =========================================================
+     UNIT 3: GROUP BY
+     ========================================================= */
+  const gs = { by: 'status', agg: 'COUNT(*)', where: false, having: '无' };
+  const AGGS = [
+    { v: 'COUNT(*)' }, { v: 'SUM(amount)' }, { v: 'AVG(amount)' },
+    { v: 'COUNT(rating)', adv: true }, { v: 'AVG(rating)', adv: true },
+  ];
+  const HAVINGS = [
+    { v: '无', label: '无', txt: true },
+    { v: 'COUNT(*) >= 2', label: 'COUNT(*) >= 2' },
+    { v: 'SUM(amount) > 100', label: 'SUM(amount) > 100' },
+  ];
+  const round2 = (x) => Math.round(x * 100) / 100;
+  function aggregate(fn, rows) {
+    const vals = (col) => rows.map(r => r[col]).filter(v => v !== null);
+    switch (fn) {
+      case 'COUNT(*)': return rows.length;
+      case 'COUNT(rating)': return vals('rating').length;
+      case 'SUM(amount)': return vals('amount').reduce((a, b) => a + b, 0);
+      case 'AVG(amount)': { const v = vals('amount'); return v.length ? round2(v.reduce((a, b) => a + b, 0) / v.length) : null; }
+      case 'AVG(rating)': { const v = vals('rating'); return v.length ? round2(v.reduce((a, b) => a + b, 0) / v.length) : null; }
+    }
+  }
+  const havingPass = (rows) => gs.having === '无' ? true
+    : gs.having === 'COUNT(*) >= 2' ? rows.length >= 2 : aggregate('SUM(amount)', rows) > 100;
+
+  function groupSql() {
+    return `SELECT ${gs.by}, ${gs.agg}\nFROM orders` + (gs.where ? `\nWHERE status <> 'refunded'` : '') +
+      `\nGROUP BY ${gs.by}` + (gs.having !== '无' ? `\nHAVING ${gs.having}` : '') + ';';
+  }
+
+  function chipHTML(o) {
+    const showRating = gs.agg.includes('rating');
+    const key = gs.by === 'status' ? o.status : (o.customer_id === null ? 'NULL' : 'c' + o.customer_id);
+    const r = showRating ? ` <span class="r ${o.rating === null ? 'n' : ''}">★${o.rating === null ? 'NULL' : o.rating}</span>` : ` <span class="r">$${o.amount}</span>`;
+    return `<span class="gchip" data-id="${o.id}" title="${esc(gs.by)} = ${esc(key)}"><b>#${o.id}</b> ${esc(key)}${r}</span>`;
+  }
+
+  function renderGB() {
+    $('gb').innerHTML = ['GROUP BY', 'SELECT', 'WHERE', 'HAVING'].map(k => `<div class="qb-row"><div class="kw">${k}</div><div class="pills" data-k="${k}"></div></div>`).join('');
+    const host = (k) => $('gb').querySelector(`[data-k="${k}"]`);
+    const refresh = () => { renderGB(); resetGB(); };
+    pills(host('GROUP BY'), [{ label: 'status', v: 'status' }, { label: 'customer_id', v: 'customer_id' }], it => it.v === gs.by, it => { gs.by = it.v; refresh(); });
+    pills(host('SELECT'), AGGS.map(a => ({ label: a.v, v: a.v, adv: a.adv })), it => it.v === gs.agg, it => { gs.agg = it.v; refresh(); });
+    pills(host('WHERE'), [{ label: NO_FILTER, txt: true, v: false }, { label: "status <> 'refunded'", v: true }], it => it.v === gs.where, it => { gs.where = it.v; refresh(); });
+    pills(host('HAVING'), HAVINGS, it => it.v === gs.having, it => { gs.having = it.v; refresh(); });
+    $('gbSql').textContent = groupSql();
+  }
+
+  let gRun = 0;
+  function resetGB() {
+    gRun++;
+    $('gbSrc').innerHTML = ORDERS.map(chipHTML).join('');
+    $('gbBuckets').innerHTML = '';
+    $('gbRes').innerHTML = '';
+    $('gbCap').textContent = '';
+    $('gbInsight').className = 'insight';
+    $('gbInsight').textContent = L('点“运行”，看数据行怎样被放进各个桶。', '点“运行”来求值。');
+  }
+
+  async function runGroup() {
+    resetGB();
+    const id = gRun;
+    const alive = () => id === gRun;
+    $('gbRun').disabled = true;
+    let rows = ORDERS.slice();
+    const chip = (o) => $('gbSrc').querySelector(`[data-id="${o.id}"]`) || $('gbBuckets').querySelector(`[data-id="${o.id}"]`);
+    if (gs.where) {
+      const fails = rows.filter(o => o.status === 'refunded');
+      fails.forEach(o => chip(o).classList.add('out'));
+      $('gbCap').textContent = L(`WHERE 先执行：分组前先移除 ${fails.length} 笔已退款的订单。`, `WHERE 在分组前过滤行：移除了 ${fails.length} 行。`);
+      rows = rows.filter(o => o.status !== 'refunded');
+      await sleep(1100); if (!alive()) return;
+    }
+    // build buckets
+    const keyOf = (o) => o[gs.by];
+    const keys = [...new Set(rows.map(keyOf))].sort(cmp);
+    $('gbBuckets').innerHTML = keys.map((k, i) => `<div class="bucket" data-k="${i}" style="animation-delay:${i * 0.05}s"><div class="bh">${esc(gs.by)} = ${k === null ? '<span class="null">NULL</span>' : esc(k)}</div><div class="bl"></div><div class="agg"></div></div>`).join('');
+    $('gbCap').textContent = L(`GROUP BY ${gs.by}：每个不同的值一个桶，共 ${keys.length} 个桶。`, `GROUP BY ${gs.by}：共 ${keys.length} 组${keys.includes(null) ? '，所有 NULL 键归入同一组' : ''}。`);
+    await sleep(500); if (!alive()) return;
+    // move chips with a FLIP animation
+    const moves = rows.map(o => {
+      const el = chip(o);
+      const first = el.getBoundingClientRect();
+      $('gbBuckets').querySelector(`[data-k="${keys.indexOf(keyOf(o))}"] .bl`).appendChild(el);
+      return { el, first };
+    });
+    const anims = moves.map(({ el, first }, i) => {
+      const last = el.getBoundingClientRect();
+      return el.animate([{ transform: `translate(${first.left - last.left}px, ${first.top - last.top}px)` }, { transform: '无' }],
+        { duration: dur(700), delay: reduced ? 0 : i * 45, easing: 'ease-in-out', fill: 'backwards' }).finished;
+    });
+    await Promise.all(anims); if (!alive()) return;
+    $('gbSrc').querySelectorAll('.out').forEach(e => e.remove());
+
+    // aggregates
+    const groups = keys.map(k => ({ k, rows: rows.filter(o => keyOf(o) === k) }));
+    groups.forEach((g, i) => {
+      g.v = aggregate(gs.agg, g.rows);
+      $('gbBuckets').querySelector(`[data-k="${i}"] .agg`).innerHTML = `<span style="animation-delay:${i * 0.08}s">${esc(gs.agg)} = ${g.v === null ? 'NULL' : g.v}</span>`;
+    });
+    $('gbCap').textContent = L(`${gs.agg} 对每个桶各算一次。`, `${gs.agg} 按组分别求值。`);
+    await sleep(900); if (!alive()) return;
+
+    let kept = groups;
+    if (gs.having !== '无') {
+      kept = groups.filter(g => havingPass(g.rows));
+      groups.forEach((g, i) => $('gbBuckets').querySelector(`[data-k="${i}"]`).classList.add(havingPass(g.rows) ? 'kept' : 'dropped'));
+      $('gbCap').textContent = L(`HAVING ${gs.having}：不满足条件的桶被整个丢弃。${groups.length} 个桶中剩下 ${kept.length} 个。`, `HAVING ${gs.having}：淘汰了 ${groups.length - kept.length} 组。`);
+      await sleep(800); if (!alive()) return;
+    }
+    $('gbRes').innerHTML = tableHTML([gs.by, gs.agg], kept.map(g => [g.k, g.v]), { cls: 'o', rowCls: () => 'pop' });
+    if (!gs.having || gs.having === '无') $('gbCap').textContent = L(`完成：${kept.length} 个桶变成了 ${kept.length} 行结果。`, `${kept.length} 组，输出 ${kept.length} 行。`);
+
+    const notes = [];
+    notes.push(L(`进去 ${rows.length} 笔订单，出来 ${kept.length} 行：每个桶一行。`, `${rows.length} 行输入被压缩成 ${kept.length} 行输出。`));
+    if (gs.by === 'customer_id') notes.push(L('订单 10 没有顾客，所以它单独进了一个桶：NULL。', 'GROUP BY 把所有 NULL 视为同一组，尽管 NULL = NULL 并不是 TRUE。'));
+    if (gs.agg === 'COUNT(rating)') notes.push('COUNT(rating) 会跳过 NULL。在全部订单上，COUNT(*) 是 11，而 COUNT(rating) 是 7，因为有 4 笔订单还没有评分。');
+    if (gs.agg === 'AVG(rating)') notes.push('AVG(rating) 除以的是非 NULL 评分的个数。如果一个桶的评分全是 NULL，结果是 NULL 而不是 0。只有当缺失的评分确实等于 0 时，才用 COALESCE(rating, 0)。');
+    if (gs.having !== '无' && gs.where) notes.push(L('WHERE 在分组前移除了行，HAVING 在分组后移除了整个桶。', '行级过滤优先用 WHERE：它在聚合开始之前就缩小了输入。HAVING 用于针对聚合结果的条件。'));
+    else if (gs.having !== '无') notes.push(L('HAVING 能用 COUNT 或 SUM，因为它在桶建好之后才执行。WHERE 做不到。', 'HAVING 能看到聚合值，因为它在 GROUP BY 之后执行。在 WHERE 里写聚合函数会报错。'));
+    $('gbInsight').className = 'insight good';
+    $('gbInsight').innerHTML = notes.map(n => `<p>${esc(n)}</p>`).join('');
+    $('gbRun').disabled = false;
+
+    groupsRun.add(groupSql());
+    if (gs.having !== '无') saved.groupHaving = true;
+    updateProgress();
+  }
+  $('gbRun').addEventListener('click', () => { runGroup().finally(() => { $('gbRun').disabled = false; }); });
+
+  // Advanced: GROUP BY versus window functions
+  let winMode = 'group';
+  function renderWin() {
+    pills($('winPick'), [{ v: 'group', label: 'GROUP BY customer_id' }, { v: 'win', label: 'SUM(...) OVER (PARTITION BY ...)' }], it => it.v === winMode, it => { winMode = it.v; renderWin(); });
+    if (winMode === 'group') {
+      $('winSql').textContent = 'SELECT customer_id, COUNT(*) AS n, SUM(amount) AS total\nFROM orders\nGROUP BY customer_id\nORDER BY customer_id;';
+      const keys = [...new Set(ORDERS.map(o => o.customer_id))].sort(cmp);
+      $('winTable').innerHTML = tableHTML(['customer_id', 'n', 'total'], keys.map(k => {
+        const rs = ORDERS.filter(o => o.customer_id === k);
+        return [k, rs.length, rs.reduce((a, o) => a + o.amount, 0)];
+      }), { cls: 'o', rowCls: (r) => 'pop' + (r[0] === null ? ' nullrow' : '') });
+      $('winInsight').textContent = `11 笔订单被压缩成 ${keys.length} 行。单笔订单的 id 没有了：这里不能同时 SELECT id。`;
+    } else {
+      $('winSql').textContent = 'SELECT id, customer_id, amount,\n       ROW_NUMBER() OVER w AS n,\n       SUM(amount)  OVER w AS running\nFROM orders\nWINDOW w AS (PARTITION BY customer_id ORDER BY id)\nORDER BY customer_id, id;';
+      const sorted = ORDERS.slice().sort((a, b) => cmp(a.customer_id, b.customer_id) || a.id - b.id);
+      let prev, n = 0, run = 0, band = false;
+      const rows = sorted.map(o => {
+        if (o.customer_id !== prev) { n = 0; run = 0; band = !band; prev = o.customer_id; }
+        n++; run += o.amount;
+        return { cells: [o.id, o.customer_id, o.amount, n, run], band };
+      });
+      $('winTable').innerHTML = tableHTML(['id', 'customer_id', 'amount', 'n', 'running'], rows.map(r => r.cells), {
+        cls: 'o', rowCls: (r, i) => 'pop' + (rows[i].band ? ' band' : '') + (r[1] === null ? ' nullrow' : ''),
+      });
+      $('winInsight').textContent = '11 行全部保留。每个分区（带底色的色带）的 ROW_NUMBER 都从 1 重新开始，累计 SUM 按 id 顺序在同一位顾客内累加。典型用途：每组取前 N 名、累计总额，以及把一行和它所在的组做比较。';
+    }
+  }
+
+  /* =========================================================
+     UNIT 4: logical order
+     ========================================================= */
+  const PIPE_SQL = [
+    'SELECT customer_id, SUM(amount) AS total',
+    'FROM orders',
+    "WHERE status <> 'refunded'",
+    'GROUP BY customer_id',
+    'HAVING COUNT(*) >= 2',
+    'ORDER BY total DESC',
+    'LIMIT 2;',
+  ];
+  // Run order -> line index in PIPE_SQL.
+  const PIPE = [
+    { kw: 'FROM', line: 1 },
+    { kw: 'WHERE', line: 2 },
+    { kw: 'GROUP BY', line: 3 },
+    { kw: 'HAVING', line: 4 },
+    { kw: 'SELECT', line: 0 },
+    { kw: 'ORDER BY', line: 5 },
+    { kw: 'LIMIT', line: 6 },
+  ];
+  function pipeData() {
+    const from = ORDERS;
+    const where = from.filter(o => o.status !== 'refunded');
+    const keys = [...new Set(where.map(o => o.customer_id))].sort(cmp);
+    const groups = keys.map(k => ({ k, rows: where.filter(o => o.customer_id === k) }));
+    const having = groups.filter(g => g.rows.length >= 2);
+    const select = having.map(g => ({ customer_id: g.k, total: g.rows.reduce((a, o) => a + o.amount, 0) }));
+    const order = select.slice().sort((a, b) => b.total - a.total);
+    const limit = order.slice(0, 2);
+    return { from, where, groups, having, select, order, limit };
+  }
+  const PD = pipeData();
+  const ROWS_IN_GROUP = '组内的行';
+  function pipeStage(i) {
+    const ids = (g) => g.rows.map(o => '#' + o.id).join(', ');
+    const sel = (rs) => tableHTML(['customer_id', 'total'], rs.map(r => [r.customer_id, r.total]), { cls: 'o' });
+    switch (i) {
+      case 0: return { n: PD.from.length, t: tableHTML(['id', 'customer_id', 'amount', 'status'], PD.from.map(o => [o.id, o.customer_id, o.amount, o.status]), { cls: 'o' }),
+        text: L('FROM：数据库先把表加载进来。11 笔订单全部摆在面前，所有列都在。',
+                'FROM（以及所有 JOIN）构建出工作集：11 行，所有列。此时其他东西都还不存在。') };
+      case 1: return { n: PD.where.length, t: tableHTML(['id', 'customer_id', 'amount', 'status'], PD.where.map(o => [o.id, o.customer_id, o.amount, o.status]), { cls: 'o' }),
+        text: L('WHERE：逐行单独检查。2 笔已退款的订单被丢掉，还剩 9 行。',
+                'WHERE 在任何分组之前逐行求值，所以不能使用聚合函数或 SELECT 中的别名。还剩 9 行。') };
+      case 2: return { n: PD.groups.length, t: tableHTML(['customer_id', ROWS_IN_GROUP], PD.groups.map(g => [g.k, ids(g)]), { cls: 'o' }),
+        text: L('GROUP BY：customer_id 相同的行进入同一个桶。9 行变成 5 个桶，其中一个是 NULL。',
+                'GROUP BY 把行划分成 5 组（NULL 自成一组）。从这里开始，每组就是一行。') };
+      case 3: return { n: PD.having.length, t: tableHTML(['customer_id', ROWS_IN_GROUP], PD.having.map(g => [g.k, ids(g)]), { cls: 'o' }),
+        text: L('HAVING：检查整个桶。只留下至少有 2 笔订单的顾客：3 个桶。',
+                'HAVING 过滤分组，可以使用聚合函数。有 3 组满足 COUNT(*) >= 2。') };
+      case 4: return { n: PD.select.length, t: sel(PD.select),
+        text: L('SELECT：直到这时才计算输出列，名字“total”也是这时才创建的。所以更早执行的 WHERE 用不了它。',
+                'SELECT 计算输出表达式并定义别名（total）。更早的子句执行时别名还不存在。DISTINCT 也在这一步生效。') };
+      case 5: return { n: PD.order.length, t: sel(PD.order),
+        text: L('ORDER BY：在 SELECT 之后执行，所以可以用名字“total”。总额最大的排在最前。',
+                'ORDER BY 在 SELECT 之后执行，所以在标准 SQL 中，它是唯一能引用输出别名的子句。') };
+      case 6: return { n: PD.limit.length, t: sel(PD.limit),
+        text: L('LIMIT：最后只保留前 2 行。这就是答案。',
+                'LIMIT 最后才生效。ORDER BY + LIMIT 时，很多引擎会用 top-N 排序，根本不对整个结果集排序。') };
+    }
+  }
+
+  let pipeAt = -1, pipeTimer = 0;
+  function renderPipe() {
+    $('pipeSql').innerHTML = PIPE_SQL.map((s, li) => {
+      const step = PIPE.findIndex(p => p.line === li);
+      const set = step <= pipeAt;
+      return `<div class="sqlline${PIPE[pipeAt] && PIPE[pipeAt].line === li ? ' on' : ''}"><span class="ord${set ? ' set' : ''}">${set ? step + 1 : ''}</span><code>${esc(s)}</code></div>`;
+    }).join('');
+    $('pipe').innerHTML = PIPE.map((p, i) => {
+      const cls = i === pipeAt ? 'on' : i < pipeAt ? 'past' : '';
+      const c = i <= pipeAt ? pipeStage(i).n : '';
+      const unit = i === 2 || i === 3 ? L('个桶', '组') : '行';
+      return `<div class="stage ${cls}"><span class="n">${i + 1}</span><span class="k">${p.kw}</span><span class="c">${c === '' ? '' : `${c} ${unit}`}</span></div>`;
+    }).join('');
+    if (pipeAt < 0) {
+      $('pipeInsight').className = 'insight';
+      $('pipeInsight').textContent = L('带编号的圆圈会显示数据库实际执行每一行的顺序。点“下一步”。',
+                                       '逐步走完逻辑处理顺序。圆圈显示每个子句的执行顺序。');
+      $('pipeSnap').innerHTML = '';
+    } else {
+      const s = pipeStage(pipeAt);
+      $('pipeInsight').className = 'insight' + (pipeAt === PIPE.length - 1 ? ' good' : '');
+      $('pipeInsight').textContent = s.text;
+      $('pipeSnap').innerHTML = `<div class="label">${L('数据库此刻手里的数据', '中间结果')}</div><div class="tbl-wrap"><table class="data fit">${s.t}</table></div>`;
+    }
+    $('pipeStep').disabled = pipeAt >= PIPE.length - 1;
+    if (pipeAt >= PIPE.length - 1 && !saved.pipeDone) { saved.pipeDone = true; updateProgress(); }
+  }
+  $('pipeStep').addEventListener('click', () => { clearInterval(pipeTimer); pipeAt = Math.min(pipeAt + 1, PIPE.length - 1); renderPipe(); });
+  $('pipeReset').addEventListener('click', () => { clearInterval(pipeTimer); pipeAt = -1; renderPipe(); });
+  $('pipePlay').addEventListener('click', () => {
+    clearInterval(pipeTimer);
+    pipeAt = -1; renderPipe();
+    pipeTimer = setInterval(() => {
+      pipeAt++; renderPipe();
+      if (pipeAt >= PIPE.length - 1) clearInterval(pipeTimer);
+    }, reduced ? 200 : 1300);
+  });
+
+  // The alias question
+  const ALIAS = {
+    beginner: {
+      sql: 'SELECT id, amount * 0.9 AS sale_price\nFROM orders\nWHERE sale_price > 50;',
+      q: '这条查询会报错。为什么？',
+      opts: ['sale_price 拼错了', 'WHERE 在 SELECT 之前执行，所以这时名字 sale_price 还不存在', 'SQL 里不能做乘法', 'WHERE 只能用于文本列'], a: 1,
+      why: 'WHERE 在 SELECT 之前执行。改为重复写一遍计算：WHERE amount * 0.9 > 50。ORDER BY sale_price 则可以，因为 ORDER BY 在 SELECT 之后执行。',
+    },
+    advanced: {
+      sql: 'SELECT customer_id, SUM(amount) AS total\nFROM orders\nGROUP BY customer_id\n???  -- 哪个子句可以使用 “total”？',
+      q: '在标准 SQL 中，哪个子句可以引用别名 total？',
+      opts: ['WHERE total > 100', 'GROUP BY total', 'HAVING total > 100', 'ORDER BY total DESC'], a: 3,
+      why: '只有 ORDER BY 在 SELECT 之后执行。MySQL 和 SQLite 作为扩展也允许在 HAVING 中使用别名（PostgreSQL 允许在 GROUP BY 中使用），但可移植的 SQL 会重复写表达式：HAVING SUM(amount) > 100。',
+    },
+  };
+  function renderAlias() {
+    const A = ALIAS[level];
+    $('aliasBox').innerHTML = `<div class="codeblock"><div class="codeblock-head"><span>SQL</span><button class="copy">复制</button></div><pre>${esc(A.sql)}</pre></div>
+      <div class="q" style="margin-top:12px">${esc(A.q)}</div><div class="opts" id="aliasOpts"></div><div class="feedback" id="aliasFb"></div>`;
+    wireCopy($('aliasBox'));
+    A.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        $('aliasOpts').querySelectorAll('.opt').forEach((x, j) => { x.disabled = true; if (j === A.a) x.classList.add('right'); });
+        if (i !== A.a) b.classList.add('wrong');
+        $('aliasFb').className = 'feedback show ' + (i === A.a ? 'good' : 'bad');
+        $('aliasFb').innerHTML = `<b>${i === A.a ? '答对了。' : '不太对。'}</b> ${esc(A.why)}`;
+        saved.aliasDone = true; updateProgress();
+      });
+      $('aliasOpts').appendChild(b);
+    });
+  }
+
+  // Advanced: three-valued logic
+  const TVL = [
+    { e: 'NULL = NULL', a: 'NULL', why: '任何与 NULL 的比较结果都是未知，即使和 NULL 自己比较也一样。' },
+    { e: 'NULL IS NULL', a: 'TRUE', why: 'IS NULL 就是专门干这个的。它永远不会返回 NULL。' },
+    { e: "city <> 'Paris'   -- Eli 的 city 是 NULL", a: 'NULL', why: "结果未知，所以 WHERE 会丢掉 Eli。如果应该包含他，请用 city IS DISTINCT FROM 'Paris'。" },
+    { e: 'TRUE OR NULL', a: 'TRUE', why: '对于 OR，只要有一个 TRUE 就够了，不管那个未知值最终是什么。' },
+    { e: 'FALSE AND NULL', a: 'FALSE', why: '对于 AND，只要有一个 FALSE 就够了。' },
+    { e: '3 NOT IN (1, 2, NULL)', a: 'NULL', why: '它展开为 3 <> 1 AND 3 <> 2 AND 3 <> NULL。最后一部分是 NULL，所以整个表达式永远不可能是 TRUE。' },
+  ];
+  const tvlDone = new Set();
+  function renderTVL() {
+    $('tvl').innerHTML = '';
+    TVL.forEach((c, k) => {
+      const div = document.createElement('div');
+      div.className = 'qcard';
+      div.innerHTML = `<code>${esc(c.e)}</code><div class="three"><button class="btn">TRUE</button><button class="btn">FALSE</button><button class="btn">NULL</button></div><div class="why"></div>`;
+      const bs = div.querySelectorAll('.three .btn');
+      bs.forEach(b => b.addEventListener('click', () => {
+        const ok = b.textContent === c.a;
+        div.className = 'qcard ' + (ok ? 'right' : 'wrong');
+        div.querySelector('.why').innerHTML = `<b>${ok ? '答对了。' : `不太对：结果是 ${c.a}。`}</b> ${esc(c.why)}`;
+        bs.forEach(x => x.disabled = true);
+        tvlDone.add(k);
+      }));
+      $('tvl').appendChild(div);
+    });
+  }
+  const NULL_DEMOS = [
+    { label: 'city = NULL', sql: 'SELECT * FROM customers\nWHERE city = NULL;', run: () => [],
+      why: '永远是 0 行。对每一行来说 city = NULL 都是 NULL，从来不是 TRUE。很多数据库甚至都不会提醒你。', kind: 'bad' },
+    { label: 'city IS NULL', sql: 'SELECT * FROM customers\nWHERE city IS NULL;', run: () => CUSTOMERS.filter(c => c.city === null),
+      why: 'IS NULL 才是正确的判断方式。找到了 Eli。', kind: 'good' },
+    { label: 'NOT IN (subquery)', sql: 'SELECT * FROM customers\nWHERE id NOT IN (SELECT customer_id FROM orders);', run: () => [],
+      why: '0 行，尽管 Gus 和 Hana 并没有订单。访客订单在列表里放进了一个 NULL，所以 id NOT IN (…, NULL) 永远不会是 TRUE。', kind: 'bad' },
+    { label: 'NOT EXISTS', sql: 'SELECT * FROM customers c\nWHERE NOT EXISTS (\n  SELECT 1 FROM orders o WHERE o.customer_id = c.id\n);', run: () => CUSTOMERS.filter(c => !ORDERS.some(o => o.customer_id === c.id)),
+      why: 'NOT EXISTS 只问“是否存在匹配的行”，所以 orders 里的 NULL 影响不了它。找到了 Gus 和 Hana。用子查询时，优先用它而不是 NOT IN。', kind: 'good' },
+  ];
+  let nullAt = 0;
+  function renderNullDemo() {
+    pills($('nullPick'), NULL_DEMOS.map((d, i) => ({ label: d.label, v: i })), it => it.v === nullAt, it => { nullAt = it.v; renderNullDemo(); });
+    const d = NULL_DEMOS[nullAt];
+    $('nullSql').textContent = d.sql;
+    $('nullRes').innerHTML = tableHTML(['id', 'name', 'city'], d.run().map(c => [c.id, c.name, c.city]), { cls: 'c', rowCls: () => 'pop' });
+    $('nullInsight').className = 'insight ' + d.kind;
+    $('nullInsight').textContent = d.why;
+  }
+
+  // Advanced: SQL injection
+  let injMode = 'concat';
+  const INJ_PRESETS = ['Ana', "' OR '1'='1", "'; DROP TABLE customers; --", "O'Brien"];
+  function renderInj() {
+    const input = $('injInput').value;
+    pills($('injPresets'), INJ_PRESETS.map(p => ({ label: p, v: p })), it => it.v === input, it => { $('injInput').value = it.v; renderInj(); });
+    pills($('injMode'), [{ v: 'concat', label: '拼接字符串', txt: true }, { v: 'param', label: '参数化', txt: true }], it => it.v === injMode, it => { injMode = it.v; renderInj(); });
+    let rows = [], msg, kind = '', dropped = false;
+    if (injMode === 'concat') {
+      $('injCode').textContent = 'const sql =\n  "SELECT * FROM customers WHERE name = \'"\n  + name + "\'";\ndb.query(sql);';
+      const sql = `SELECT * FROM customers WHERE name = '${input}';`;
+      $('injSent').textContent = sql;
+      // The first quote in the input closes the SQL string; everything after it is parsed as SQL.
+      const q = input.indexOf("'");
+      const name = q < 0 ? input : input.slice(0, q);
+      const rest = q < 0 ? '' : input.slice(q + 1);
+      const byName = () => CUSTOMERS.filter(c => c.name === name);
+      // a SQL literal: 'text' (with '' as an escaped quote) or a number
+      const literal = (t) => {
+        const m = /^'((?:[^']|'')*)'$/.exec(t.trim());
+        if (m) return m[1].replace(/''/g, "'");
+        return /^\d+$/.test(t.trim()) ? t.trim() : null;
+      };
+      const or = /^\s*OR\s+(.*?)\s*=\s*(.*)$/is.exec(rest);
+      let orLeft = null, orRight = null;
+      if (or) {
+        const comment = /^(.*?)\s*(--|#)/s.exec(or[2]);
+        orLeft = literal(or[1]);
+        orRight = literal(comment ? comment[1] : or[2] + "'");   // the page appends a closing quote
+      }
+      if (q < 0) {
+        rows = CUSTOMERS.filter(c => c.name === input);
+        msg = rows.length ? '普通输入可以正常工作。危险在于输入变成了 SQL 文本的一部分。' : '没有叫这个名字的顾客。';
+      } else if (/^\s*;\s*DROP\s+TABLE/i.test(rest)) {
+        dropped = true;
+        msg = '引号结束了字符串，分号结束了语句，DROP TABLE 作为第二条语句执行。customers 表会被删除。-- 把后面的内容变成了注释。';
+        kind = 'bad';
+      } else if (/^\s*(--|#)/.test(rest)) {
+        rows = byName();
+        msg = '引号闭合了字符串，-- 把查询的其余部分变成了注释。名字后面的任何检查（例如 AND password = …）都被悄悄跳过了。登录验证就是这样被绕过的。';
+        kind = 'bad';
+      } else if (orLeft !== null && orRight !== null && orLeft === orRight) {
+        rows = CUSTOMERS.slice();
+        msg = '输入闭合了字符串，并加上了一个对每一行都为 TRUE 的 OR 比较。所有客户的数据都泄露了。同样的手法可以绕过登录检查。';
+        kind = 'bad';
+      } else if (orLeft !== null && orRight !== null) {
+        rows = byName();
+        msg = '注入的 OR 是合法的 SQL，但这个比较恰好为假，所以只返回名字完全匹配的行。攻击者只要换一个永远为真的比较就行了。';
+        kind = 'bad';
+      } else {
+        msg = '语法错误：输入里的引号提前结束了字符串。像 O’Brien 这样无辜的名字会让查询出错，攻击者也能借此试探。';
+        kind = 'bad';
+      }
+    } else {
+      $('injCode').textContent = 'db.query(\n  "SELECT * FROM customers WHERE name = $1",\n  [name]\n);';
+      $('injSent').textContent = `SELECT * FROM customers WHERE name = $1;\n-- 参数 $1 = ${JSON.stringify(input)}`;
+      rows = CUSTOMERS.filter(c => c.name === input);
+      msg = rows.length ? '对普通输入，结果和之前一样。'
+        : '整个输入被当作一个普通的值来比较。引号和关键字没有任何特殊含义，所以既不会泄露也不会出错。结果是 0 行，因为没有顾客叫这个名字。';
+      kind = 'good';
+    }
+    $('injRes').innerHTML = dropped
+      ? `<tbody><tr class="cut"><td style="font-family:inherit">${esc('customers：表已被删除')}</td></tr></tbody>`
+      : tableHTML(['id', 'name', 'city'], rows.map(c => [c.id, c.name, c.city]), { cls: 'c', rowCls: () => (kind === 'bad' ? 'pop nullrow' : 'pop') });
+    $('injInsight').className = 'insight ' + kind;
+    $('injInsight').textContent = msg;
+  }
+  $('injInput').addEventListener('input', renderInj);
+
+  /* =========================================================
+     UNIT 5: quiz
+     ========================================================= */
+  const QUIZ_BEGINNER = [
+    { q: '查询中的哪一部分只保留其中一部分行？',
+      opts: ['SELECT', 'WHERE', 'ORDER BY', 'FROM'], a: 1,
+      why: 'WHERE 会检查每一行，保留条件为真的行。SELECT 挑的是列，不是行。' },
+    { q: 'ORDER BY price DESC LIMIT 3 会给你什么？',
+      opts: ['最便宜的 3 件商品', '最贵的 3 件商品', '随机 3 件商品', '价格为 3 的商品'], a: 1,
+      why: 'DESC 从大到小排序，LIMIT 3 保留最前面的 3 行。' },
+    { q: '用 INNER JOIN 把 customers 和 orders 连接起来。没有订单的顾客会怎样？',
+      opts: ['出现一次，订单列为空', '不会出现', '查询失败', '出现，并带一笔 $0 的订单'], a: 1,
+      why: 'INNER JOIN 只保留两侧都能匹配上的行。' },
+    { q: '还是这两张表，但改用 LEFT JOIN（customers 在左边）。那位顾客会怎样？',
+      opts: ['不会出现', '出现一次，订单列为 NULL', '得到一笔假订单', '出现两次'], a: 1,
+      why: 'LEFT JOIN 保留左表的每一行，缺失的那一侧用 NULL 填充。' },
+    { q: 'SELECT city, COUNT(*) FROM customers GROUP BY city 返回什么？',
+      opts: ['每位顾客及其城市', '每个城市一行，以及住在那里的顾客人数', '顾客总人数', '只是按字母顺序排列的城市'], a: 1,
+      why: 'GROUP BY 为每个城市建一个桶，COUNT(*) 统计每个桶里的行数。' },
+    { q: '你只想要顾客多于 2 人的城市。COUNT(*) > 2 应该写在哪里？',
+      opts: ['写在 WHERE 里', '写在 HAVING 里', '写在 ORDER BY 里', '写在 FROM 里'], a: 1,
+      why: 'HAVING 在计数之后过滤整个分组。WHERE 在分组之前执行，那时还没有计数。' },
+    { type: 'order',
+      q: '把查询的各部分按书写顺序排好。',
+      items: ['SELECT', 'FROM', 'WHERE', 'ORDER BY', 'LIMIT'],
+      why: '这是书写顺序。第 4 单元演示过，数据库执行它们的顺序不同，是从 FROM 开始的。' },
+  ];
+  const QUIZ_ADVANCED = [
+    { q: 'customers LEFT JOIN orders ON o.customer_id = c.id WHERE o.amount > 50。没有订单的顾客会怎样？',
+      opts: ['出现，订单列为 NULL', '被移除，所以效果和 INNER JOIN 一样', '查询被拒绝', '出现，金额为 0'], a: 1,
+      why: 'NULL > 50 不是 TRUE，所以 WHERE 会丢掉用 NULL 补齐的行。把条件放进 ON 才能保留它们。' },
+    { q: 'orders 有 11 行，其中 4 行的 rating 是 NULL。COUNT(*) 和 COUNT(rating) 分别返回什么？',
+      opts: ['11 和 11', '11 和 7', '7 和 7', '11 和 4'], a: 1,
+      why: 'COUNT(*) 统计行数。COUNT(col) 统计 col 中非 NULL 值的个数。' },
+    { q: '一组里的评分是 4、NULL、2。AVG(rating) 是多少？',
+      opts: ['2', '3', 'NULL', '报错'], a: 1,
+      why: '聚合函数会跳过 NULL，所以平均值是 (4 + 2) / 2 = 3。只有所有评分都是 NULL 时，结果才是 NULL。' },
+    { q: 'WHERE city = NULL 返回什么？',
+      opts: ['city 缺失的行', '永远没有行', '所有行', '在任何数据库里都报错'], a: 1,
+      why: '与 NULL 的比较结果是未知，永远不是 TRUE。请用 IS NULL。' },
+    { q: 'orders.customer_id 中有一个 NULL。WHERE id NOT IN (SELECT customer_id FROM orders) 返回什么？',
+      opts: ['没有订单的顾客', '没有行', '所有顾客', '只有访客订单'], a: 1,
+      why: 'x NOT IN (…, NULL) 永远不会是 TRUE。请用 NOT EXISTS，或者在子查询里把 NULL 过滤掉。' },
+    { q: 'SUM(amount) OVER (PARTITION BY customer_id) 和 GROUP BY customer_id 有什么不同？',
+      opts: ['只是更快的写法', '它保留每一行，并在每行旁边加上该组的总额', '它会忽略 NULL 顾客', '它只能和 ORDER BY 一起用'], a: 1,
+      why: '窗口函数在一组行上计算，但不会把它们压缩成一行。' },
+    { q: '防御 SQL 注入的可靠方法是什么？',
+      opts: ['手动转义引号', '参数化查询（占位符）', '屏蔽 DROP 这个词', '隐藏错误信息'], a: 1,
+      why: '参数与 SQL 文本分开发送，所以输入永远改变不了查询的结构。过滤和转义总会有遗漏。' },
+    { type: 'order',
+      q: '把各子句按数据库逻辑求值的顺序排好。',
+      items: ['FROM', 'WHERE', 'GROUP BY', 'HAVING', 'SELECT', 'ORDER BY', 'LIMIT'],
+      why: '这个顺序解释了别名的可见性：只有 ORDER BY 在 SELECT 之后。' },
+  ];
+  let QUIZ = QUIZ_BEGINNER;
+  let qi = 0, score = 0;
+
+  function renderQuiz() {
+    const box = $('quizBox');
+    if (qi >= QUIZ.length) {
+      const pct = Math.round((score / QUIZ.length) * 100);
+      box.innerHTML = `<div class="result"><div class="score">${score} / ${QUIZ.length}</div>
+        <p>${pct === 100 ? '满分！你已经能和数据库对话了。' : pct >= 70 ? '做得不错。回顾一下答错的题，再试一次。' : '开了个好头。重温各个单元，然后再试一次。'}</p>
+        <button class="btn primary" id="retry">再试一次</button></div>`;
+      $('retry').addEventListener('click', () => { qi = 0; score = 0; renderQuiz(); });
+      saved.quizDone = true; updateProgress();
+      return;
+    }
+    const item = QUIZ[qi];
+    box.innerHTML = `<div class="quiz-meta"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>
+      <div class="q">${esc(item.q)}</div><div id="qBody"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="controls"><button class="btn primary" id="qNext" style="display:none">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`;
+    $('qNext').addEventListener('click', () => { qi++; renderQuiz(); });
+    (item.type === 'order' ? renderOrder : renderMC)(item);
+  }
+
+  function reveal(ok, why) {
+    if (ok) score++;
+    const fb = $('fb');
+    fb.className = 'feedback show ' + (ok ? 'good' : 'bad');
+    fb.innerHTML = `<b>${ok ? '答对了。' : '不太对。'}</b> ${esc(why)}`;
+    $('qNext').style.display = '';
+    $('qNext').focus();
+  }
+
+  function renderMC(item) {
+    const wrap = document.createElement('div'); wrap.className = 'opts';
+    item.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        wrap.querySelectorAll('.opt').forEach((x, j) => {
+          x.disabled = true;
+          if (j === item.a) x.classList.add('right');
+        });
+        if (i !== item.a) b.classList.add('wrong');
+        reveal(i === item.a, item.why);
+      });
+      wrap.appendChild(b);
+    });
+    $('qBody').appendChild(wrap);
+  }
+
+  function renderOrder(item) {
+    const shuffled = [...item.items];
+    do { shuffled.sort(() => Math.random() - 0.5); } while (shuffled.join() === item.items.join());
+    const picked = [];
+    $('qBody').innerHTML = `<div class="chips" id="chips"></div><div class="slots" id="slots"></div>
+      <div class="controls"><button class="btn" id="oClear">清空</button><button class="btn primary" id="oCheck" disabled>检查顺序</button></div>`;
+    const draw = () => {
+      $('chips').innerHTML = ''; $('slots').innerHTML = '';
+      shuffled.forEach(s => {
+        const c = document.createElement('button');
+        c.className = 'chip'; c.textContent = s; c.disabled = picked.includes(s);
+        c.addEventListener('click', () => { picked.push(s); draw(); });
+        $('chips').appendChild(c);
+      });
+      item.items.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'slot' + (picked[i] ? ' filled' : '');
+        d.textContent = picked[i] || '';
+        $('slots').appendChild(d);
+      });
+      $('oCheck').disabled = picked.length !== item.items.length;
+    };
+    $('oClear').addEventListener('click', () => { picked.length = 0; draw(); });
+    $('oCheck').addEventListener('click', () => {
+      const slots = $('slots').children;
+      let ok = true;
+      picked.forEach((s, i) => {
+        const right = s === item.items[i];
+        ok = ok && right;
+        slots[i].classList.add(right ? 'right' : 'wrong');
+        if (!right) slots[i].textContent = `${s}  （应为：${item.items[i]}）`;
+      });
+      $('chips').querySelectorAll('button').forEach(b => b.disabled = true);
+      $('oCheck').disabled = true; $('oClear').disabled = true;
+      reveal(ok, item.why);
+    });
+    draw();
+  }
+
+  /* ---------------- shared ---------------- */
+  function wireCopy(root) {
+    root.querySelectorAll('.codeblock .copy').forEach(btn => btn.addEventListener('click', async () => {
+      const text = btn.closest('.codeblock').querySelector('pre').textContent;
+      try { await navigator.clipboard.writeText(text); btn.textContent = '已复制'; }
+      catch (e) { btn.textContent = '复制失败'; }
+      setTimeout(() => { btn.textContent = '复制'; }, 1200);
+    }));
+  }
+  wireCopy(document.querySelector('main'));
+
+  function applyLevel() {
+    document.body.dataset.level = level;
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+    // drop advanced-only choices when going back to beginner
+    if (level === 'beginner') {
+      if (WHERES[qs.table][qs.where].adv) qs.where = 0;
+      qs.offset = 0;
+      if (joinType === 'RIGHT' || joinType === 'FULL') joinType = 'LEFT';
+      joinFilter = '无';
+      if (AGGS.find(a => a.v === gs.agg).adv) gs.agg = 'COUNT(*)';
+    }
+    renderQB(); showFrom();
+    $('qbCounter').innerHTML = L(`已运行的不同查询：<b>${Math.min(queriesRun.size, 3)} / 3</b>`, `已运行的不同查询：<b>${Math.min(queriesRun.size, 3)} / 3</b>`);
+    renderJoin();
+    renderGB(); resetGB();
+    renderWin();
+    renderPipe();
+    renderAlias();
+    renderTVL();
+    renderNullDemo();
+    renderInj();
+    QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
+    qi = 0; score = 0;
+    renderQuiz();
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.level === level) return;
+    level = b.dataset.level;
+    saved.level = level; persist();
+    applyLevel();
+  }));
+
+  /* ---------------- init ---------------- */
+  renderDataset();
+  applyLevel();
+  updateProgress();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formal Verification</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efeee8;
+    --text: #1c1c1a;
+    --muted: #64635d;
+    --border: #dcdbd3;
+    --accent: #3b5bdb;
+    --accent-soft: #e5eaff;
+    --ok: #2b8a3e;
+    --ok-soft: #e3f5e6;
+    --bad: #c92a2a;
+    --bad-soft: #fde8e8;
+    --warn: #b35c00;
+    --warn-soft: #fff1e0;
+    --line: #b9b8b0;
+    --chunk-a: #4c6ef5;
+    --chunk-b: #7048e8;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-2: #282826;
+      --text: #ecebe6;
+      --muted: #a3a29b;
+      --border: #3a3a37;
+      --accent: #7d97ff;
+      --accent-soft: #252c48;
+      --ok: #5fcf75;
+      --ok-soft: #1c3322;
+      --bad: #ff7b7b;
+      --bad-soft: #3d1f1f;
+      --warn: #ffa94d;
+      --warn-soft: #3a2a17;
+      --line: #5a5a55;
+      --chunk-a: #5c7cfa;
+      --chunk-b: #9775fa;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --surface-2: #282826;
+    --text: #ecebe6;
+    --muted: #a3a29b;
+    --border: #3a3a37;
+    --accent: #7d97ff;
+    --accent-soft: #252c48;
+    --ok: #5fcf75;
+    --ok-soft: #1c3322;
+    --bad: #ff7b7b;
+    --bad-soft: #3d1f1f;
+    --warn: #ffa94d;
+    --warn-soft: #3a2a17;
+    --line: #5a5a55;
+    --chunk-a: #5c7cfa;
+    --chunk-b: #9775fa;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  body[data-level="advanced"] .only-beginner, body[data-level="beginner"] .only-advanced { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  code, pre { font-family: var(--mono); }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 0.95rem; margin-right: auto; }
+  .brand a { color: var(--muted); text-decoration: none; font-weight: 500; margin-right: 6px; }
+  .progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+  .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s ease; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 12px; font-size: 0.85rem; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline-offset: -3px; }
+  .lang-switch {
+    font-size: 0.85rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface);
+  }
+  .lang-switch:hover { border-color: var(--accent); color: var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 48px 0 24px; }
+  .hero p { color: var(--muted); max-width: 660px; margin-top: 12px; font-size: 1.05rem; }
+  .units { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 28px; }
+  .unit {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .unit:hover { border-color: var(--accent); }
+  .unit small { color: var(--muted); display: block; }
+  .unit b { display: block; margin: 2px 0; }
+  .unit .tick { float: right; color: var(--ok); font-weight: 700; visibility: hidden; }
+  .unit.done .tick { visibility: visible; }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin: 24px 0; scroll-margin-top: 70px;
+  }
+  .kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .lede { color: var(--muted); margin: 6px 0 18px; }
+  .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 14px; font-size: 0.9rem;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .callout { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; font-size: 0.95rem; }
+  .callout ul { margin: 6px 0 0; padding-left: 20px; }
+  .callout li { margin: 3px 0; }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; display: none; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--ok-soft); }
+  .feedback.bad { background: var(--bad-soft); }
+  .insight { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.92rem; }
+  .insight.bad { background: var(--bad-soft); }
+  .insight.good { background: var(--ok-soft); }
+  .insight.warn { background: var(--warn-soft); }
+
+  .codeblock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; min-width: 0; }
+  .codeblock-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .codeblock-head .copy { border: 0; background: none; color: var(--muted); font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+  .codeblock-head .copy:hover { background: var(--surface-2); color: var(--text); }
+  .codeblock pre { margin: 0; padding: 12px 14px; flex: 1; font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .codeblock.nowrap pre { white-space: pre; word-break: normal; overflow-x: auto; }
+  .codeblock pre .hl { background: var(--accent-soft); color: var(--accent); border-radius: 3px; }
+  .codeblock pre .cm { color: var(--muted); }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .75; }
+  .opt.picked { border-color: var(--accent); background: var(--accent-soft); }
+
+  @keyframes pop { from { opacity: 0; transform: scale(.85); } }
+  @keyframes flash { from { background: var(--warn-soft); } }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .tbl-wrap { overflow-x: auto; min-width: 0; }
+  table.data { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
+  table.data th, table.data td { padding: 5px 9px; border: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  table.data th { font-size: 0.72rem; font-weight: 700; letter-spacing: .03em; color: var(--muted); background: var(--surface-2); }
+  table.data td { font-family: var(--mono); font-size: 0.78rem; background: var(--surface); }
+  table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.data td.ok { color: var(--ok); font-weight: 700; }
+  table.data td.no { color: var(--bad); font-weight: 700; }
+  table.data tr.new td { animation: flash 1.2s ease-out; }
+  table.data td.wrap { white-space: normal; font-family: inherit; font-size: 0.82rem; }
+  .meter { font-size: 0.85rem; margin-top: 10px; color: var(--muted); }
+  .meter b { font-family: var(--mono); font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .legend { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin: 8px 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid var(--border); }
+
+  /* ---------- unit 1: tests vs every input ---------- */
+  .u1 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+  .gridbox { background: var(--surface-2); border-radius: 12px; padding: 12px; text-align: center; min-width: 0; }
+  .gridbox canvas { width: 100%; max-width: 340px; height: auto; display: block; margin: 0 auto; image-rendering: pixelated; border-radius: 6px; }
+  .gridbox .cap { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
+  .testlog { list-style: none; margin: 10px 0 0; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font: 0.78rem/1.7 var(--mono); min-height: 70px; max-height: 150px; overflow-y: auto; }
+  .testlog li.fail { color: var(--bad); font-weight: 700; }
+  .testlog li.pass { color: var(--muted); }
+
+  /* ---------- unit 2: specs ---------- */
+  .clauses { display: grid; gap: 8px; }
+  .clause { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; cursor: pointer; background: var(--surface); }
+  .clause:hover { border-color: var(--accent); }
+  .clause:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .clause:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .clause input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--accent); flex: none; }
+  .clause code { font-size: 0.8rem; overflow-wrap: anywhere; }
+  .clause small { display: block; color: var(--muted); }
+  .impls { display: grid; gap: 8px; }
+  .impl { border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; transition: border-color .3s, background .3s; }
+  .impl .nm { font-weight: 600; }
+  .impl code { grid-column: 1 / -1; font-size: 0.78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .impl .why { grid-column: 1 / -1; font-size: 0.83rem; }
+  .pill { font-size: 0.75rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .pill.pass { background: var(--ok-soft); color: var(--ok); }
+  .pill.fail { background: var(--bad-soft); color: var(--bad); }
+  .impl.wrongpass { border-color: var(--warn); background: var(--warn-soft); }
+  .impl.wrongpass .pill.pass { background: var(--warn); color: #fff; }
+  .impl.caught { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+
+  /* ---------- unit 3: model checking ---------- */
+  .ptabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ptabs button { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 4px 13px; font-size: 0.85rem; color: var(--muted); }
+  .ptabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .sg { background: var(--surface-2); border-radius: 12px; margin-top: 14px; overflow-x: auto; }
+  .sg svg { display: block; height: auto; }
+  .sg .nd rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; transition: fill .25s, stroke .25s; }
+  .sg .nd { opacity: 0; transition: opacity .3s; }
+  .sg .nd.show { opacity: 1; }
+  .sg .nd text { fill: var(--text); font: 10.5px var(--mono); }
+  .sg .nd.init rect { stroke: var(--accent); stroke-width: 2; }
+  .sg .nd.bad rect { fill: var(--bad-soft); stroke: var(--bad); stroke-width: 2.5; }
+  .sg .nd.dead rect { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 2.5; }
+  .sg .nd.ok rect { stroke: color-mix(in srgb, var(--ok) 60%, var(--border)); }
+  .sg .nd.trace rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  .sg .nd.trace.bad rect { fill: var(--bad-soft); stroke: var(--bad); stroke-width: 3.5; }
+  .sg .nd.trace.dead rect { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 3.5; }
+  .sg .nd.cur rect { stroke-width: 4; }
+  .sg .ed { fill: none; stroke: var(--line); stroke-width: 1.2; opacity: 0; transition: opacity .3s; }
+  .sg .ed.show { opacity: .8; }
+  .sg .ed.back { stroke-dasharray: 3 3; }
+  .sg .ed.show.back { opacity: .45; }
+  .sg .ed.trace { stroke: var(--accent); stroke-width: 3; opacity: 1; stroke-dasharray: none; }
+  .sg marker path { fill: var(--line); }
+  .sg marker.hi path { fill: var(--accent); }
+  .procs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .proc { border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 0.85rem; background: var(--surface); }
+  .proc b { font-family: var(--mono); }
+  .proc .loc { font: 700 1.05rem var(--mono); }
+  .proc.incrit { border-color: var(--warn); background: var(--warn-soft); }
+  .proc.alarm { border-color: var(--bad); background: var(--bad-soft); }
+  .steps { margin: 10px 0 0; padding: 10px 12px 10px 34px; background: var(--surface-2); border-radius: 10px; font-size: 0.85rem; min-height: 48px; }
+  .steps li { margin: 2px 0; animation: pop .3s ease-out both; }
+  .steps li.last { font-weight: 600; }
+  .steps li.badstep { color: var(--bad); font-weight: 700; }
+
+  /* ---------- unit 4: loop invariants ---------- */
+  .arr { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+  .arr span { min-width: 40px; text-align: center; padding: 6px 4px; border-radius: 8px; border: 1.5px solid var(--border); font: 600 0.95rem var(--mono); background: var(--surface); transition: background .3s, border-color .3s; }
+  .arr span small { display: block; font-size: 0.65rem; color: var(--muted); font-weight: 400; }
+  .arr span.in { background: var(--ok-soft); border-color: var(--ok); }
+  .arr span.next { border-color: var(--accent); border-style: dashed; }
+  .divbar { display: flex; gap: 2px; margin: 8px 0 4px; flex-wrap: nowrap; }
+  .divbar i { flex: 1; height: 26px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); transition: background .3s; }
+  .divbar i.ca { background: var(--chunk-a); border-color: var(--chunk-a); }
+  .divbar i.cb { background: var(--chunk-b); border-color: var(--chunk-b); }
+  .vars { display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 0.9rem; margin: 6px 0; }
+  .vars b { font: 700 1.1rem var(--mono); }
+  .cands { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+  .cands .opt code { font-size: 0.82rem; overflow-wrap: anywhere; }
+  .cands .opt small { display: block; color: var(--muted); font-size: 0.82rem; }
+  .obls { display: grid; gap: 6px; margin-top: 12px; }
+  .obl { display: grid; grid-template-columns: 26px 1fr; gap: 2px 8px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 0.88rem; animation: pop .3s ease-out both; }
+  .obl .mk { font-weight: 800; font-size: 1.05rem; }
+  .obl.ok .mk { color: var(--ok); }
+  .obl.no { background: var(--bad-soft); }
+  .obl.no .mk { color: var(--bad); }
+  .obl .cx { grid-column: 2; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .obl .cx.note { font-family: inherit; font-size: 0.82rem; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin-top: 10px; }
+  .tools div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; }
+  .tools b { display: block; }
+
+  /* ---------- quiz ---------- */
+  .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; text-align: left; }
+  .chip:disabled { opacity: .3; cursor: default; }
+  .slots { counter-reset: slot; display: grid; gap: 6px; margin: 14px 0; }
+  .slot { counter-increment: slot; border: 1.5px dashed var(--border); border-radius: 10px; padding: 7px 12px; min-height: 40px; color: var(--muted); font-size: 0.9rem; }
+  .slot::before { content: counter(slot) ". "; color: var(--muted); }
+  .slot.filled { border-style: solid; color: var(--text); }
+  .slot.right { border-color: var(--ok); background: var(--ok-soft); }
+  .slot.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .result { text-align: center; padding: 20px 0; }
+  .result .score { font: 700 3rem system-ui, sans-serif; }
+  .result p { color: var(--muted); margin: 6px 0 16px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
+
+  @media (max-width: 760px) {
+    .u1, .two-col { grid-template-columns: 1fr; }
+    .procs { grid-template-columns: 1fr 1fr; }
+    section.card { padding: 18px 16px; }
+    .bar { width: 70px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+  }
+</style>
+</head>
+<body data-level="beginner">
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.html">← Lessons</a> Formal verification</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 units</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="Explanation level">
+      <button data-level="beginner" aria-pressed="true">Beginner</button>
+      <button data-level="advanced" aria-pressed="false">Advanced</button>
+    </div>
+    <a class="lang-switch" href="index.zh-CN.html" lang="zh-CN" hreflang="zh-CN">中文</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">Lesson 5</div>
+    <h1>Formal verification: checking every case, not just some</h1>
+    <p class="only-beginner">Tests try some inputs and hope the rest behave. Formal verification uses math and clever search to check all of them. In this lesson you catch a bug that tests miss, write a precise description of what code should do, let a computer explore every state of a small program, and prove a loop correct.</p>
+    <p class="only-advanced">Formal verification shows that a system meets a specification for every input or every reachable state, either by exhaustive search (model checking, SMT) or by deductive proof (Hoare logic, proof assistants). The guarantee is exactly as strong as the specification and the assumptions behind it.</p>
+    <nav class="units">
+      <a class="unit" href="#tests" id="unit-tests"><span class="tick">✓</span><small>Unit 1</small><b>Tests vs. every input</b><small>Run both checks</small></a>
+      <a class="unit" href="#spec" id="unit-spec"><span class="tick">✓</span><small>Unit 2</small><b>Specifications</b><small>Rule out every wrong sort</small></a>
+      <a class="unit" href="#mc" id="unit-mc"><span class="tick">✓</span><small>Unit 3</small><b>Model checking</b><small>Replay the bug, check Peterson</small></a>
+      <a class="unit" href="#proof" id="unit-proof"><span class="tick">✓</span><small>Unit 4</small><b>Loop invariants</b><small>Run the loop, pick the invariant</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>Unit 5</small><b>Check yourself</b><small>Finish the quiz</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="tests">
+    <div class="kicker">Unit 1</div>
+    <h2>Why tests aren't enough</h2>
+    <p class="lede only-beginner">This <code>abs</code> function should never return a negative number. It works on small 8-bit whole numbers, from −128 to 127. That is only 256 possible inputs. Run 100 random tests, then check every input.</p>
+    <p class="lede only-advanced">The same <code>abs</code>, now on 16-bit two's complement integers: 65,536 inputs and exactly one counterexample. Compare random testing with an exhaustive check, then see why exhaustive checking stops scaling and what SMT solvers do instead.</p>
+
+    <div class="u1">
+      <div>
+        <div class="codeblock only-beginner">
+          <div class="codeblock-head"><span>abs for 8-bit numbers</span><button class="copy">Copy</button></div>
+          <pre>// 8-bit signed integer: -128 … 127
+function abs(x) {
+  if (x &lt; 0) return -x;
+  return x;
+}
+// Promise: abs(x) &gt;= 0 for every x</pre>
+        </div>
+        <div class="codeblock only-advanced">
+          <div class="codeblock-head"><span>C, 16-bit</span><button class="copy">Copy</button></div>
+          <pre>#include &lt;stdint.h&gt;
+
+int16_t abs16(int16_t x) {
+  return x &lt; 0 ? (int16_t)-x : x;
+}
+// Property: for all x, abs16(x) &gt;= 0</pre>
+        </div>
+        <div class="controls">
+          <button class="btn" id="u1Random">Run 100 random tests</button>
+          <button class="btn primary" id="u1All">Check every input</button>
+        </div>
+        <div class="meter">Inputs checked: <b id="u1Count">0</b> · Failures found: <b id="u1Fails">0</b></div>
+        <ul class="testlog" id="u1Log" aria-live="polite"></ul>
+      </div>
+      <div class="gridbox">
+        <canvas id="u1Canvas" width="340" height="340" role="img" aria-label="Grid of all inputs"></canvas>
+        <div class="cap" id="u1Cap"></div>
+        <div class="legend" style="justify-content:center">
+          <span><i style="background:var(--surface)"></i>not tried</span>
+          <span><i style="background:var(--ok)"></i>passed</span>
+          <span><i style="background:var(--bad)"></i>failed</span>
+        </div>
+      </div>
+    </div>
+    <div class="insight" id="u1Insight">Start with the random tests. That is what most test suites do.</div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>What went wrong?</b> An 8-bit number can hold −128 but not +128. So <code>-(-128)</code> does not fit and wraps around to −128 again. Only 1 input in 256 shows the bug, so random tests usually miss it. Checking <b>every</b> input finds it every time. Real programs have far too many inputs to try one by one, which is why verification tools reason about all inputs at once.
+    </div>
+
+    <div class="only-advanced" style="margin-top:20px">
+      <h3>Exhaustive checking does not scale</h3>
+      <p class="lede" style="margin-bottom:8px">Time to try every input at one billion checks per second:</p>
+      <div class="tbl-wrap">
+        <table class="data">
+          <thead><tr><th>Inputs</th><th>Count</th><th>Time</th></tr></thead>
+          <tbody>
+            <tr><td>one int8</td><td class="num">256</td><td>under 1 µs</td></tr>
+            <tr><td>one int16</td><td class="num">65,536</td><td>about 66 µs</td></tr>
+            <tr><td>one int32</td><td class="num">4.3 × 10⁹</td><td>about 4.3 s</td></tr>
+            <tr><td>one int64</td><td class="num">1.8 × 10¹⁹</td><td>about 585 years</td></tr>
+            <tr><td>two int64</td><td class="num">3.4 × 10³⁸</td><td>about 10²² years</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="two-col" style="margin-top:14px">
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>SMT-LIB: is there an x where abs(x) &lt; 0?</span><button class="copy">Copy</button></div>
+          <pre>(declare-const x (_ BitVec 32))
+(define-fun abs32 ((v (_ BitVec 32))) (_ BitVec 32)
+  (ite (bvslt v #x00000000) (bvneg v) v))
+(assert (bvslt (abs32 x) #x00000000))
+(check-sat)   ; sat
+(get-model)   ; x = #x80000000  (-2147483648)</pre>
+        </div>
+        <div class="callout">
+          <b>Symbolic, not enumerated.</b> An SMT solver gets the negated property as a formula over bit-vectors. It does not try inputs one by one. It propagates constraints, learns from conflicts and splits cases, and answers:
+          <ul>
+            <li><b>sat</b> with a model: a concrete counterexample, here <code>x = INT_MIN</code>.</li>
+            <li><b>unsat</b>: no input violates the property. That is a proof over all 2³² inputs. Add the precondition <code>x != INT_MIN</code> and the query becomes unsat.</li>
+          </ul>
+          In C, <code>-x</code> on <code>INT_MIN</code> for 32-bit <code>int</code> is undefined behaviour, which is worse than a wrong answer. The same family of bugs hid for years in <code>(low + high) / 2</code> inside binary search in the Java standard library, until arrays grew past 2³⁰ elements.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="spec">
+    <div class="kicker">Unit 2</div>
+    <h2>Specifications: saying exactly what "correct" means</h2>
+    <p class="lede only-beginner">To check a program, you first have to write down what it should do. This is the <b>specification</b>, or spec. Here the job is to sort a list of numbers. Tick the rules you want to require. The checker tries every short list and shows which of the four programs still pass.</p>
+    <p class="lede only-advanced">A specification is a set of postconditions (and preconditions) over inputs and outputs. Build the spec for <code>Sort</code> clause by clause. A bounded checker runs each implementation on every list of length 0 to 4 over {0, 1, 2} (121 inputs) and reports the first counterexample per clause set.</p>
+
+    <div class="two-col">
+      <div>
+        <div class="label">The spec: the output must…</div>
+        <div class="clauses" id="clauses"></div>
+        <div class="insight" id="specInsight"></div>
+      </div>
+      <div>
+        <div class="label">Candidate programs</div>
+        <div class="impls" id="impls"></div>
+        <div class="meter" id="specMeter"></div>
+      </div>
+    </div>
+
+    <div class="codeblock nowrap only-advanced" style="margin-top:16px">
+      <div class="codeblock-head"><span>Your spec in Dafny-style syntax</span><button class="copy">Copy</button></div>
+      <pre id="dafnySpec"></pre>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>Three kinds of rules</b>
+      <ul>
+        <li>A <b>precondition</b> is what must be true before the code runs. Example: "the list is not empty" before taking its first item.</li>
+        <li>A <b>postcondition</b> is what the code promises when it finishes. Example: "the result is sorted".</li>
+        <li>An <b>invariant</b> is something that stays true the whole time. Example: "the account balance is never negative".</li>
+      </ul>
+      A spec that is too weak lets wrong programs through, like the one that always returns an empty list. Verification proves the code matches the spec. It cannot tell you the spec is the one you meant.
+    </div>
+    <div class="only-advanced" style="margin-top:16px">
+      <div class="two-col">
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>Preconditions: requires</span><button class="copy">Copy</button></div>
+          <pre>method BinarySearch(a: seq&lt;int&gt;, key: int) returns (i: int)
+  requires forall p, q :: 0 &lt;= p &lt; q &lt; |a| ==&gt; a[p] &lt;= a[q]
+  ensures 0 &lt;= i ==&gt; i &lt; |a| &amp;&amp; a[i] == key
+  ensures i &lt; 0 ==&gt; key !in a</pre>
+        </div>
+        <div class="callout">
+          <b>Who must prove what</b>
+          <ul>
+            <li><code>requires</code> is an obligation on every <i>caller</i>. Inside the method it is an assumption.</li>
+            <li><code>ensures</code> is an obligation on the <i>method body</i>, and callers may rely on it.</li>
+            <li>Class or loop <b>invariants</b> must hold at stated points (method entry and exit, each loop iteration).</li>
+            <li>Bounded checks like the one above are not proofs. They rely on the small scope hypothesis: most bugs show up on small inputs. A verifier like Dafny proves the clauses for lists of any length.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="mc">
+    <div class="kicker">Unit 3</div>
+    <h2>Model checking: explore every state</h2>
+    <p class="lede only-beginner">Two programs share one printer. Only one may print at a time: that part of the code is the <b>critical section</b>. Each program has a flag it raises to say "I want in". A model checker tries every possible order in which the two programs can take their steps, and looks for a bad state.</p>
+    <p class="lede only-advanced">Two processes, shared flags, and a mutual exclusion property. The checker runs a breadth-first search over the interleaving semantics: a state is (pc₀, pc₁, flag₀, flag₁, turn), and each transition is one atomic step of one process. It checks the invariant on every reachable state and looks for deadlocks.</p>
+
+    <div class="ptabs" id="ptabs" role="group" aria-label="Protocol"></div>
+    <div class="two-col">
+      <div class="codeblock nowrap">
+        <div class="codeblock-head"><span id="protoTitle"></span><button class="copy">Copy</button></div>
+        <pre id="protoCode"></pre>
+      </div>
+      <div>
+        <p id="protoDesc" style="font-size:.92rem"></p>
+        <div class="controls">
+          <button class="btn primary" id="mcRun">Explore every state</button>
+        </div>
+        <div class="meter">States found: <b id="mcStates">0</b> · Bad states: <b id="mcBad">0</b><span class="only-advanced"> · Deadlocks: <b id="mcDead">0</b></span></div>
+      </div>
+    </div>
+
+    <div class="sg" id="sg"></div>
+    <div class="legend">
+      <span><i style="border:2px solid var(--accent)"></i>start</span>
+      <span><i style="background:var(--bad-soft);border:2px solid var(--bad)"></i>both in critical section</span>
+      <span class="only-advanced"><i style="background:var(--warn-soft);border:2px solid var(--warn)"></i>deadlock</span>
+      <span><i style="background:var(--accent-soft);border:2px solid var(--accent)"></i>counterexample path</span>
+    </div>
+    <div class="insight" id="mcInsight">Press "Explore every state".</div>
+
+    <div id="traceBox" style="display:none">
+      <h3 style="margin-top:16px" id="traceTitle">Counterexample, step by step</h3>
+      <div class="procs" id="procs"></div>
+      <ol class="steps" id="steps"></ol>
+      <div class="controls">
+        <button class="btn" id="trBack">◀ Back</button>
+        <button class="btn primary" id="trNext">Next step ▶</button>
+      </div>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>Why not just test it?</b> The bug only happens if both programs check the flags at almost the same moment. In real tests that timing is rare, so the bug may slip through thousands of runs. The model checker does not rely on luck: it visits every reachable state, so if a bad state exists it finds it, and gives you the exact steps to get there. The catch is that it checks a <i>model</i> of the program, and the model can leave out details of the real thing.
+    </div>
+    <div class="only-advanced" style="margin-top:20px">
+      <div class="two-col">
+        <div>
+          <h3>State explosion</h3>
+          <p class="lede" style="margin-bottom:8px">Each process here has 4 locations. Before counting shared variables, N processes give up to 4<sup>N</sup> combinations:</p>
+          <div class="tbl-wrap">
+            <table class="data">
+              <thead><tr><th>Processes</th><th>Location combinations</th></tr></thead>
+              <tbody>
+                <tr><td>2</td><td class="num">16</td></tr>
+                <tr><td>4</td><td class="num">256</td></tr>
+                <tr><td>8</td><td class="num">65,536</td></tr>
+                <tr><td>16</td><td class="num">4.3 × 10⁹</td></tr>
+                <tr><td>32</td><td class="num">1.8 × 10¹⁹</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:.9rem;margin-top:10px">Real checkers fight this with partial-order reduction (skip orderings of independent steps), symmetry reduction, symbolic representations (BDDs), and bounded model checking with SAT/SMT, which checks all runs up to k steps.</p>
+          <h3 style="margin-top:16px">Safety vs. liveness</h3>
+          <ul style="font-size:.9rem;padding-left:20px;margin:6px 0 0">
+            <li><b>Safety</b>: nothing bad ever happens. "Never both in the critical section." A violation is a finite trace to a bad state.</li>
+            <li><b>Liveness</b>: something good eventually happens. "A process that wants in eventually gets in." A violation is an infinite run, shown as a lasso: a path into a cycle that never reaches the good state. Checking it needs fairness assumptions, or a scheduler that never runs one process could "starve" anyone.</li>
+            <li>The "flags first" protocol is safe, but it can deadlock: both flags up, both waiting forever. Freedom from deadlock is necessary for liveness but not enough. Peterson's algorithm also guarantees no starvation under weak fairness.</li>
+          </ul>
+        </div>
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>Peterson in TLA+ (checked with TLC)</span><button class="copy">Copy</button></div>
+          <pre>---- MODULE Peterson ----
+VARIABLES pc, flag, turn
+vars == &lt;&lt;pc, flag, turn&gt;&gt;
+Other(i) == 1 - i
+
+Init == /\ pc = [i \in {0, 1} |-&gt; "idle"]
+        /\ flag = [i \in {0, 1} |-&gt; FALSE]
+        /\ turn = 0
+
+Raise(i) == /\ pc[i] = "idle"
+            /\ flag' = [flag EXCEPT ![i] = TRUE]
+            /\ pc' = [pc EXCEPT ![i] = "turn"]
+            /\ UNCHANGED turn
+Yield(i) == /\ pc[i] = "turn"
+            /\ turn' = Other(i)
+            /\ pc' = [pc EXCEPT ![i] = "wait"]
+            /\ UNCHANGED flag
+Enter(i) == /\ pc[i] = "wait"
+            /\ (~flag[Other(i)] \/ turn = i)
+            /\ pc' = [pc EXCEPT ![i] = "crit"]
+            /\ UNCHANGED &lt;&lt;flag, turn&gt;&gt;
+Leave(i) == /\ pc[i] = "crit"
+            /\ flag' = [flag EXCEPT ![i] = FALSE]
+            /\ pc' = [pc EXCEPT ![i] = "idle"]
+            /\ UNCHANGED turn
+
+Proc(i) == Yield(i) \/ Enter(i) \/ Leave(i)
+Next == \E i \in {0, 1} : Raise(i) \/ Proc(i)
+Spec == Init /\ [][Next]_vars
+             /\ \A i \in {0, 1} : WF_vars(Proc(i))
+
+MutualExclusion ==                \* safety
+  ~(pc[0] = "crit" /\ pc[1] = "crit")
+NoStarvation ==                   \* liveness
+  \A i \in {0, 1} : pc[i] = "turn" ~&gt; pc[i] = "crit"
+====</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="proof">
+    <div class="kicker">Unit 4</div>
+    <h2>Proving a loop correct</h2>
+    <p class="lede only-beginner">A model checker needs a small, finite world. To prove code correct for <i>any</i> input, we reason instead. Loops are the hard part. The trick is a <b>loop invariant</b>: a fact that is true every time the loop is about to check its condition. Run the loop below, then pick the invariant that proves it adds up the list correctly.</p>
+    <p class="lede only-advanced">Hoare logic proves triples {P} S {Q}. For a loop, you supply an invariant I and discharge three verification conditions, plus a variant for termination. Run integer division by repeated subtraction, then choose I and a variant. Each obligation is checked over every state with n ≤ 12, d ≤ 4 and small q, r; a verifier like Dafny would prove them for all integers with an SMT solver.</p>
+
+    <div class="two-col">
+      <div class="codeblock nowrap">
+        <div class="codeblock-head"><span id="loopTitle"></span><button class="copy">Copy</button></div>
+        <pre id="loopCode"></pre>
+      </div>
+      <div>
+        <div class="label" id="runLabel">Run it</div>
+        <div id="loopVis"></div>
+        <div class="vars" id="loopVars"></div>
+        <div class="controls" style="margin-top:8px">
+          <button class="btn primary" id="loopStep">Run one iteration ▶</button>
+          <button class="btn" id="loopReset">Reset</button>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:12px"><table class="data" id="loopTable" style="width:auto"></table></div>
+    <div class="insight" id="loopInsight"></div>
+
+    <h3 style="margin-top:24px" id="candTitle">Which invariant proves it?</h3>
+    <p class="lede" style="margin-bottom:10px" id="candLede"></p>
+    <div class="cands" id="cands"></div>
+    <div class="obls" id="obls"></div>
+
+    <div class="only-advanced" style="margin-top:20px">
+      <h3>Termination: pick a variant</h3>
+      <p class="lede" style="margin-bottom:10px">Partial correctness says "if the loop stops, the result is right". For total correctness, give an integer expression that is never negative while the loop runs and gets strictly smaller on every iteration. It cannot shrink forever, so the loop must stop.</p>
+      <div class="cands" id="variants"></div>
+      <div class="obls" id="vobls"></div>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>The three questions for any loop invariant</b>
+      <ul>
+        <li>Is it true <b>at the start</b>, before the first iteration?</li>
+        <li>If it is true before an iteration, is it still true <b>after</b> that iteration?</li>
+        <li>When the loop <b>stops</b>, does the invariant plus "the condition is now false" give the answer we promised?</li>
+      </ul>
+      If all three hold, the loop is correct for every possible list, not just the one you ran. Tools like Dafny ask a computer to check these three questions for you.
+    </div>
+    <div class="only-advanced" style="margin-top:16px">
+      <div class="callout">
+        <b>The obligations, formally</b>
+        <ul>
+          <li><b>Initiation</b>: {P} init {I}. The precondition and the initial assignments establish I.</li>
+          <li><b>Preservation</b>: {I ∧ B} body {I}. One iteration from any state satisfying I and the guard B ends in I.</li>
+          <li><b>Exit</b>: I ∧ ¬B ⇒ Q. Together with the negated guard, I implies the postcondition.</li>
+          <li><b>Termination</b>: I ∧ B ⇒ V ≥ 0, and {I ∧ B ∧ V = V₀} body {V &lt; V₀}.</li>
+        </ul>
+        Preservation is checked for <i>every</i> state satisfying I ∧ B, not just states the program reaches. That is why a true but weak invariant like <code>q * d &lt;= n</code> fails: it does not say enough to carry itself through one step. Strengthening the invariant is the everyday work of proof.
+      </div>
+      <h3 style="margin-top:18px">Where the tools fit</h3>
+      <div class="tools">
+        <div><b>Dafny, Why3, Verus, SPARK</b>Code with requires, ensures and invariants. The verifier turns them into conditions for an SMT solver (Z3, cvc5). Mostly automatic.</div>
+        <div><b>Lean, Coq (Rocq), Isabelle/HOL</b>Interactive proof assistants. You write the proof, a small trusted kernel checks it. Maximum power, much more effort.</div>
+        <div><b>TLA+, Alloy, SPIN, NuSMV</b>Specify a design as states and transitions, then model check it. Finds protocol bugs before the code exists. TLAPS can also prove TLA+ specs.</div>
+        <div><b>CBMC, Kani, KLEE</b>Bounded model checking and symbolic execution on real C, Rust or LLVM code, up to a loop-unrolling bound.</div>
+      </div>
+      <h3 style="margin-top:18px">In the real world</h3>
+      <ul style="font-size:.92rem;padding-left:20px;margin:6px 0 0">
+        <li><b>seL4</b>: a microkernel whose C code is proved in Isabelle/HOL to implement its abstract specification, with proofs of security properties on top. The proof assumes a correct compiler, boot code and hardware; later work checks the compiled binary too.</li>
+        <li><b>CompCert</b>: a C compiler proved in Coq to preserve the meaning of the programs it compiles. When researchers threw millions of random programs at many compilers, they found no wrong-code bugs in CompCert's verified parts, only in the unverified front end.</li>
+        <li><b>AWS</b>: engineers have used TLA+ since 2011 on systems such as S3 and DynamoDB. Model checking found subtle design bugs that needed traces of dozens of steps, which testing and review had missed.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">Unit 5</div>
+    <h2>Check yourself</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>A demo for interactive-tech-learning. Plain HTML, CSS and JS with no dependencies, so it also works offline. Previous lesson: <a href="../database-design/index.html">Designing a database</a>.</footer>
+</main>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, reduced ? Math.min(ms, 20) : ms));
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const NS = 'http://www.w3.org/2000/svg';
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  /* ---------------- saved progress ---------------- */
+  const KEY = 'itl-formal-verification-v1';
+  let saved = { level: 'beginner', u1Random: false, u1All: false, specDone: false, mcTrace: false, mcPeterson: false, invDone: false, loopDone: false, varDone: false, quizDone: false };
+  try { Object.assign(saved, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+  let level = saved.level === 'advanced' ? 'advanced' : 'beginner';
+  // Pick the beginner or advanced variant of a value.
+  const L = (beginner, advanced) => level === 'advanced' ? advanced : beginner;
+
+  function updateProgress() {
+    const done = {
+      tests: saved.u1Random && saved.u1All,
+      spec: saved.specDone,
+      mc: saved.mcTrace && saved.mcPeterson,
+      proof: saved.invDone && saved.loopDone,
+      quiz: saved.quizDone,
+    };
+    const n = Object.values(done).filter(Boolean).length;
+    $('progressText').textContent = `${n} / 5 units`;
+    $('progressBar').style.width = `${(n / 5) * 100}%`;
+    for (const k in done) $('unit-' + k).classList.toggle('done', done[k]);
+    persist();
+  }
+
+  function svgEl(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function insight(id, text, kind = '') {
+    $(id).className = 'insight ' + kind;
+    $(id).textContent = text;
+  }
+
+  /* =========================================================
+     UNIT 1: tests vs every input
+     ========================================================= */
+  let u1 = null, u1Run = 0;
+  // Wrap an integer to a signed two's complement value of the given width.
+  const wrapInt = (v, bits) => { const m = 2 ** bits, h = m / 2; return ((v + h) % m + m) % m - h; };
+
+  function u1Setup() {
+    const bits = L(8, 16);
+    const size = 2 ** bits, side = Math.sqrt(size);
+    u1 = { bits, size, side, min: -(size / 2), status: new Uint8Array(size), count: 0, fails: [] };
+    u1Run++;
+    const cv = $('u1Canvas');
+    if (bits === 8) { cv.width = cv.height = 16 * 20 + 2; }
+    else { cv.width = cv.height = 256 + 16; }
+    cv.setAttribute('aria-label', L('Grid of all 256 inputs, from -128 at the top left to 127 at the bottom right',
+      'Grid of all 65,536 inputs, from -32768 at the top left to 32767 at the bottom right'));
+    $('u1Cap').textContent = L('Each square is one input: -128 at the top left, 127 at the bottom right.',
+      'Each pixel is one input: -32768 at the top left, 32767 at the bottom right.');
+    $('u1Log').innerHTML = '';
+    u1Meter();
+    u1Draw();
+    insight('u1Insight', L('Start with the random tests. That is what most test suites do.',
+      'Start with 100 random tests, the way a typical unit or fuzz test would.'));
+  }
+  const absImpl = (x) => x < 0 ? wrapInt(-x, u1.bits) : x;
+  const absOk = (x) => absImpl(x) >= 0;
+
+  function u1Meter() {
+    $('u1Count').textContent = u1.count.toLocaleString('en-US');
+    $('u1Fails').textContent = u1.fails.length;
+  }
+
+  function hexRgb(h) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(h);
+    if (!m) return [128, 128, 128];
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function u1Draw() {
+    const cv = $('u1Canvas'), ctx = cv.getContext('2d');
+    const col = { 0: cssVar('--surface'), 1: cssVar('--ok'), 2: cssVar('--bad') };
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (u1.bits === 8) {
+      for (let k = 0; k < u1.size; k++) {
+        const x = (k % 16) * 20 + 2, y = Math.floor(k / 16) * 20 + 2;
+        ctx.fillStyle = col[u1.status[k]];
+        ctx.fillRect(x, y, 18, 18);
+      }
+      u1.fails.forEach(v => {
+        const k = v - u1.min, x = (k % 16) * 20 + 2, y = Math.floor(k / 16) * 20 + 2;
+        ctx.strokeStyle = cssVar('--text'); ctx.lineWidth = 2;
+        ctx.strokeRect(x - 1, y - 1, 20, 20);
+      });
+    } else {
+      const img = ctx.createImageData(256, 256);
+      const rgb = { 0: hexRgb(col[0]), 1: hexRgb(col[1]), 2: hexRgb(col[2]) };
+      for (let k = 0; k < u1.size; k++) {
+        const c = rgb[u1.status[k]];
+        img.data[k * 4] = c[0]; img.data[k * 4 + 1] = c[1]; img.data[k * 4 + 2] = c[2]; img.data[k * 4 + 3] = 255;
+      }
+      ctx.putImageData(img, 8, 8);
+      u1.fails.forEach(v => {
+        const k = v - u1.min, x = (k % 256) + 8.5, y = Math.floor(k / 256) + 8.5;
+        ctx.fillStyle = cssVar('--bad'); ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+        ctx.strokeStyle = cssVar('--bad'); ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
+      });
+    }
+  }
+
+  function u1Log(x, ok) {
+    const li = document.createElement('li');
+    li.className = ok ? 'pass' : 'fail';
+    li.textContent = `abs(${x}) = ${absImpl(x)}  ${ok ? '✓' : '✗ negative!'}`;
+    const log = $('u1Log');
+    log.appendChild(li);
+    while (log.children.length > 40) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function u1Clear() {
+    u1.status.fill(0); u1.count = 0; u1.fails = []; $('u1Log').innerHTML = '';
+  }
+
+  $('u1Random').addEventListener('click', async () => {
+    const id = ++u1Run;
+    u1Clear();
+    let found = 0;
+    for (let t = 0; t < 100; t++) {
+      const x = u1.min + Math.floor(Math.random() * u1.size);
+      const ok = absOk(x);
+      u1.status[x - u1.min] = ok ? 1 : 2;
+      if (!ok && !u1.fails.includes(x)) { u1.fails.push(x); found++; }
+      u1.count++;
+      u1Log(x, ok);
+      if (t % 4 === 3) { u1Meter(); u1Draw(); await sleep(40); if (id !== u1Run) return; }
+    }
+    u1Meter(); u1Draw();
+    const miss = ((1 - 1 / u1.size) ** 100 * 100).toFixed(u1.bits === 8 ? 0 : 2);
+    if (found) {
+      insight('u1Insight', L(`Lucky! One of the 100 random tests happened to pick -128. Run it again: about ${miss}% of runs miss it completely.`,
+        `Lucky run: a random test hit -32768. The chance of that is only about ${(100 - miss).toFixed(2)}%. Run it again.`), 'warn');
+    } else {
+      const tried = u1.status.reduce((n, v) => n + (v ? 1 : 0), 0);
+      insight('u1Insight', L(`All 100 tests passed. Looks correct! But only ${tried} different inputs out of 256 were tried. About ${miss}% of random runs miss the bad input. Now press "Check every input".`,
+        `100/100 passed, covering ${(100 / u1.size * 100).toFixed(2)}% of the input space at most. The chance that 100 uniform random tests miss a single bad input is (1 - 1/65536)^100 ≈ ${miss}%.`), 'good');
+    }
+    saved.u1Random = true; updateProgress();
+  });
+
+  $('u1All').addEventListener('click', async () => {
+    const id = ++u1Run;
+    u1Clear();
+    const chunk = u1.size / 32;
+    for (let k = 0; k < u1.size; k++) {
+      const x = u1.min + k;
+      const ok = absOk(x);
+      u1.status[k] = ok ? 1 : 2;
+      u1.count++;
+      if (!ok) { u1.fails.push(x); u1Log(x, false); }
+      if ((k + 1) % chunk === 0) { u1Meter(); u1Draw(); await sleep(45); if (id !== u1Run) return; }
+    }
+    u1Meter(); u1Draw();
+    const f = u1.fails[0];
+    insight('u1Insight', L(`Checked all 256 inputs. Exactly one fails: abs(${f}) returns ${absImpl(f)}, a negative number. Random tests were never going to be reliable here.`,
+      `Exhaustive check: ${u1.size.toLocaleString('en-US')} inputs, ${u1.fails.length} counterexample: abs16(${f}) = ${absImpl(f)}. This proves the property false. Fixing it (for example, returning a wider type) and re-running would prove it true, but only because 2¹⁶ inputs is small.`), 'bad');
+    saved.u1All = true; updateProgress();
+  });
+
+  /* =========================================================
+     UNIT 2: specifications
+     ========================================================= */
+  const LISTS = [[]];
+  for (let len = 1; len <= 4; len++) {
+    const out = [];
+    const rec = (pre) => { if (pre.length === len) { out.push(pre); return; } for (const v of [0, 1, 2]) rec([...pre, v]); };
+    rec([]);
+    LISTS.push(...out);
+  }
+  const sorted = (xs) => [...xs].sort((a, b) => a - b);
+  const counts = (xs) => xs.reduce((m, v) => (m[v] = (m[v] || 0) + 1, m), {});
+  const CLAUSES = [
+    { id: 'sorted', text: 'be sorted (each number ≤ the next)', adv: 'be sorted',
+      code: 'forall i, j :: 0 <= i < j < |b| ==> b[i] <= b[j]', test: (a, b) => b.every((v, i) => i === 0 || b[i - 1] <= v),
+      fail: 'not sorted', failB: 'which is not sorted' },
+    { id: 'len', text: 'have the same length as the input', adv: 'have the same length',
+      code: '|b| == |a|', test: (a, b) => a.length === b.length, fail: 'different length', failB: 'which has a different length' },
+    { id: 'set', advOnly: true, adv: 'contain the same values (as a set)',
+      code: 'forall x :: x in a <==> x in b', test: (a, b) => a.every(v => b.includes(v)) && b.every(v => a.includes(v)),
+      fail: 'different set of values' },
+    { id: 'ms', text: 'contain the same numbers, each the same number of times', adv: 'be a permutation (same multiset)',
+      code: 'multiset(b) == multiset(a)', test: (a, b) => { const x = counts(a), y = counts(b); return Object.keys(x).length === Object.keys(y).length && Object.keys(x).every(k => x[k] === y[k]); },
+      fail: 'not a permutation of the input', failB: 'which does not have the same numbers' },
+  ];
+  const IMPLS = [
+    { id: 'real', ok: true, name: 'Real sort', story: 'Actually sorts the list.', code: 'return sorted(xs)', run: (xs) => sorted(xs) },
+    { id: 'empty', name: 'Lazy sort', story: 'Always returns an empty list.', code: 'return []', run: () => [] },
+    { id: 'copy', name: 'Copycat', story: 'Returns the input unchanged.', code: 'return xs', run: (xs) => [...xs] },
+    { id: 'min', name: 'Smudger', story: 'Replaces every number with the smallest one.', code: 'return [min(xs)] * len(xs)', run: (xs) => xs.map(() => Math.min(...xs)) },
+    { id: 'dedup', advOnly: true, name: 'Dedup sort', story: 'Sorts, then drops duplicates.', code: 'return unique(sorted(xs))', run: (xs) => [...new Set(sorted(xs))] },
+    { id: 'pad', advOnly: true, name: 'Padder', story: 'Sorts, drops duplicates, then pads with the last value back to the original length.', code: 'u = unique(sorted(xs)); return u + [u[-1]] * (len(xs) - len(u))',
+      run: (xs) => { const u = [...new Set(sorted(xs))]; while (u.length < xs.length) u.push(u[u.length - 1]); return u; } },
+  ];
+  let specSel = new Set(['sorted']);
+  const visClauses = () => CLAUSES.filter(c => !c.advOnly || level === 'advanced');
+  const visImpls = () => IMPLS.filter(m => !m.advOnly || level === 'advanced');
+  const fmtList = (xs) => `[${xs.join(', ')}]`;
+
+  function specCheck(impl) {
+    const cl = visClauses().filter(c => specSel.has(c.id));
+    for (const a of LISTS) {
+      const b = impl.run(a);
+      const bad = cl.find(c => !c.test(a, b));
+      if (bad) return { a, b, clause: bad };
+    }
+    return null;
+  }
+
+  function renderClauses() {
+    const box = $('clauses');
+    box.innerHTML = '';
+    visClauses().forEach(c => {
+      const lab = document.createElement('label');
+      lab.className = 'clause';
+      lab.innerHTML = `<input type="checkbox" ${specSel.has(c.id) ? 'checked' : ''}><span>${esc(L(c.text, c.adv))}<small><code>${esc(c.code)}</code></small></span>`;
+      lab.querySelector('input').addEventListener('change', (e) => {
+        if (e.target.checked) specSel.add(c.id); else specSel.delete(c.id);
+        renderSpec();
+      });
+      box.appendChild(lab);
+    });
+  }
+
+  // space between the story sentence and the checker's reason (none in Chinese)
+  const STORY_SEP = ' ';
+  function renderSpec() {
+    const box = $('impls');
+    box.innerHTML = '';
+    let wrongPass = 0, realPass = false;
+    visImpls().forEach(m => {
+      const cx = specCheck(m);
+      const div = document.createElement('div');
+      const pass = !cx;
+      if (pass && !m.ok) wrongPass++;
+      if (pass && m.ok) realPass = true;
+      div.className = 'impl' + (pass && !m.ok ? ' wrongpass' : '') + (!pass && !m.ok ? ' caught' : '');
+      const why = pass
+        ? (m.ok ? L('Correct, as it should be.', 'Satisfies every clause on all 121 inputs.') : L('Wrong, but the spec lets it through!', 'Wrong program, yet no clause is violated.'))
+        : L(`Caught: ${fmtList(cx.a)} gives ${fmtList(cx.b)}, ${cx.clause.failB}.`, `Counterexample: ${fmtList(cx.a)} ↦ ${fmtList(cx.b)} (${cx.clause.fail}).`);
+      div.innerHTML = `<span class="nm">${esc(m.name)}</span><span class="pill ${pass ? 'pass' : 'fail'}">${pass ? L('passes', 'meets spec') : L('fails', 'violates')}</span>
+        <code>${esc(m.code)}</code><span class="why">${esc(L(m.story + STORY_SEP, '') + why)}</span>`;
+      box.appendChild(div);
+    });
+    const n = specSel.size;
+    $('specMeter').innerHTML = L(`Checked every list up to 4 numbers long: <b>${LISTS.length}</b> lists.`, `Bounded check: <b>${LISTS.length}</b> inputs × <b>${visImpls().length}</b> implementations.`);
+    if (n === 0) insight('specInsight', L('With no rules at all, every program "passes". An empty spec promises nothing.', 'The empty spec is "true": every implementation satisfies it.'), 'warn');
+    else if (!realPass) insight('specInsight', 'The real sort fails? That should not happen.', 'bad');
+    else if (wrongPass) insight('specInsight', L(`${wrongPass} wrong ${wrongPass === 1 ? 'program passes' : 'programs pass'} (orange). Your spec is too weak. Which rule would catch ${wrongPass === 1 ? 'it' : 'them'}?`,
+      `${wrongPass} incorrect ${wrongPass === 1 ? 'implementation satisfies' : 'implementations satisfy'} this spec. Strengthen it.`), 'warn');
+    else {
+      insight('specInsight', L('Only the real sort passes. Sorted plus same numbers is a full spec for sorting. Notice that "same length" adds nothing once you require the same numbers.',
+        'Only the correct implementation survives. sorted ∧ multiset(b) == multiset(a) is the complete spec; |b| == |a| and set equality are implied by it.'), 'good');
+      saved.specDone = true; updateProgress();
+    }
+    renderDafny();
+  }
+
+  function renderDafny() {
+    const lines = visClauses().filter(c => specSel.has(c.id)).map(c => `  ensures ${c.code}`);
+    $('dafnySpec').textContent = `method Sort(a: seq<int>) returns (b: seq<int>)\n${lines.length ? lines.join('\n') : '  // no ensures clauses: anything goes'}`;
+  }
+
+  /* =========================================================
+     UNIT 3: model checking
+     ========================================================= */
+  const PROTOS = {
+    naive: {
+      name: 'Naive flags', adv: false, pcs: ['idle', 'check', 'raise', 'crit'], turn: false,
+      code: '// shared: flag[0] = flag[1] = false\nloop forever:\n  idle:  do other work, then want to enter\n  check: wait until flag[other] == false\n  raise: flag[me] = true\n  crit:  use the printer (critical section)\n         flag[me] = false',
+      desc: ['Look first, then raise your flag. It sounds reasonable.', 'Test-then-set without atomicity: the check and the write are separate steps.'],
+      moves(s, i) {
+        const j = 1 - i, pc = s.pc[i];
+        if (pc === 'idle') return [{ pc: 'check', text: `P${i} wants to enter` }];
+        if (pc === 'check') return s.flag[j] ? [] : [{ pc: 'raise', text: `P${i} sees flag[${j}] = false and moves on` }];
+        if (pc === 'raise') return [{ pc: 'crit', flag: true, text: `P${i} sets flag[${i}] = true and enters` }];
+        return [{ pc: 'idle', flag: false, text: `P${i} leaves and sets flag[${i}] = false` }];
+      },
+    },
+    flags: {
+      name: 'Flags first', adv: true, pcs: ['idle', 'wait', 'crit'], turn: false,
+      code: '// shared: flag[0] = flag[1] = false\nloop forever:\n  idle: flag[me] = true\n  wait: wait until flag[other] == false\n  crit: critical section\n        flag[me] = false',
+      desc: ['', 'Raise the flag first, then wait. This fixes the race, but both can end up waiting for each other.'],
+      moves(s, i) {
+        const j = 1 - i, pc = s.pc[i];
+        if (pc === 'idle') return [{ pc: 'wait', flag: true, text: `P${i} sets flag[${i}] = true` }];
+        if (pc === 'wait') return s.flag[j] ? [] : [{ pc: 'crit', text: `P${i} sees flag[${j}] = false and enters` }];
+        return [{ pc: 'idle', flag: false, text: `P${i} leaves and sets flag[${i}] = false` }];
+      },
+    },
+    peterson: {
+      name: "Peterson's algorithm", adv: false, pcs: ['idle', 'turn', 'wait', 'crit'], turn: true,
+      code: '// shared: flag[0] = flag[1] = false, turn = 0\nloop forever:\n  idle: flag[me] = true\n  turn: turn = other\n  wait: wait until flag[other] == false\n             or turn == me\n  crit: critical section\n        flag[me] = false',
+      desc: ['Raise your flag, then politely give the other program the turn. Wait only if it wants in and it is its turn.', 'Flag plus a tie-breaking turn variable. The last process to write turn is the one that waits.'],
+      moves(s, i) {
+        const j = 1 - i, pc = s.pc[i];
+        if (pc === 'idle') return [{ pc: 'turn', flag: true, text: `P${i} sets flag[${i}] = true` }];
+        if (pc === 'turn') return [{ pc: 'wait', turn: j, text: `P${i} sets turn = ${j}` }];
+        if (pc === 'wait') return (!s.flag[j] || s.turn === i) ? [{ pc: 'crit', text: `P${i} enters (flag[${j}] = ${s.flag[j]}, turn = ${s.turn})` }] : [];
+        return [{ pc: 'idle', flag: false, text: `P${i} leaves and sets flag[${i}] = false` }];
+      },
+    },
+  };
+  let proto = 'naive', mc = null, mcRunId = 0, trStep = 0;
+  const skey = (s) => `${s.pc[0]},${s.pc[1]},${+s.flag[0]}${+s.flag[1]},${s.turn}`;
+
+  // Breadth-first search over every interleaving of the two processes.
+  function explore(p) {
+    const init = { pc: ['idle', 'idle'], flag: [false, false], turn: 0 };
+    const nodes = [{ s: init, depth: 0, parent: -1, via: null }];
+    const idx = new Map([[skey(init), 0]]);
+    const edges = [];
+    for (let h = 0; h < nodes.length; h++) {
+      const s = nodes[h].s;
+      let out = 0;
+      for (const i of [0, 1]) for (const m of p.moves(s, i)) {
+        out++;
+        const t = { pc: [...s.pc], flag: [...s.flag], turn: s.turn };
+        t.pc[i] = m.pc;
+        if ('flag' in m) t.flag[i] = m.flag;
+        if ('turn' in m) t.turn = m.turn;
+        const k = skey(t);
+        if (!idx.has(k)) { idx.set(k, nodes.length); nodes.push({ s: t, depth: nodes[h].depth + 1, parent: h, via: m.text }); }
+        edges.push({ from: h, to: idx.get(k) });
+      }
+      nodes[h].bad = s.pc[0] === 'crit' && s.pc[1] === 'crit';
+      nodes[h].dead = out === 0;
+    }
+    return { nodes, edges };
+  }
+
+  function renderPtabs() {
+    const box = $('ptabs');
+    box.innerHTML = '';
+    Object.entries(PROTOS).forEach(([k, p]) => {
+      if (p.adv && level !== 'advanced') return;
+      const b = document.createElement('button');
+      b.textContent = p.name;
+      b.setAttribute('aria-pressed', String(k === proto));
+      b.addEventListener('click', () => { if (k !== proto) { proto = k; renderProto(); } });
+      box.appendChild(b);
+    });
+  }
+
+  function renderProto() {
+    if (PROTOS[proto].adv && level !== 'advanced') proto = 'naive';
+    renderPtabs();
+    const p = PROTOS[proto];
+    mcRunId++;
+    mc = null;
+    $('protoTitle').textContent = p.name;
+    $('protoCode').textContent = p.code;
+    $('protoDesc').textContent = L(p.desc[0], p.desc[1]);
+    $('mcStates').textContent = '0'; $('mcBad').textContent = '0'; $('mcDead').textContent = '0';
+    $('traceBox').style.display = 'none';
+    $('mcRun').disabled = false;
+    drawGraph(null);
+    insight('mcInsight', L('Press "Explore every state". Each box will be one possible situation of the two programs.',
+      'Press "Explore every state" to run the BFS. Nodes appear in discovery order; columns are BFS depth.'));
+  }
+
+  const NW = 84, NH = 46, CW = 112, RH = 56, PAD = 14;
+  function layout(g) {
+    const cols = {};
+    g.nodes.forEach((n, i) => (cols[n.depth] ||= []).push(i));
+    const maxRows = Math.max(...Object.values(cols).map(c => c.length));
+    const ncols = Object.keys(cols).length;
+    const W = PAD * 2 + (ncols - 1) * CW + NW, H = PAD * 2 + (maxRows - 1) * RH + NH + 24;
+    for (const d in cols) {
+      const c = cols[d], off = (maxRows - c.length) * RH / 2;
+      c.forEach((i, r) => { g.nodes[i].x = PAD + d * CW; g.nodes[i].y = PAD + off + r * RH; });
+    }
+    return { W, H };
+  }
+
+  function drawGraph(g) {
+    const host = $('sg');
+    host.innerHTML = '';
+    if (!g) { host.style.display = 'none'; return; }
+    host.style.display = '';
+    const { W, H } = layout(g);
+    const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': L('State graph', 'Reachable state graph') }, host);
+    svg.style.minWidth = W + 'px';
+    const defs = svgEl('defs', {}, svg);
+    for (const [id, cls] of [['arr', ''], ['arrHi', 'hi']]) {
+      const mk = svgEl('marker', { id, class: cls, viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 8, markerHeight: 8, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' }, defs);
+      svgEl('path', { d: 'M0,0 L8,4 L0,8 z' }, mk);
+    }
+    const eg = svgEl('g', {}, svg), ng = svgEl('g', {}, svg);
+    g.edges.forEach(e => {
+      const a = g.nodes[e.from], b = g.nodes[e.to];
+      let d, back = false;
+      if (b.depth === a.depth + 1) {
+        const x1 = a.x + NW, y1 = a.y + NH / 2, x2 = b.x, y2 = b.y + NH / 2;
+        d = `M${x1},${y1} C${x1 + 18},${y1} ${x2 - 18},${y2} ${x2},${y2}`;
+      } else {
+        back = true;
+        const x1 = a.x + NW / 2, y1 = a.y + NH, x2 = b.x + NW / 2, y2 = b.y + NH;
+        const dip = Math.min(H - 4, Math.max(y1, y2) + 18 + Math.abs(a.depth - b.depth) * 4);
+        d = `M${x1},${y1} C${x1},${dip} ${x2},${dip} ${x2},${y2}`;
+      }
+      e.el = svgEl('path', { class: 'ed' + (back ? ' back' : ''), d, 'marker-end': 'url(#arr)' }, eg);
+    });
+    g.nodes.forEach((n, i) => {
+      const grp = svgEl('g', { class: 'nd' + (i === 0 ? ' init' : '') }, ng);
+      svgEl('rect', { x: n.x, y: n.y, width: NW, height: NH, rx: 7 }, grp);
+      const lines = [`P0 ${n.s.pc[0]}`, `P1 ${n.s.pc[1]}`, `f=${+n.s.flag[0]}${+n.s.flag[1]}` + (PROTOS[proto].turn ? ` t=${n.s.turn}` : '')];
+      lines.forEach((t, k) => { const tx = svgEl('text', { x: n.x + 8, y: n.y + 14 + k * 13 }, grp); tx.textContent = t; });
+      const title = svgEl('title', {}, grp); title.textContent = lines.join(', ');
+      n.el = grp;
+    });
+  }
+
+  $('mcRun').addEventListener('click', async () => {
+    const id = ++mcRunId;
+    const p = PROTOS[proto];
+    const g = explore(p);
+    mc = g;
+    drawGraph(g);
+    $('traceBox').style.display = 'none';
+    $('mcRun').disabled = true;
+    let bad = 0, dead = 0;
+    for (let i = 0; i < g.nodes.length; i++) {
+      const n = g.nodes[i];
+      n.el.classList.add('show');
+      g.edges.forEach(e => { if (e.to === i || e.from === i) { if (g.nodes[e.from].el.classList.contains('show') && g.nodes[e.to].el.classList.contains('show')) e.el.classList.add('show'); } });
+      if (n.bad) { n.el.classList.add('bad'); bad++; }
+      else if (n.dead) { n.el.classList.add('dead'); dead++; }
+      else n.el.classList.add('ok');
+      $('mcStates').textContent = i + 1; $('mcBad').textContent = bad; $('mcDead').textContent = dead;
+      await sleep(110);
+      if (id !== mcRunId) return;
+    }
+    $('mcRun').disabled = false;
+    const N = g.nodes.length, E = g.edges.length;
+    const target = g.nodes.findIndex(n => n.bad) >= 0 ? g.nodes.findIndex(n => n.bad) : (level === 'advanced' ? g.nodes.findIndex(n => n.dead) : -1);
+    if (bad) {
+      insight('mcInsight', L(`The checker found ${N} possible situations. In one of them (red) both programs are printing at the same time. Step through the exact path that gets there.`,
+        `${N} reachable states, ${E} transitions. Mutual exclusion is violated in ${bad} state. BFS gives a shortest counterexample: ${g.nodes[target].depth} steps.`), 'bad');
+    } else if (dead && level === 'advanced') {
+      insight('mcInsight', `${N} reachable states, ${E} transitions. Mutual exclusion holds in every state, but ${dead} state has no outgoing transition: a deadlock. Step through it.`, 'warn');
+    } else {
+      insight('mcInsight', L(`All ${N} possible situations checked. In none of them are both programs in the critical section, and the programs never get stuck. This is a proof for this model, not just a lucky test run.`,
+        `${N} reachable states, ${E} transitions, all checked. Mutual exclusion holds in every reachable state and there is no deadlock. For this finite model that is a proof, not a sample.`), 'good');
+      if (proto === 'peterson') { saved.mcPeterson = true; updateProgress(); }
+    }
+    if (target >= 0) {
+      const path = [];
+      for (let i = target; i >= 0; i = g.nodes[i].parent) path.unshift(i);
+      g.path = path;
+      trStep = 0;
+      $('traceBox').style.display = '';
+      $('traceTitle').textContent = bad ? L('How it goes wrong, step by step', 'Counterexample trace (safety violation)') : 'Counterexample trace (deadlock)';
+      renderTrace();
+    }
+  });
+
+  function renderTrace() {
+    const g = mc, path = g.path, p = PROTOS[proto];
+    g.nodes.forEach(n => n.el.classList.remove('trace', 'cur'));
+    g.edges.forEach(e => { e.el.classList.remove('trace'); e.el.setAttribute('marker-end', 'url(#arr)'); });
+    for (let k = 0; k <= trStep; k++) {
+      g.nodes[path[k]].el.classList.add('trace');
+      if (k > 0) {
+        const e = g.edges.find(x => x.from === path[k - 1] && x.to === path[k]);
+        if (e) { e.el.classList.add('trace'); e.el.setAttribute('marker-end', 'url(#arrHi)'); }
+      }
+    }
+    const cur = g.nodes[path[trStep]];
+    cur.el.classList.add('cur');
+    const s = cur.s, both = s.pc[0] === 'crit' && s.pc[1] === 'crit';
+    $('procs').innerHTML = [0, 1].map(i => `<div class="proc ${both ? 'alarm' : s.pc[i] === 'crit' ? 'incrit' : ''}">P${i}<div class="loc">${s.pc[i]}</div>flag[${i}] = <b>${s.flag[i]}</b></div>`).join('')
+      + `<div class="proc">${p.turn ? `turn = <b>${s.turn}</b>` : 'no turn variable'}<div class="loc">${L(`step ${trStep} of ${path.length - 1}`, `step ${trStep} / ${path.length - 1}`)}</div></div>`;
+    const items = [L('Start: both programs idle, both flags false.', 'Init: pc = (idle, idle), flag = (false, false).')];
+    for (let k = 1; k <= trStep; k++) items.push(g.nodes[path[k]].via);
+    $('steps').innerHTML = items.map((t, k) => `<li class="${k === trStep ? 'last' : ''} ${k === path.length - 1 && k === trStep ? 'badstep' : ''}">${esc(t)}</li>`).join('');
+    if (trStep === path.length - 1) {
+      $('steps').insertAdjacentHTML('beforeend', `<li class="badstep">${esc(cur.bad ? L('Both programs are in the critical section. The rule is broken.', 'Invariant violated: pc[0] = crit ∧ pc[1] = crit.') : 'Deadlock: both processes wait for a flag that will never be lowered.')}</li>`);
+      if (proto === 'naive') { saved.mcTrace = true; updateProgress(); }
+    }
+    $('trBack').disabled = trStep === 0;
+    $('trNext').disabled = trStep === path.length - 1;
+  }
+  $('trNext').addEventListener('click', () => { if (mc && mc.path && trStep < mc.path.length - 1) { trStep++; renderTrace(); } });
+  $('trBack').addEventListener('click', () => { if (mc && mc.path && trStep > 0) { trStep--; renderTrace(); } });
+
+  /* =========================================================
+     UNIT 4: loop invariants
+     ========================================================= */
+  const ZIG = (lo, hi) => { const out = []; for (let k = 0; out.length < hi - lo + 1; k++) { if (k >= lo && k <= hi) out.push(k); if (k > 0 && -k >= lo && -k <= hi) out.push(-k); } return out; };
+  const sumFirst = (a, k) => a.slice(0, Math.max(0, Math.min(k, a.length))).reduce((x, y) => x + y, 0);
+  const SMALL_ARRAYS = [[]];
+  for (let len = 1; len <= 3; len++) {
+    const rec = (pre) => { if (pre.length === len) { SMALL_ARRAYS.push(pre); return; } for (const v of ZIG(-2, 2)) rec([...pre, v]); };
+    rec([]);
+  }
+  const PROGS = {
+    sum: {
+      title: 'Sum of a list',
+      inputs: () => SMALL_ARRAYS.map(a => ({ a })),
+      states: function* (inp) { for (let i = 0; i <= inp.a.length + 1; i++) for (const s of ZIG(-8, 8)) yield { a: inp.a, i, s }; },
+      init: (inp) => ({ a: inp.a, i: 0, s: 0 }),
+      guard: (st) => st.i < st.a.length,
+      body: (st) => ({ a: st.a, i: st.i + 1, s: st.s + st.a[st.i] }),
+      post: (st) => st.s === sumFirst(st.a, st.a.length),
+      show: (st) => `a = ${fmtList(st.a)}, i = ${st.i}, s = ${st.s}`,
+      showAfter: (st) => `i = ${st.i}, s = ${st.s}`,
+      cands: [
+        { id: 'A', ok: true, code: 's == a[0] + … + a[i-1]  and  i <= n', plain: 's is the sum of the first i numbers, and i never goes past n',
+          inv: (st) => st.i <= st.a.length && st.s === sumFirst(st.a, st.i) },
+        { id: 'B', code: 's >= 0', plain: 's is never negative', inv: (st) => st.s >= 0 },
+        { id: 'C', code: 's == a[0] + … + a[i]', plain: 's is the sum of the first i + 1 numbers', inv: (st) => st.s === sumFirst(st.a, st.i + 1) },
+        { id: 'D', code: 'i < n', plain: 'i is smaller than n', inv: (st) => st.i < st.a.length },
+      ],
+    },
+    div: {
+      title: 'Integer division',
+      inputs: function* () { for (let n = 0; n <= 12; n++) for (let d = 1; d <= 4; d++) yield { n, d }; },
+      states: function* (inp) { for (const q of ZIG(0, 13)) for (const r of ZIG(-4, 13)) yield { n: inp.n, d: inp.d, q, r }; },
+      init: (inp) => ({ n: inp.n, d: inp.d, q: 0, r: inp.n }),
+      guard: (st) => st.r >= st.d,
+      body: (st) => ({ n: st.n, d: st.d, q: st.q + 1, r: st.r - st.d }),
+      post: (st) => st.n === st.q * st.d + st.r && 0 <= st.r && st.r < st.d,
+      show: (st) => `n = ${st.n}, d = ${st.d}, q = ${st.q}, r = ${st.r}`,
+      showAfter: (st) => `q = ${st.q}, r = ${st.r}`,
+      cands: [
+        { id: 'A', ok: true, code: 'n == q * d + r && 0 <= r', inv: (st) => st.n === st.q * st.d + st.r && st.r >= 0 },
+        { id: 'B', code: 'n == q * d + r', inv: (st) => st.n === st.q * st.d + st.r },
+        { id: 'C', code: '0 <= r && r < d', inv: (st) => st.r >= 0 && st.r < st.d },
+        { id: 'D', code: 'q * d <= n', inv: (st) => st.q * st.d <= st.n },
+      ],
+      variants: [
+        { id: 'r', ok: true, code: 'decreases r', V: (st) => st.r },
+        { id: 'q', code: 'decreases q', V: (st) => st.q },
+        { id: 'd', code: 'decreases d', V: (st) => st.d },
+      ],
+    },
+  };
+  const prog = () => PROGS[L('sum', 'div')];
+
+  // Check the three Hoare-logic obligations for an invariant over every small state.
+  function checkObligations(P, inv) {
+    const r = { init: null, pres: null, exit: null, presAny: false, exitAny: false };
+    for (const inp of P.inputs()) {
+      const s0 = P.init(inp);
+      if (!r.init && !inv(s0)) r.init = { st: s0 };
+      for (const st of P.states(inp)) {
+        if (!inv(st)) continue;
+        if (P.guard(st)) {
+          r.presAny = true;
+          const t = P.body(st);
+          if (!r.pres && !inv(t)) r.pres = { st, t };
+        } else {
+          r.exitAny = true;
+          if (!r.exit && !P.post(st)) r.exit = { st };
+        }
+      }
+    }
+    return r;
+  }
+
+  function checkVariant(P, inv, V) {
+    const r = { bound: null, dec: null };
+    for (const inp of P.inputs()) for (const st of P.states(inp)) {
+      if (!inv(st) || !P.guard(st)) continue;
+      if (!r.bound && V(st) < 0) r.bound = { st };
+      const t = P.body(st);
+      if (!r.dec && !(V(t) < V(st))) r.dec = { st, t };
+    }
+    return r;
+  }
+
+  // Concrete run shown in the stepper.
+  let run = null;
+  function loopReset() {
+    const P = prog();
+    run = level === 'advanced' ? { st: P.init({ n: 17, d: 5 }), rows: [] } : { st: P.init({ a: [3, -1, 4, 1, 5] }), rows: [] };
+    run.rows.push({ ...run.st });
+    renderLoop();
+    insight('loopInsight', L('Press "Run one iteration". Watch the last column: the invariant is true every time the loop checks its condition.',
+      'Step the loop. The invariant n == q * d + r && 0 <= r holds at every check of the guard, and the variant r strictly decreases.'));
+  }
+
+  function renderLoop() {
+    const P = prog(), st = run.st;
+    const correct = P.cands[0].inv;
+    if (level === 'advanced') {
+      $('loopTitle').textContent = 'Dafny';
+      const sel = P.cands.find(c => c.id === candSel);
+      $('loopCode').innerHTML = esc('method Div(n: int, d: int) returns (q: int, r: int)\n  requires n >= 0 && d > 0\n  ensures n == q * d + r && 0 <= r < d\n{\n  q, r := 0, n;\n  while r >= d\n    invariant ') + `<span class="hl">${esc(sel ? sel.code : '???')}</span>` + esc('\n    ') + `<span class="hl">${esc(varSel ? PROGS.div.variants.find(v => v.id === varSel).code : 'decreases ???')}</span>` + esc('\n  {\n    q, r := q + 1, r - d;\n  }\n}');
+      let bar = '';
+      for (let k = 0; k < st.n; k++) bar += `<i class="${k < st.q * st.d ? (Math.floor(k / st.d) % 2 ? 'cb' : 'ca') : ''}"></i>`;
+      $('loopVis').innerHTML = `<div class="divbar" aria-hidden="true">${bar}</div><div style="font-size:.8rem;color:var(--muted)">n = 17 units: ${st.q} full chunk${st.q === 1 ? '' : 's'} of d = 5, remainder r = ${st.r}</div>`;
+      $('loopVars').innerHTML = `<span>q = <b>${st.q}</b></span><span>r = <b>${st.r}</b></span><span>guard r ≥ d: <b>${P.guard(st)}</b></span>`;
+      $('loopTable').innerHTML = `<thead><tr><th>check #</th><th>q</th><th>r</th><th>q·d + r</th><th>invariant</th><th>variant r</th></tr></thead><tbody>` +
+        run.rows.map((x, k) => `<tr class="${k === run.rows.length - 1 && k ? 'new' : ''}"><td class="num">${k}</td><td class="num">${x.q}</td><td class="num">${x.r}</td><td class="num">${x.q * x.d + x.r}</td><td class="${correct(x) ? 'ok' : 'no'}">${correct(x) ? '✓' : '✗'}</td><td class="num">${x.r}</td></tr>`).join('') + '</tbody>';
+    } else {
+      $('loopTitle').textContent = 'Sum of a list';
+      const sel = P.cands.find(c => c.id === candSel);
+      $('loopCode').innerHTML = esc('// promise: s == a[0] + a[1] + … + a[n-1]\ni = 0\ns = 0\nwhile i < n:\n  // invariant: ') + `<span class="hl">${esc(sel ? sel.code : '???')}</span>` + esc('\n  s = s + a[i]\n  i = i + 1');
+      $('loopVis').innerHTML = `<div class="arr">${st.a.map((v, k) => `<span class="${k < st.i ? 'in' : k === st.i ? 'next' : ''}"><small>a[${k}]</small>${v}</span>`).join('')}</div>`;
+      $('loopVars').innerHTML = `<span>i = <b>${st.i}</b></span><span>s = <b>${st.s}</b></span><span>i &lt; n: <b>${P.guard(st)}</b></span>`;
+      $('loopTable').innerHTML = `<thead><tr><th>check #</th><th>i</th><th>s</th><th>sum of first i</th><th>invariant</th></tr></thead><tbody>` +
+        run.rows.map((x, k) => `<tr class="${k === run.rows.length - 1 && k ? 'new' : ''}"><td class="num">${k}</td><td class="num">${x.i}</td><td class="num">${x.s}</td><td>${x.i ? x.a.slice(0, x.i).join(' + ').replace(/\+ -/g, '− ') + ' = ' + sumFirst(x.a, x.i) : '0 (nothing yet)'}</td><td class="${correct(x) ? 'ok' : 'no'}">${correct(x) ? '✓' : '✗'}</td></tr>`).join('') + '</tbody>';
+    }
+    $('loopStep').disabled = !P.guard(st);
+  }
+
+  $('loopStep').addEventListener('click', () => {
+    const P = prog();
+    if (!P.guard(run.st)) return;
+    run.st = P.body(run.st);
+    run.rows.push({ ...run.st });
+    renderLoop();
+    if (!P.guard(run.st)) {
+      insight('loopInsight', L(`The loop stops because i < n is false, so i = n = 5. The invariant says s is the sum of the first i numbers, which is now all of them: s = ${run.st.s}. That is exactly the promise.`,
+        `Guard false: r = ${run.st.r} < d. Invariant ∧ ¬guard gives n == q·d + r ∧ 0 ≤ r < d, i.e. 17 = ${run.st.q}·5 + ${run.st.r}. The variant went 17, 12, 7, 2: it decreased each time and stayed ≥ 0.`), 'good');
+      saved.loopDone = true; updateProgress();
+    } else {
+      insight('loopInsight', L('Still true. One step kept the invariant true, which is what the second question asks for every possible state, not just this one.',
+        'Invariant re-established after the body. Preservation must hold from every state satisfying I ∧ B, not only this one.'));
+    }
+  });
+  $('loopReset').addEventListener('click', loopReset);
+
+  let candSel = null, varSel = null;
+  function oblRow(ok, title, cx, note) {
+    return `<div class="obl ${ok ? 'ok' : 'no'}"><span class="mk">${ok ? '✓' : '✗'}</span><span>${title}</span>${cx ? `<span class="cx${note ? ' note' : ''}">${esc(cx)}</span>` : ''}</div>`;
+  }
+
+  function renderCands() {
+    const P = prog();
+    $('candTitle').textContent = L('Which invariant proves it?', 'Choose the loop invariant');
+    $('candLede').textContent = L('The checker asks the three questions below for every small list (up to 3 numbers from −2 to 2) and every value of i and s.',
+      'Each obligation is checked over all states in the bounded domain. A ✗ comes with a concrete counterexample state.');
+    const box = $('cands');
+    box.innerHTML = '';
+    P.cands.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (candSel === c.id ? (c.ok ? ' right' : ' wrong') : '');
+      b.innerHTML = `<code>${esc(c.code)}</code>${c.plain ? `<small>${esc(c.plain)}</small>` : ''}`;
+      b.addEventListener('click', () => { candSel = c.id; renderCands(); renderLoop(); });
+      box.appendChild(b);
+    });
+    const c = P.cands.find(x => x.id === candSel);
+    if (!c) { $('obls').innerHTML = ''; renderVariants(); return; }
+    const r = checkObligations(P, c.inv);
+    const vac = (any, beg, adv) => any ? '' : L(beg, adv);
+    $('obls').innerHTML =
+      oblRow(!r.init, L('True at the start', 'Initiation: {P} init {I}'), r.init ? L(`Fails for ${P.show(r.init.st)}`, `counterexample: ${P.show(r.init.st)}`) : '') +
+      oblRow(!r.pres, L('Each iteration keeps it true', 'Preservation: {I ∧ B} body {I}'), r.pres ? L(`Fails: from ${P.show(r.pres.st)} one step gives ${P.showAfter(r.pres.t)}`, `counterexample: ${P.show(r.pres.st)} → ${P.showAfter(r.pres.t)}`) : vac(r.presAny, 'True, but only because this invariant can never hold while the loop keeps going.', 'Vacuous: no state satisfies I ∧ B.'), !r.pres && !r.presAny) +
+      oblRow(!r.exit, L('When the loop stops, it gives the promised answer', 'Exit: I ∧ ¬B ⇒ Q'), r.exit ? L(`Fails: the loop can stop at ${P.show(r.exit.st)}, where the answer is wrong`, `counterexample: ${P.show(r.exit.st)} satisfies I ∧ ¬B but not Q`) : vac(r.exitAny, 'True, but only because this invariant can never hold when the loop stops.', 'Vacuous: no state satisfies I ∧ ¬B.'), !r.exit && !r.exitAny);
+    if (c.ok && (level === 'beginner' || varSel === 'r')) { saved.invDone = true; updateProgress(); }
+    renderVariants();
+  }
+
+  function renderVariants() {
+    if (level !== 'advanced') return;
+    const P = PROGS.div, box = $('variants');
+    box.innerHTML = '';
+    P.variants.forEach(v => {
+      const b = document.createElement('button');
+      b.className = 'opt' + (varSel === v.id ? (v.ok ? ' right' : ' wrong') : '');
+      b.innerHTML = `<code>${esc(v.code)}</code>`;
+      b.addEventListener('click', () => {
+        varSel = v.id;
+        if (v.ok && candSel === 'A') { saved.invDone = true; updateProgress(); }
+        renderVariants(); renderLoop();
+      });
+      box.appendChild(b);
+    });
+    const v = P.variants.find(x => x.id === varSel);
+    if (!v) { $('vobls').innerHTML = ''; return; }
+    const r = checkVariant(P, P.cands[0].inv, v.V);
+    $('vobls').innerHTML =
+      oblRow(!r.bound, 'Bounded: I ∧ B ⇒ V ≥ 0', r.bound ? `counterexample: ${P.show(r.bound.st)}` : '') +
+      oblRow(!r.dec, 'Decreases: V after the body < V before', r.dec ? `counterexample: ${P.show(r.dec.st)} → ${P.showAfter(r.dec.t)}` : '');
+  }
+
+  /* =========================================================
+     UNIT 5: quiz
+     ========================================================= */
+  const QUIZ_BEGINNER = [
+    { q: 'A function passes 100 random tests. What do you actually know?',
+      opts: ['It is correct for every input', 'It works for those 100 inputs', 'It has no bugs left', 'It will pass the next 100 tests'], a: 1,
+      why: 'Tests show the presence of bugs, never their absence. Inputs you did not try are still unknown.' },
+    { q: 'Why does abs(-128) return -128 for 8-bit numbers?',
+      opts: ['The function has a typo', '+128 does not fit in 8 bits, so it wraps around', 'Negative numbers are not allowed', 'Computers cannot store -128'], a: 1,
+      why: '8-bit numbers go from -128 to 127. The result of -(-128) wraps back to -128.' },
+    { q: 'What is a postcondition?',
+      opts: ['A comment at the end of the file', 'What the code promises is true when it finishes', 'What must be true before the code runs', 'A test that runs after deployment'], a: 1,
+      why: 'Preconditions describe what the caller must provide. Postconditions describe what the code promises back.' },
+    { q: 'A "sort" that always returns an empty list passes the spec "the output is sorted". What is wrong?',
+      opts: ['The checker is broken', 'The spec is too weak', 'Empty lists are not sorted', 'Nothing, it is a valid sort'], a: 1,
+      why: 'The spec must also say the output contains the same numbers as the input. Otherwise wrong programs satisfy it.' },
+    { q: 'What does a model checker do?',
+      opts: ['Runs the program a few times with random timing', 'Visits every reachable state of a model and checks a property in each', 'Checks the code style', 'Proves the spec is what you wanted'], a: 1,
+      why: 'Because it explores every state, it finds rare interleavings that tests almost never hit.' },
+    { q: 'A loop invariant is…',
+      opts: ['A variable that never changes', 'A fact that is true each time the loop checks its condition', 'The number of times the loop runs', 'The condition that ends the loop'], a: 1,
+      why: 'It is true at the start and stays true after every iteration. With the exit condition, it gives the result.' },
+    { type: 'order',
+      q: 'Put the steps of verifying a function in order.',
+      items: ['Write down what the code must do (the spec)', 'Write the code', 'Run the verifier', 'Fix the code or the spec where it fails'],
+      why: 'Spec first, then code, then check, then fix. Repeat until the verifier agrees, and keep reviewing the spec itself.' },
+  ];
+  const QUIZ_ADVANCED = [
+    { q: 'Exhaustively testing f(x, y) for two 64-bit integers at 10⁹ checks per second takes about…',
+      opts: ['A few hours', 'About 585 years', 'About 10²² years', 'A few seconds with a GPU'], a: 2,
+      why: '2¹²⁸ ≈ 3.4 × 10³⁸ inputs. 585 years is the figure for a single 64-bit input.' },
+    { q: 'How does an SMT solver find the abs(INT_MIN) bug?',
+      opts: ['It runs abs on random inputs very fast', 'It encodes "abs(x) < 0" as a bit-vector formula and finds a satisfying assignment', 'It reads the comments in the code', 'It compiles the code with sanitizers'], a: 1,
+      why: 'sat gives a model, which is a counterexample. unsat means no input violates the property.' },
+    { q: 'Which clause rules out "sort, dedupe, then pad with the last value"?',
+      opts: ['|b| == |a|', 'forall x :: x in a <==> x in b', 'multiset(b) == multiset(a)', 'b is sorted'], a: 2,
+      why: 'The padder keeps length, order and the set of values. Only the multiset clause sees the changed counts.' },
+    { q: '"Every request eventually gets a response" is…',
+      opts: ['A safety property', 'A liveness property', 'A precondition', 'An invariant'], a: 1,
+      why: 'Liveness: something good eventually happens. Its counterexamples are infinite runs (lassos), and checking it needs fairness.' },
+    { q: 'The invariant n == q * d + r (without 0 <= r) fails which obligation for Div?',
+      opts: ['Initiation', 'Preservation', 'Exit: I ∧ ¬B ⇒ Q', 'None, it is fine'], a: 2,
+      why: 'It is established and preserved, but at exit it allows r < 0, so it does not imply 0 <= r < d.' },
+    { q: 'Why does "q * d <= n" fail preservation even though it is true on every real run?',
+      opts: ['Preservation is checked from every state satisfying I ∧ B, and I is too weak to carry itself', 'Because q is negative', 'Because the loop does not terminate', 'Because Dafny cannot do multiplication'], a: 0,
+      why: 'From q = 0, r = 1, n = 0, d = 1 the invariant holds and the guard is true, but one step breaks it. A useful invariant must be inductive.' },
+    { q: 'What does the seL4 proof guarantee?',
+      opts: ['The kernel has no bugs of any kind', 'Its C code implements its abstract spec, under stated assumptions such as correct hardware', 'Every program running on it is secure', 'It runs faster than other kernels'], a: 1,
+      why: 'A proof is relative to its spec and assumptions. It rules out whole classes of bugs, not every possible problem.' },
+    { type: 'order',
+      q: 'Put the model checking workflow in order.',
+      items: ['Model the system as states and transitions', 'State the property, e.g. mutual exclusion', 'Explore all reachable states', 'Inspect the counterexample trace'],
+      why: 'Model, property, search, then read the trace. Fix the design or the model and repeat.' },
+  ];
+  let QUIZ = QUIZ_BEGINNER;
+  let qi = 0, score = 0;
+
+  function renderQuiz() {
+    const box = $('quizBox');
+    if (qi >= QUIZ.length) {
+      const pct = Math.round((score / QUIZ.length) * 100);
+      box.innerHTML = `<div class="result"><div class="score">${score} / ${QUIZ.length}</div>
+        <p>${pct === 100 ? 'Perfect. Proven, not just tested.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay the units, then try again.'}</p>
+        <button class="btn primary" id="retry">Try again</button></div>`;
+      $('retry').addEventListener('click', () => { qi = 0; score = 0; renderQuiz(); });
+      saved.quizDone = true; updateProgress();
+      return;
+    }
+    const item = QUIZ[qi];
+    box.innerHTML = `<div class="quiz-meta"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>
+      <div class="q">${esc(item.q)}</div><div id="qBody"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="controls"><button class="btn primary" id="qNext" style="display:none">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`;
+    $('qNext').addEventListener('click', () => { qi++; renderQuiz(); });
+    (item.type === 'order' ? renderOrder : renderMC)(item);
+  }
+
+  function reveal(ok, why) {
+    if (ok) score++;
+    const fb = $('fb');
+    fb.className = 'feedback show ' + (ok ? 'good' : 'bad');
+    fb.innerHTML = `<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`;
+    $('qNext').style.display = '';
+    $('qNext').focus();
+  }
+
+  function renderMC(item) {
+    const wrap = document.createElement('div'); wrap.className = 'opts';
+    item.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        wrap.querySelectorAll('.opt').forEach((x, j) => {
+          x.disabled = true;
+          if (j === item.a) x.classList.add('right');
+        });
+        if (i !== item.a) b.classList.add('wrong');
+        reveal(i === item.a, item.why);
+      });
+      wrap.appendChild(b);
+    });
+    $('qBody').appendChild(wrap);
+  }
+
+  function renderOrder(item) {
+    const shuffled = [...item.items];
+    do { shuffled.sort(() => Math.random() - 0.5); } while (shuffled.join() === item.items.join());
+    const picked = [];
+    $('qBody').innerHTML = `<div class="chips" id="chips"></div><div class="slots" id="slots"></div>
+      <div class="controls"><button class="btn" id="oClear">Clear</button><button class="btn primary" id="oCheck" disabled>Check order</button></div>`;
+    const draw = () => {
+      $('chips').innerHTML = ''; $('slots').innerHTML = '';
+      shuffled.forEach(s => {
+        const c = document.createElement('button');
+        c.className = 'chip'; c.textContent = s; c.disabled = picked.includes(s);
+        c.addEventListener('click', () => { picked.push(s); draw(); });
+        $('chips').appendChild(c);
+      });
+      item.items.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'slot' + (picked[i] ? ' filled' : '');
+        d.textContent = picked[i] || '';
+        $('slots').appendChild(d);
+      });
+      $('oCheck').disabled = picked.length !== item.items.length;
+    };
+    $('oClear').addEventListener('click', () => { picked.length = 0; draw(); });
+    $('oCheck').addEventListener('click', () => {
+      const slots = $('slots').children;
+      let ok = true;
+      picked.forEach((s, i) => {
+        const right = s === item.items[i];
+        ok = ok && right;
+        slots[i].classList.add(right ? 'right' : 'wrong');
+        if (!right) slots[i].textContent = `${s}  (should be: ${item.items[i]})`;
+      });
+      $('chips').querySelectorAll('button').forEach(b => b.disabled = true);
+      $('oCheck').disabled = true; $('oClear').disabled = true;
+      reveal(ok, item.why);
+    });
+    draw();
+  }
+
+  /* ---------------- shared ---------------- */
+  document.querySelectorAll('.codeblock .copy').forEach(btn => btn.addEventListener('click', async () => {
+    const text = btn.closest('.codeblock').querySelector('pre').textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; }
+    catch (e) { btn.textContent = 'Copy failed'; }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
+  }));
+
+  function applyLevel() {
+    document.body.dataset.level = level;
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+    u1Setup();
+    specSel = new Set(['sorted']);
+    renderClauses();
+    renderSpec();
+    renderProto();
+    candSel = null; varSel = null;
+    loopReset();
+    renderCands();
+    QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
+    qi = 0; score = 0;
+    renderQuiz();
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.level === level) return;
+    level = b.dataset.level;
+    saved.level = level; persist();
+    applyLevel();
+  }));
+
+  // Redraw the canvas if the colour scheme changes.
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => u1 && u1Draw());
+
+  /* ---------------- init ---------------- */
+  applyLevel();
+  updateProgress();
+})();
+</script>
+</body>
+</html>

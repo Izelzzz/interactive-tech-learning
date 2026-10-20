@@ -1,0 +1,729 @@
+{
+ "title": "设计数据库",
+ "strings": [
+  [
+   "'(answer to see the schema)'",
+   "'（作答后显示表结构）'"
+  ],
+  [
+   "'1. Take $100 from Alice'",
+   "'1. 从 Alice 账户扣除 $100'"
+  ],
+  [
+   "'1:1 is a 1:N with a UNIQUE constraint on the foreign key. Put the FK on the side that is optional or created later. Often the two tables could be merged, so split only for optionality, security or very wide rows.'",
+   "'1:1 其实就是外键上带 UNIQUE 约束的 1:N。把外键放在可选的、或者后创建的那一侧。很多时候两张表可以合并，所以只在需要表达可选性、出于安全考虑或行非常宽时才拆分。'"
+  ],
+  [
+   "'2. Give $100 to Bob'",
+   "'2. 给 Bob 账户增加 $100'"
+  ],
+  [
+   "'<div class=\"hd\">Session A</div><div class=\"hd\">Session B</div>'",
+   "'<div class=\"hd\">会话 A</div><div class=\"hd\">会话 B</div>'"
+  ],
+  [
+   "'A backup of the primary key'",
+   "'主键的备份'"
+  ],
+  [
+   "'A bank transfer runs inside a transaction. What does that guarantee?'",
+   "'一笔银行转账在事务中执行。这能保证什么？'"
+  ],
+  [
+   "'A blog post has many comments; each comment is on one post.'",
+   "'一篇博客文章有很多评论；每条评论只属于一篇文章。'"
+  ],
+  [
+   "'A classic 1:N. Decide what happens when a post is deleted: ON DELETE CASCADE removes its comments, and RESTRICT blocks the delete.'",
+   "'典型的 1:N。想清楚文章被删除时怎么办：ON DELETE CASCADE 会连带删除评论，RESTRICT 则会阻止删除。'"
+  ],
+  [
+   "'A column that points to a row in another table'",
+   "'指向另一张表中某一行的列'"
+  ],
+  [
+   "'A course_id column on students'",
+   "'在 students 上加一个 course_id 列'"
+  ],
+  [
+   "'A customer places many orders; each order belongs to one customer.'",
+   "'一个客户下很多订单；每个订单只属于一个客户。'"
+  ],
+  [
+   "'A function applied to the column prevents a plain index from matching it.'",
+   "'对列使用函数后，普通索引就无法匹配它了。'"
+  ],
+  [
+   "'A function on the column hides it from the index. Create an expression index on (lower(last_name)) instead.'",
+   "'对列使用函数会让索引“看不到”它。应该在 (lower(last_name)) 上建表达式索引。'"
+  ],
+  [
+   "'A key from another country'",
+   "'从外国来的钥匙'"
+  ],
+  [
+   "'A movie has many actors; an actor appears in many movies.'",
+   "'一部电影有很多演员；一个演员出演很多部电影。'"
+  ],
+  [
+   "'A password for the table'",
+   "'表的密码'"
+  ],
+  [
+   "'A person has one passport; a passport belongs to exactly one person.'",
+   "'一个人有一本护照；一本护照只属于一个人。'"
+  ],
+  [
+   "'A self-referencing N:M junction. Add CHECK (follower_id <> followee_id), and index both directions so you can list followers and following.'",
+   "'自引用的 N:M 关联表。加上 CHECK (follower_id <> followee_id)，并为两个方向都建索引，这样“粉丝”和“关注”两个列表都能查。'"
+  ],
+  [
+   "'A student enrolls in many courses; a course has many students.'",
+   "'一个学生选很多门课；一门课有很多学生。'"
+  ],
+  [
+   "'A student_id column on courses'",
+   "'在 courses 上加一个 student_id 列'"
+  ],
+  [
+   "'A third table, e.g. \"enrollments\"'",
+   "'第三张表，例如 \"enrollments\"'"
+  ],
+  [
+   "'A user can follow many users and be followed by many users.'",
+   "'一个用户可以关注很多用户，也可以被很多用户关注。'"
+  ],
+  [
+   "'Add LIMIT 1'",
+   "'加上 LIMIT 1'"
+  ],
+  [
+   "'Add an index on balance'",
+   "'给 balance 加索引'"
+  ],
+  [
+   "'Add indexes for common searches'",
+   "'为常用查询添加索引'"
+  ],
+  [
+   "'All or nothing. If anything fails halfway, the finished steps are undone.'",
+   "'要么全做，要么全不做。如果中途有任何失败，已完成的步骤都会被撤销。'"
+  ],
+  [
+   "'Always a junction table'",
+   "'总是用关联表'"
+  ],
+  [
+   "'An employee has one manager, who is also an employee.'",
+   "'每个员工有一个经理，而经理本身也是员工。'"
+  ],
+  [
+   "'An exact match on the indexed column is the perfect case.'",
+   "'对索引列做精确匹配，是最理想的情况。'"
+  ],
+  [
+   "'An expression index on lower(email), or store emails normalised'",
+   "'在 lower(email) 上建表达式索引，或者存储规范化后的邮箱'"
+  ],
+  [
+   "'Ana has no rows left.'",
+   "'Ana 已经没有任何行了。'"
+  ],
+  [
+   "'Atomicity: the uncommitted write is invisible and discarded during recovery. The invariant holds.'",
+   "'原子性：未提交的写入对外不可见，并在恢复过程中被丢弃。不变式依然成立。'"
+  ],
+  [
+   "'Backs up the table'",
+   "'备份这张表'"
+  ],
+  [
+   "'Balances reset.'",
+   "'余额已重置。'"
+  ],
+  [
+   "'Both columns match in index order, the best case.'",
+   "'两列都按索引顺序匹配，最理想的情况。'"
+  ],
+  [
+   "'Both updates happen, or neither does'",
+   "'两次更新要么都发生，要么都不发生'"
+  ],
+  [
+   "'Both writes sit between BEGIN and COMMIT, so they become visible together or not at all.'",
+   "'两次写入都在 BEGIN 和 COMMIT 之间，所以它们要么一起生效，要么都不生效。'"
+  ],
+  [
+   "'CREATE TABLE employees (\\n  id         bigint PRIMARY KEY,\\n  name       text NOT NULL,\\n  manager_id bigint REFERENCES employees(id)  -- NULL for the CEO\\n);'",
+   "'CREATE TABLE employees (\\n  id         bigint PRIMARY KEY,\\n  name       text NOT NULL,\\n  manager_id bigint REFERENCES employees(id)  -- CEO 的这一列为 NULL\\n);'"
+  ],
+  [
+   "'Composite index on (country, city). Which query cannot use it efficiently?'",
+   "'在 (country, city) 上有一个复合索引。哪个查询无法高效地使用它？'"
+  ],
+  [
+   "'Connect tables with foreign keys'",
+   "'用外键把表连接起来'"
+  ],
+  [
+   "'Copied'",
+   "'已复制'"
+  ],
+  [
+   "'Copies drift apart. Store each fact once and point to it.'",
+   "'副本迟早会不一致。每个事实只存一次，其他地方指向它。'"
+  ],
+  [
+   "'Copy failed'",
+   "'复制失败'"
+  ],
+  [
+   "'Copy'",
+   "'复制'"
+  ],
+  [
+   "'Deadlock'",
+   "'死锁'"
+  ],
+  [
+   "'Deletes duplicate rows'",
+   "'删除重复行'"
+  ],
+  [
+   "'Dirty read'",
+   "'脏读'"
+  ],
+  [
+   "'Drop the index'",
+   "'删掉索引'"
+  ],
+  [
+   "'Each statement auto-committed on its own, so the first write is durable and the second never ran. The invariant is broken. Enable the transaction and retry.'",
+   "'每条语句各自自动提交，所以第一次写入已经持久化，而第二次从未执行。不变式被破坏了。启用事务后重试。'"
+  ],
+  [
+   "'Emails can\\'t be stored in tables'",
+   "'表里不能存邮箱'"
+  ],
+  [
+   "'Encrypting the table'",
+   "'给表加密'"
+  ],
+  [
+   "'Entity relationship diagram'",
+   "'实体关系图'"
+  ],
+  [
+   "'Every row gets a value that no other row has (often just a number), so other tables can point to it.'",
+   "'每一行都有一个其他行没有的值（通常就是一个编号），这样其他表就可以指向它。'"
+  ],
+  [
+   "'Executing both plans…'",
+   "'正在执行两个执行计划…'"
+  ],
+  [
+   "'Final balance $300 ✓. The atomic UPDATE computes from the current row value under a row lock, so B waits and then applies its change on top. SELECT … FOR UPDATE or Serializable isolation also work.'",
+   "'最终余额 $300 ✓。原子 UPDATE 在行锁的保护下基于当前行的值进行计算，所以 B 会等待，然后在 A 的结果之上应用自己的修改。SELECT … FOR UPDATE 或 Serializable 隔离级别同样可行。'"
+  ],
+  [
+   "'Final balance $400, but two withdrawals of $100 happened, so it should be $300. This is a lost update: B overwrote A\\'s write with a value computed from stale data. Read Committed does not prevent it.'",
+   "'最终余额是 $400，但发生了两次各 $100 的取款，应该是 $300。这就是丢失更新：B 用基于过期数据算出的值覆盖了 A 的写入。Read Committed 无法防止这种情况。'"
+  ],
+  [
+   "'For example, orders.customer_id points to customers.id, and the database can make sure that customer exists.'",
+   "'例如 orders.customer_id 指向 customers.id，数据库可以确保这个客户确实存在。'"
+  ],
+  [
+   "'For indexing'",
+   "'为了建索引'"
+  ],
+  [
+   "'Foreign keys require it'",
+   "'外键要求这样做'"
+  ],
+  [
+   "'Give each table a primary key'",
+   "'给每张表一个主键'"
+  ],
+  [
+   "'Happy path: both variants are equivalent. Inject the failure to see the difference.'",
+   "'正常路径下两种方式等价。注入故障才能看出区别。'"
+  ],
+  [
+   "'In the SQL standard, which isolation level prevents non-repeatable reads but still allows phantoms?'",
+   "'在 SQL 标准中，哪个隔离级别能防止不可重复读，但仍然允许幻读？'"
+  ],
+  [
+   "'Index Scan finished: 4 buffers. Seq Scan is still reading the heap…'",
+   "'Index Scan 已完成：4 个 buffer。Seq Scan 仍在读取堆…'"
+  ],
+  [
+   "'It \"starts with ben\", like flipping to the B tab and then looking for \"ben\".'",
+   "'它是“以 ben 开头”，就像先翻到 B 字母的标签页，再找“ben”。'"
+  ],
+  [
+   "'It can never fail'",
+   "'它永远不会失败'"
+  ],
+  [
+   "'It ends with something. The index is sorted by the start of the text, so it can\\'t jump to \"ends with\".'",
+   "'它是“以某个东西结尾”。索引按文本开头排序，所以没法直接跳到“以…结尾”的位置。'"
+  ],
+  [
+   "'It is a different fact (the historical price), so this is intentional, not an anomaly.'",
+   "'它是一个不同的事实（历史价格），所以这是有意为之，不是异常。'"
+  ],
+  [
+   "'It isn\\'t a problem'",
+   "'这不是问题'"
+  ],
+  [
+   "'It makes the database slower to open'",
+   "'会让数据库打开得更慢'"
+  ],
+  [
+   "'It runs faster'",
+   "'执行得更快'"
+  ],
+  [
+   "'List the things you store (customers, products…)'",
+   "'列出要存储的东西（客户、商品…）'"
+  ],
+  [
+   "'Lost update'",
+   "'丢失更新'"
+  ],
+  [
+   "'Makes everything faster for free'",
+   "'所有操作都免费变快'"
+  ],
+  [
+   "'Makes finding rows much faster, but makes writes a bit slower'",
+   "'查找行快得多，但写入会稍微变慢'"
+  ],
+  [
+   "'Many on both sides again, so a middle table. It can even store extra facts, such as which character the actor played.'",
+   "'又是两边都是“多”，所以需要中间表。它还可以存放额外的信息，比如演员饰演的角色。'"
+  ],
+  [
+   "'Many on both sides. Neither table can hold the pointer, so you add a third table in the middle. Each row in it says \"this student is in this course\".'",
+   "'两边都是“多”。哪张表都放不下这个指针，所以要在中间加第三张表，其中每一行表示“这个学生选了这门课”。'"
+  ],
+  [
+   "'Many-to-many needs a table in the middle, where each row links one student to one course.'",
+   "'多对多需要一张中间表，其中每一行把一个学生和一门课连接起来。'"
+  ],
+  [
+   "'Many-to-many'",
+   "'多对多'"
+  ],
+  [
+   "'N:M needs a junction table whose PK is (student_id, course_id), which also prevents duplicate enrolments. The junction often gets its own attributes (enrolled_at, grade) and becomes an entity in its own right.'",
+   "'N:M 需要一张关联表，主键为 (student_id, course_id)，这也能防止重复选课。关联表常常有自己的属性（enrolled_at、grade），本身就成了一个实体。'"
+  ],
+  [
+   "'No crash, so it worked either way. The difference only shows when something goes wrong, so try the crash button.'",
+   "'没有崩溃，所以两种方式都成功了。区别只在出问题时才会显现，试试崩溃按钮。'"
+  ],
+  [
+   "'Nobody can see the balances'",
+   "'没人能看到余额'"
+  ],
+  [
+   "'On both sides'",
+   "'两边都放'"
+  ],
+  [
+   "'One big table with everything'",
+   "'一张包含所有内容的大表'"
+  ],
+  [
+   "'One customer, many orders. Each order stores its customer\\'s number, and the \"many\" side holds the pointer.'",
+   "'一个客户，多个订单。每个订单都记下它所属客户的编号，指针放在“多”的那一侧。'"
+  ],
+  [
+   "'One on each side. The passports table stores which person it belongs to, and no two passports may point to the same person.'",
+   "'两边都是“一”。passports 表记录它属于哪个人，而且不能有两本护照指向同一个人。'"
+  ],
+  [
+   "'One post, many comments, so the pointer goes on the comments.'",
+   "'一篇文章，多条评论，所以指针放在评论上。'"
+  ],
+  [
+   "'One-to-many'",
+   "'一对多'"
+  ],
+  [
+   "'One-to-one'",
+   "'一对一'"
+  ],
+  [
+   "'Order #3 is already deleted. Press Reset to try again.'",
+   "'#3 号订单已经删掉了。点击“重置”再试一次。'"
+  ],
+  [
+   "'Partly: the range on last_name uses the index, but first_name after a range can only filter. Put equality columns first.'",
+   "'部分可以：last_name 上的范围条件能用到索引，但范围之后的 first_name 只能用来过滤。把等值条件的列放在前面。'"
+  ],
+  [
+   "'Phantom read'",
+   "'幻读'"
+  ],
+  [
+   "'Press \"Run the search\" to start both searches together.'",
+   "'点击“开始查找”，两种查找会同时开始。'"
+  ],
+  [
+   "'Prices change; the order must record what was actually charged'",
+   "'价格会变，订单必须记录实际收取的金额'"
+  ],
+  [
+   "'Put the database design steps in order.'",
+   "'把数据库设计的步骤按顺序排好。'"
+  ],
+  [
+   "'Put the transfer in order.'",
+   "'把这笔转账的步骤按顺序排好。'"
+  ],
+  [
+   "'Read the balance twice'",
+   "'把余额读两次'"
+  ],
+  [
+   "'Repeatable Read allows phantoms in the standard. (PostgreSQL\\'s implementation is stricter than the standard here.)'",
+   "'在标准中，Repeatable Read 允许幻读。（PostgreSQL 的实现在这一点上比标准更严格。）'"
+  ],
+  [
+   "'Rewrite it as OR'",
+   "'改写成 OR'"
+  ],
+  [
+   "'Run both plans for the new value.'",
+   "'用新的值运行两个执行计划。'"
+  ],
+  [
+   "'Run each operation against the single table and note which invariant breaks.'",
+   "'对这张单表逐一执行每个操作，观察哪条不变式被破坏。'"
+  ],
+  [
+   "'Searches jump straight to the right place, but every insert or update must also update the index.'",
+   "'查询可以直接跳到正确的位置，但每次插入或更新也必须同时更新索引。'"
+  ],
+  [
+   "'Searching…'",
+   "'搜索中…'"
+  ],
+  [
+   "'Self-referencing 1:N: manager_id points back into the same table and is NULL for the CEO. Query the hierarchy with WITH RECURSIVE.'",
+   "'自引用的 1:N：manager_id 指回同一张表，CEO 的这一列为 NULL。用 WITH RECURSIVE 查询层级关系。'"
+  ],
+  [
+   "'Sorting the table alphabetically'",
+   "'把表按字母排序'"
+  ],
+  [
+   "'Step 1 was saved but step 2 never happened: $100 has vanished from the bank. Now switch on the transaction and try again.'",
+   "'第 1 步保存了，但第 2 步从未执行：$100 从银行里凭空消失了。现在打开事务开关，再试一次。'"
+  ],
+  [
+   "'Storing passwords'",
+   "'存储密码'"
+  ],
+  [
+   "'Students take many courses, and courses have many students. What do you need?'",
+   "'学生选很多门课，一门课有很多学生。你需要什么？'"
+  ],
+  [
+   "'The FK always goes on the many side (orders.customer_id). Index it: Postgres does not index foreign keys automatically, and joins and ON DELETE checks need it.'",
+   "'外键总是放在“多”的一侧（orders.customer_id）。记得给它建索引：Postgres 不会自动为外键建索引，而 JOIN 和 ON DELETE 检查都需要它。'"
+  ],
+  [
+   "'The FK always lives on the many side. Remember to index it.'",
+   "'外键总是放在“多”的一侧。记得给它建索引。'"
+  ],
+  [
+   "'The database computes the new value from the current row under a lock. SELECT … FOR UPDATE also works.'",
+   "'数据库在锁的保护下基于当前行计算新值。SELECT … FOR UPDATE 同样可行。'"
+  ],
+  [
+   "'The index already found the row after reading 4 pages. The full scan is still going…'",
+   "'索引读了 4 个页面就已经找到这一行了，全表扫描还在继续…'"
+  ],
+  [
+   "'The index is already sorted by email, so the first 10 entries are the answer.'",
+   "'索引本来就按 email 排好序了，所以前 10 条就是答案。'"
+  ],
+  [
+   "'The index is on email, not name. This search has to scan every row (or needs its own index on name).'",
+   "'索引建在 email 上，而不是 name 上。这个查询必须扫描每一行（或者给 name 单独建一个索引）。'"
+  ],
+  [
+   "'The index order matches the sort, so no sort step is needed.'",
+   "'索引顺序和排序要求一致，所以不需要额外的排序步骤。'"
+  ],
+  [
+   "'The junction carries data (character). If an actor can play two characters in one movie, the PK must include character, or use a surrogate id with a UNIQUE constraint.'",
+   "'关联表本身携带数据（character）。如果一个演员可以在同一部电影里饰演两个角色，主键就必须包含 character，或者使用代理 id 加 UNIQUE 约束。'"
+  ],
+  [
+   "'The leftmost prefix rule: without country, the cities are scattered throughout the index.'",
+   "'最左前缀原则：没有 country，各个 city 分散在整个索引中。'"
+  ],
+  [
+   "'The second write overwrote the first, which was based on a stale read.'",
+   "'第二次写入覆盖了第一次，而它依据的是一次过期的读取。'"
+  ],
+  [
+   "'The transaction never finished, so the database undid step 1. Alice has her $100 back, and no money was lost.'",
+   "'事务没有完成，所以数据库撤销了第 1 步。Alice 的 $100 回来了，一分钱都没丢。'"
+  ],
+  [
+   "'There is an index on email, but the query uses WHERE lower(email) = ?. What is the fix?'",
+   "'email 上有索引，但查询用的是 WHERE lower(email) = ?。怎么修复？'"
+  ],
+  [
+   "'Things → identities → connections → speed.'",
+   "'事物 → 标识 → 关联 → 速度。'"
+  ],
+  [
+   "'This is the leftmost prefix of the index.'",
+   "'这是索引的最左前缀。'"
+  ],
+  [
+   "'This skips the leading column. Ana is scattered across every last_name. (Some engines have a skip scan, but don\\'t rely on it.)'",
+   "'这跳过了第一列。名叫 Ana 的人分散在每一个 last_name 之下。（有些数据库支持 skip scan，但别指望它。）'"
+  ],
+  [
+   "'To save a join'",
+   "'为了省掉一次 JOIN'"
+  ],
+  [
+   "'Try the three buttons above. Each one shows a different problem with the single sheet.'",
+   "'试试上面的三个按钮，每个按钮都会暴露这张大表的一个不同问题。'"
+  ],
+  [
+   "'Two sessions read balance 500 and both write 400. Which anomaly is this?'",
+   "'两个会话都读到余额 500，然后都写入 400。这是哪种异常？'"
+  ],
+  [
+   "'UPDATE SET balance = balance − 100 … waiting for A'",
+   "'UPDATE SET balance = balance − 100 … 等待 A'"
+  ],
+  [
+   "'UPDATE SET balance = balance − 100 → 400  🔒 row locked'",
+   "'UPDATE SET balance = balance − 100 → 400  🔒 行已加锁'"
+  ],
+  [
+   "'UPDATE … SET balance = balance - 100 (atomic, row-locked)'",
+   "'UPDATE … SET balance = balance - 100（原子操作，带行锁）'"
+  ],
+  [
+   "'UQ = unique: no two passports can point to the same person.'",
+   "'UQ = 唯一：不能有两本护照指向同一个人。'"
+  ],
+  [
+   "'Uniquely identifying each row'",
+   "'唯一地标识每一行'"
+  ],
+  [
+   "'Use a bigger server'",
+   "'换一台更大的服务器'"
+  ],
+  [
+   "'What does adding an index do?'",
+   "'添加索引会带来什么？'"
+  ],
+  [
+   "'What is a foreign key?'",
+   "'外键是什么？'"
+  ],
+  [
+   "'What is a primary key for?'",
+   "'主键是做什么用的？'"
+  ],
+  [
+   "'What is the simplest fix for that?'",
+   "'最简单的修复方法是什么？'"
+  ],
+  [
+   "'When it changes, you must update many rows and might miss some'",
+   "'邮箱变更时必须更新很多行，而且可能漏掉一些'"
+  ],
+  [
+   "'Why is it a problem to copy a customer\\'s email onto every one of their orders?'",
+   "'为什么把客户的邮箱复制到他的每一个订单上是个问题？'"
+  ],
+  [
+   "'Why store unit_price on order lines when products already has price?'",
+   "'products 里已经有 price 了，为什么订单行上还要存 unit_price？'"
+  ],
+  [
+   "'customers 1—N orders. Where does the foreign key go?'",
+   "'customers 1—N orders。外键放在哪里？'"
+  ],
+  [
+   "'many ↔ many'",
+   "'多 ↔ 多'"
+  ],
+  [
+   "'one ↔ many'",
+   "'一 ↔ 多'"
+  ],
+  [
+   "'one ↔ one'",
+   "'一 ↔ 一'"
+  ],
+  [
+   "'table row'",
+   "'表中的行'"
+  ],
+  [
+   "'… re-reads 400 → 300'",
+   "'… 重新读取 400 → 300'"
+  ],
+  [
+   "'↩ On restart, the unfinished transaction is undone'",
+   "'↩ 重启后，未完成的事务被撤销'"
+  ],
+  [
+   "'↩ recovery: transaction never committed → ROLLBACK'",
+   "'↩ 恢复：事务从未提交 → ROLLBACK'"
+  ],
+  [
+   "'💥 The server crashed before step 2!'",
+   "'💥 第 2 步之前服务器崩溃了！'"
+  ],
+  [
+   "`${n} / 5 units`",
+   "`${n} / 5 单元`"
+  ],
+  [
+   "`${s}  (should be: ${item.items[i]})`",
+   "`${s}（正确答案：${item.items[i]}）`"
+  ],
+  [
+   "`<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(c.why)}`",
+   "`<b>${ok ? '回答正确。' : '不太对。'}</b> ${esc(c.why)}`"
+  ],
+  [
+   "`<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`",
+   "`<b>${ok ? '回答正确。' : '不太对。'}</b> ${esc(why)}`"
+  ],
+  [
+   "`<b>Not quite.</b> ${key === '1:1' ? 'Can one side really have only one of the other?' : key === '1:N' ? 'Check both directions. Can each side have many of the other?' : 'Ask from each side: can it really have many?'} Try again.`",
+   "`<b>不太对。</b>${key === '1:1' ? '某一侧真的只能有一个另一侧的东西吗？' : key === '1:N' ? '两个方向都检查一下：是不是每一侧都可以有多个另一侧的东西？' : '从每一侧问一问：它真的可以有多个吗？'} 再试一次。`"
+  ],
+  [
+   "`<code>${esc(c.q)}</code>\n        <div class=\"two\"><button class=\"btn\">✓ Uses index</button><button class=\"btn\">✗ Can't use it</button></div>\n        <div class=\"why\"></div>`",
+   "`<code>${esc(c.q)}</code>\n        <div class=\"two\"><button class=\"btn\">✓ 能用索引</button><button class=\"btn\">✗ 用不了</button></div>\n        <div class=\"why\"></div>`"
+  ],
+  [
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">Clear</button><button class=\"btn primary\" id=\"oCheck\" disabled>Check order</button></div>`",
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">清空</button><button class=\"btn primary\" id=\"oCheck\" disabled>检查顺序</button></div>`"
+  ],
+  [
+   "`<div class=\"normalized\">\n          <div><div class=\"tname c\"><i></i>customers</div><div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th class=\"c\">id (PK)</th><th class=\"c\">name</th><th class=\"c\">email</th></tr></thead><tbody>${cust}</tbody></table></div></div>\n          <div><div class=\"tname p\"><i></i>products</div><div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th class=\"p\">id (PK)</th><th class=\"p\">name</th><th class=\"p\">price</th></tr></thead><tbody>${prod}</tbody></table></div></div>\n          <div><div class=\"tname o\"><i></i>orders</div><div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th class=\"o\">id (PK)</th><th class=\"o\">customer_id →</th><th class=\"o\">product_id →</th>${adv ? '<th class=\"o\">unit_price</th>' : ''}</tr></thead><tbody>${ord}</tbody></table></div></div>\n        </div>\n        <div class=\"label\" style=\"margin-top:14px\">${L('What the app shows (tables joined back together)', 'SELECT … FROM orders JOIN customers … JOIN products …')}</div>\n        <div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th>order</th><th>customer</th><th>email</th><th>product</th><th>price</th></tr></thead><tbody>${joined}</tbody></table></div>`",
+   "`<div class=\"normalized\">\n          <div><div class=\"tname c\"><i></i>customers</div><div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th class=\"c\">id (PK)</th><th class=\"c\">name</th><th class=\"c\">email</th></tr></thead><tbody>${cust}</tbody></table></div></div>\n          <div><div class=\"tname p\"><i></i>products</div><div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th class=\"p\">id (PK)</th><th class=\"p\">name</th><th class=\"p\">price</th></tr></thead><tbody>${prod}</tbody></table></div></div>\n          <div><div class=\"tname o\"><i></i>orders</div><div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th class=\"o\">id (PK)</th><th class=\"o\">customer_id →</th><th class=\"o\">product_id →</th>${adv ? '<th class=\"o\">unit_price</th>' : ''}</tr></thead><tbody>${ord}</tbody></table></div></div>\n        </div>\n        <div class=\"label\" style=\"margin-top:14px\">${L('应用里显示的内容（把表重新连接起来）', 'SELECT … FROM orders JOIN customers … JOIN products …')}</div>\n        <div class=\"tbl-wrap\"><table class=\"data\"><thead><tr><th>order</th><th>customer</th><th>email</th><th>product</th><th>price</th></tr></thead><tbody>${joined}</tbody></table></div>`"
+  ],
+  [
+   "`<div class=\"quiz-meta\"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`",
+   "`<div class=\"quiz-meta\"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`"
+  ],
+  [
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? 'Perfect. Your data is in good hands.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay the units, then try again.'}</p>\n        <button class=\"btn primary\" id=\"retry\">Try again</button></div>`",
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? '满分！你的数据交给你很放心。' : pct >= 70 ? '做得不错。复习一下答错的题，再试一次。' : '开了个好头。回顾各单元后再试一次。'}</p>\n        <button class=\"btn primary\" id=\"retry\">再试一次</button></div>`"
+  ],
+  [
+   "`Ana's email is copied in 3 rows, and the app only updated 1. Now the sheet disagrees with itself (red): which email is the real one?`",
+   "`Ana 的邮箱被复制在 3 行里，而应用只更新了其中 1 行。现在这张表自相矛盾（红色）：到底哪个邮箱才是真的？`"
+  ],
+  [
+   "`Both \"${r.A.name}\" boxes are the same table.`",
+   "`两个 “${r.A.name}” 框是同一张表。`"
+  ],
+  [
+   "`Changed 1 cell in customers. Every order shows the new email automatically, because orders only point to Ana.`",
+   "`只改了 customers 表里的 1 个单元格。每个订单都会自动显示新邮箱，因为订单只是指向 Ana。`"
+  ],
+  [
+   "`Delete anomaly: removing the last order for Ben also destroyed an unrelated fact (Ben exists, with his email).`",
+   "`删除异常：删除 Ben 的最后一个订单，同时毁掉了一个无关的事实（Ben 这个客户及其邮箱的存在）。`"
+  ],
+  [
+   "`Find the user whose email is ${who}@mail.com`",
+   "`查找邮箱为 ${who}@mail.com 的用户`"
+  ],
+  [
+   "`INSERT INTO products: the product exists independently of orders.`",
+   "`INSERT INTO products：商品独立于订单而存在。`"
+  ],
+  [
+   "`Insert anomaly: you can't record a product without inventing an order, because product facts can only exist inside order rows.`",
+   "`插入异常：不编造一个订单就无法记录商品，因为商品信息只能存在于订单行中。`"
+  ],
+  [
+   "`Invariant SUM(balance) = <b>${total}</b> ${total === 700 ? '✓' : '✗ violated (expected 700)'}`",
+   "`不变式 SUM(balance) = <b>${total}</b> ${total === 700 ? '✓' : '✗ 被破坏（应为 700）'}`"
+  ],
+  [
+   "`Money in the bank: <b>$${total}</b> ${total === 700 ? '✓ (should always be $700)' : '✗ (should be $700!)'}`",
+   "`银行里的钱：<b>$${total}</b> ${total === 700 ? '✓（应该始终是 $700）' : '✗（应该是 $700！）'}`"
+  ],
+  [
+   "`Normalised: customer and product facts each have exactly one home, and orders reference them via foreign keys. Repeat the operations.`",
+   "`已规范化：客户和商品的事实各自只有一个归属，订单通过外键引用它们。重复刚才的操作。`"
+  ],
+  [
+   "`One row updated (customers.id = 1). The join derives the email for every order, so there's nothing to keep in sync.`",
+   "`只更新了一行（customers.id = 1）。每个订单的邮箱都是通过 JOIN 得到的，所以不存在需要同步的副本。`"
+  ],
+  [
+   "`Only the orders row is gone; customers.id = 2 is untouched. (Deleting a customer who still has orders would be blocked by the foreign key.)`",
+   "`只删除了 orders 中的一行；customers.id = 2 完好无损。（如果要删除一个仍有订单的客户，外键会阻止这次删除。）`"
+  ],
+  [
+   "`Order #3 is deleted, but Ben is still safe in the customers table.`",
+   "`#3 号订单已删除，但 Ben 仍然安全地留在 customers 表里。`"
+  ],
+  [
+   "`Order #3 is gone, and so is everything we knew about Ben: his name and email aren't stored anywhere else.`",
+   "`#3 号订单没了，我们对 Ben 的所有了解也跟着没了：他的名字和邮箱没有存在别的地方。`"
+  ],
+  [
+   "`Repeated values: <b>${copies}</b> · Cells changed by your last action: <b>${model.cells}</b>`",
+   "`重复的值：<b>${copies}</b> · 你上一步改动的单元格：<b>${model.cells}</b>`"
+  ],
+  [
+   "`Repeated values: <b>0</b> · Cells changed by your last action: <b>${model.cells}</b>`",
+   "`重复的值：<b>0</b> · 你上一步改动的单元格：<b>${model.cells}</b>`"
+  ],
+  [
+   "`Seq Scan read all 1,000,000 rows (without a UNIQUE index the planner can't stop early). The B-tree needed 3 index pages plus 1 heap page. log₂₅₆(10⁶) ≈ 2.5, so 3 levels covers it.`",
+   "`Seq Scan 读完了全部 1,000,000 行（没有 UNIQUE 索引，规划器无法提前停止）。B-tree 只需要 3 个索引页加 1 个堆页。log₂₅₆(10⁶) ≈ 2.5，所以 3 层就够了。`"
+  ],
+  [
+   "`Situation ${i + 1}`",
+   "`第 ${i + 1} 个情境`"
+  ],
+  [
+   "`Split into three tables: each customer and each product is stored once, and orders point to them by number. Now try the same three buttons again.`",
+   "`已拆分成三张表：每个客户、每个商品都只存一次，订单通过编号指向它们。现在再试一次同样的三个按钮。`"
+  ],
+  [
+   "`The scan found ${who} about ${ROW_POS[who]}% of the way down, but had to keep going to the end: there could be another row with that email further down. 1,000,000 rows read versus 4 pages.`",
+   "`全表扫描在大约 ${ROW_POS[who]}% 的位置找到了 ${who}，但必须继续扫到最后：下面可能还有另一行是同一个邮箱。读了 1,000,000 行，而索引只读了 4 个页面。`"
+  ],
+  [
+   "`There's nowhere to put it! Every row is an order, so a product nobody has bought yet would need a fake order with no customer (red row).`",
+   "`根本没地方放！每一行都是一个订单，所以一个还没人买过的商品只能配上一个没有客户的假订单（红色行）。`"
+  ],
+  [
+   "`Update anomaly: the fact \"Ana's email\" is stored 3 times. A partial update leaves contradictory rows, and no constraint can catch it.`",
+   "`更新异常：“Ana 的邮箱”这一事实被存了 3 次。只更新一部分就会留下互相矛盾的行，而且没有任何约束能发现。`"
+  ],
+  [
+   "`Webcam added to products. It can exist before anyone orders it.`",
+   "`Webcam 已添加到 products。即使还没人下单，它也可以存在。`"
+  ]
+ ]
+}

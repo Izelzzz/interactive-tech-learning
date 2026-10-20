@@ -1,0 +1,370 @@
+
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.zh-CN.html">← 课程</a> 形式化验证</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 单元</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="讲解深度">
+      <button data-level="beginner" aria-pressed="true">小白</button>
+      <button data-level="advanced" aria-pressed="false">进阶</button>
+    </div>
+    <a class="lang-switch" href="index.html" lang="en" hreflang="en">English</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">第 5 课</div>
+    <h1>形式化验证：检查每一种情况，而不只是一部分</h1>
+    <p class="only-beginner">测试只试一部分输入，然后指望剩下的也没问题。形式化验证用数学和巧妙的搜索把所有输入都检查一遍。在这节课里，你会抓住一个测试漏掉的 bug，精确写下代码应该做什么，让计算机探索一个小程序的每一个状态，并证明一个循环是正确的。</p>
+    <p class="only-advanced">形式化验证要证明的是：系统对每一个输入、或每一个可达状态都满足规约。手段有两类：穷举搜索（模型检测、SMT），或演绎证明（霍尔逻辑、证明助手）。它给出的保证，恰好和规约以及背后的假设一样强，不会更强。</p>
+    <nav class="units">
+      <a class="unit" href="#tests" id="unit-tests"><span class="tick">✓</span><small>第 1 单元</small><b>测试与全部输入</b><small>两种检查都跑一遍</small></a>
+      <a class="unit" href="#spec" id="unit-spec"><span class="tick">✓</span><small>第 2 单元</small><b>规约</b><small>排除所有错误的排序</small></a>
+      <a class="unit" href="#mc" id="unit-mc"><span class="tick">✓</span><small>第 3 单元</small><b>模型检测</b><small>重放 bug，检查 Peterson</small></a>
+      <a class="unit" href="#proof" id="unit-proof"><span class="tick">✓</span><small>第 4 单元</small><b>循环不变式</b><small>运行循环，选出不变式</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>第 5 单元</small><b>自我检测</b><small>完成测验</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="tests">
+    <div class="kicker">第 1 单元</div>
+    <h2>为什么光靠测试不够</h2>
+    <p class="lede only-beginner">这个 <code>abs</code> 函数永远不应该返回负数。它处理的是 8 位小整数，范围从 −128 到 127，一共只有 256 种可能的输入。先跑 100 个随机测试，再检查每一个输入。</p>
+    <p class="lede only-advanced">同一个 <code>abs</code>，现在换成 16 位补码整数：65,536 个输入，恰好一个反例。比较随机测试和穷举检查，然后看看为什么穷举检查无法扩展，以及 SMT 求解器是怎么做的。</p>
+
+    <div class="u1">
+      <div>
+        <div class="codeblock only-beginner">
+          <div class="codeblock-head"><span>8 位整数的 abs</span><button class="copy">复制</button></div>
+          <pre>// 8 位有符号整数：-128 … 127
+function abs(x) {
+  if (x &lt; 0) return -x;
+  return x;
+}
+// 承诺：对每个 x，abs(x) &gt;= 0</pre>
+        </div>
+        <div class="codeblock only-advanced">
+          <div class="codeblock-head"><span>C，16 位</span><button class="copy">复制</button></div>
+          <pre>#include &lt;stdint.h&gt;
+
+int16_t abs16(int16_t x) {
+  return x &lt; 0 ? (int16_t)-x : x;
+}
+// 性质：对所有 x，abs16(x) &gt;= 0</pre>
+        </div>
+        <div class="controls">
+          <button class="btn" id="u1Random">跑 100 个随机测试</button>
+          <button class="btn primary" id="u1All">检查每一个输入</button>
+        </div>
+        <div class="meter">已检查输入：<b id="u1Count">0</b> · 发现失败：<b id="u1Fails">0</b></div>
+        <ul class="testlog" id="u1Log" aria-live="polite"></ul>
+      </div>
+      <div class="gridbox">
+        <canvas id="u1Canvas" width="340" height="340" role="img" aria-label="全部输入的网格"></canvas>
+        <div class="cap" id="u1Cap"></div>
+        <div class="legend" style="justify-content:center">
+          <span><i style="background:var(--surface)"></i>未测试</span>
+          <span><i style="background:var(--ok)"></i>通过</span>
+          <span><i style="background:var(--bad)"></i>失败</span>
+        </div>
+      </div>
+    </div>
+    <div class="insight" id="u1Insight">先跑随机测试。大多数测试套件就是这么做的。</div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>哪里出错了？</b> 8 位整数能存下 −128，却存不下 +128。所以 <code>-(-128)</code> 装不下，会回绕成 −128。256 个输入里只有 1 个会暴露这个 bug，所以随机测试通常会错过它。检查<b>每一个</b>输入则每次都能找到。真实程序的输入多到不可能逐个尝试，所以验证工具会一次性推理所有输入。
+    </div>
+
+    <div class="only-advanced" style="margin-top:20px">
+      <h3>穷举检查无法扩展</h3>
+      <p class="lede" style="margin-bottom:8px">以每秒十亿次检查的速度，试遍所有输入需要的时间：</p>
+      <div class="tbl-wrap">
+        <table class="data">
+          <thead><tr><th>输入</th><th>数量</th><th>时间</th></tr></thead>
+          <tbody>
+            <tr><td>一个 int8</td><td class="num">256</td><td>不到 1 µs</td></tr>
+            <tr><td>一个 int16</td><td class="num">65,536</td><td>约 66 µs</td></tr>
+            <tr><td>一个 int32</td><td class="num">4.3 × 10⁹</td><td>约 4.3 秒</td></tr>
+            <tr><td>一个 int64</td><td class="num">1.8 × 10¹⁹</td><td>约 585 年</td></tr>
+            <tr><td>两个 int64</td><td class="num">3.4 × 10³⁸</td><td>约 10²² 年</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="two-col" style="margin-top:14px">
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>SMT-LIB：是否存在 x 使 abs(x) &lt; 0？</span><button class="copy">复制</button></div>
+          <pre>(declare-const x (_ BitVec 32))
+(define-fun abs32 ((v (_ BitVec 32))) (_ BitVec 32)
+  (ite (bvslt v #x00000000) (bvneg v) v))
+(assert (bvslt (abs32 x) #x00000000))
+(check-sat)   ; sat
+(get-model)   ; x = #x80000000  (-2147483648)</pre>
+        </div>
+        <div class="callout">
+          <b>符号推理，而不是逐个枚举。</b> SMT 求解器拿到的是性质的否定，形式是一个位向量公式。它不会一个一个地试输入，而是传播约束、从冲突中学习、拆分情况，最后回答：
+          <ul>
+            <li><b>sat</b>，并给出一个模型：一个具体的反例，这里是 <code>x = INT_MIN</code>。</li>
+            <li><b>unsat</b>：没有任何输入违反该性质。这就是对全部 2³² 个输入的证明。加上前置条件 <code>x != INT_MIN</code>，查询结果就变成 unsat。</li>
+          </ul>
+          在 C 语言里，对 32 位 <code>int</code> 的 <code>INT_MIN</code> 求 <code>-x</code> 是未定义行为，比算错还糟。同类 bug 曾在 Java 标准库二分查找的 <code>(low + high) / 2</code> 里藏了好多年，直到数组长度超过 2³⁰ 才暴露出来。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="spec">
+    <div class="kicker">第 2 单元</div>
+    <h2>规约：把“正确”的含义说清楚</h2>
+    <p class="lede only-beginner">要检查一个程序，首先得写下它应该做什么。这就是<b>规约</b>（specification）。这里的任务是给一列数排序。勾选你想要求的规则，检查器会试遍所有短列表，并告诉你四个程序中哪些仍然通过。</p>
+    <p class="lede only-advanced">规约是一组关于输入和输出的后置条件（以及前置条件）。一条子句一条子句地构建 <code>Sort</code> 的规约。有界检查器会在 {0, 1, 2} 上长度为 0 到 4 的每个列表（共 121 个输入）上运行每个实现，并对每组子句报告第一个反例。</p>
+
+    <div class="two-col">
+      <div>
+        <div class="label">规约：输出必须……</div>
+        <div class="clauses" id="clauses"></div>
+        <div class="insight" id="specInsight"></div>
+      </div>
+      <div>
+        <div class="label">候选程序</div>
+        <div class="impls" id="impls"></div>
+        <div class="meter" id="specMeter"></div>
+      </div>
+    </div>
+
+    <div class="codeblock nowrap only-advanced" style="margin-top:16px">
+      <div class="codeblock-head"><span>用 Dafny 风格语法写出的规约</span><button class="copy">复制</button></div>
+      <pre id="dafnySpec"></pre>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>三种规则</b>
+      <ul>
+        <li><b>前置条件</b>：代码运行之前必须成立的事情。例如：取第一个元素之前，“列表不为空”。</li>
+        <li><b>后置条件</b>：代码结束时承诺成立的事情。例如：“结果是有序的”。</li>
+        <li><b>不变式</b>：始终保持成立的事情。例如：“账户余额永远不为负”。</li>
+      </ul>
+      太弱的规约会放过错误的程序，比如那个总是返回空列表的程序。验证能证明代码符合规约，却无法告诉你这份规约是不是你真正想要的。
+    </div>
+    <div class="only-advanced" style="margin-top:16px">
+      <div class="two-col">
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>前置条件：requires</span><button class="copy">复制</button></div>
+          <pre>method BinarySearch(a: seq&lt;int&gt;, key: int) returns (i: int)
+  requires forall p, q :: 0 &lt;= p &lt; q &lt; |a| ==&gt; a[p] &lt;= a[q]
+  ensures 0 &lt;= i ==&gt; i &lt; |a| &amp;&amp; a[i] == key
+  ensures i &lt; 0 ==&gt; key !in a</pre>
+        </div>
+        <div class="callout">
+          <b>谁负责证明什么</b>
+          <ul>
+            <li><code>requires</code> 是每个<i>调用者</i>的义务。在方法内部，它是一个假设。</li>
+            <li><code>ensures</code> 是<i>方法体</i>的义务，调用者可以依赖它。</li>
+            <li>类不变式或循环<b>不变式</b>必须在规定的位置成立（方法进入和退出时、每次循环迭代时）。</li>
+            <li>上面这种有界检查不是证明。它依赖“小范围假设”：大多数 bug 在小输入上就会出现。像 Dafny 这样的验证器能对任意长度的列表证明这些子句。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="mc">
+    <div class="kicker">第 3 单元</div>
+    <h2>模型检测：探索每一个状态</h2>
+    <p class="lede only-beginner">两个程序共用一台打印机，同一时间只能有一个在打印：这段代码叫做<b>临界区</b>。每个程序都有一面旗子，举起来表示“我想进去”。模型检测器会尝试两个程序执行步骤的每一种可能顺序，寻找坏状态。</p>
+    <p class="lede only-advanced">两个进程、共享的旗子和一条互斥性质。检测器在交错语义上做广度优先搜索：一个状态是 (pc₀, pc₁, flag₀, flag₁, turn)，每条迁移是某个进程的一个原子步骤。它在每个可达状态上检查不变式，并寻找死锁。</p>
+
+    <div class="ptabs" id="ptabs" role="group" aria-label="协议"></div>
+    <div class="two-col">
+      <div class="codeblock nowrap">
+        <div class="codeblock-head"><span id="protoTitle"></span><button class="copy">复制</button></div>
+        <pre id="protoCode"></pre>
+      </div>
+      <div>
+        <p id="protoDesc" style="font-size:.92rem"></p>
+        <div class="controls">
+          <button class="btn primary" id="mcRun">探索每一个状态</button>
+        </div>
+        <div class="meter">找到的状态：<b id="mcStates">0</b> · 坏状态：<b id="mcBad">0</b><span class="only-advanced"> · 死锁：<b id="mcDead">0</b></span></div>
+      </div>
+    </div>
+
+    <div class="sg" id="sg"></div>
+    <div class="legend">
+      <span><i style="border:2px solid var(--accent)"></i>起点</span>
+      <span><i style="background:var(--bad-soft);border:2px solid var(--bad)"></i>两个都在临界区</span>
+      <span class="only-advanced"><i style="background:var(--warn-soft);border:2px solid var(--warn)"></i>死锁</span>
+      <span><i style="background:var(--accent-soft);border:2px solid var(--accent)"></i>反例路径</span>
+    </div>
+    <div class="insight" id="mcInsight">点“探索每一个状态”。</div>
+
+    <div id="traceBox" style="display:none">
+      <h3 style="margin-top:16px" id="traceTitle">反例，一步一步来</h3>
+      <div class="procs" id="procs"></div>
+      <ol class="steps" id="steps"></ol>
+      <div class="controls">
+        <button class="btn" id="trBack">◀ 上一步</button>
+        <button class="btn primary" id="trNext">下一步 ▶</button>
+      </div>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>为什么不直接测试？</b> 只有当两个程序几乎同时检查旗子时，这个 bug 才会出现。在真实测试中这种时机很少见，所以 bug 可能在成千上万次运行中都溜过去。模型检测器不靠运气：它访问每一个可达状态，所以只要坏状态存在就一定能找到，还会告诉你到达那里的确切步骤。代价是它检查的是程序的<i>模型</i>，而模型可能省略了真实程序的一些细节。
+    </div>
+    <div class="only-advanced" style="margin-top:20px">
+      <div class="two-col">
+        <div>
+          <h3>状态爆炸</h3>
+          <p class="lede" style="margin-bottom:8px">这里每个进程有 4 个位置。还没算共享变量，N 个进程就最多有 4<sup>N</sup> 种组合：</p>
+          <div class="tbl-wrap">
+            <table class="data">
+              <thead><tr><th>进程数</th><th>位置组合数</th></tr></thead>
+              <tbody>
+                <tr><td>2</td><td class="num">16</td></tr>
+                <tr><td>4</td><td class="num">256</td></tr>
+                <tr><td>8</td><td class="num">65,536</td></tr>
+                <tr><td>16</td><td class="num">4.3 × 10⁹</td></tr>
+                <tr><td>32</td><td class="num">1.8 × 10¹⁹</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:.9rem;margin-top:10px">真正的检测器用这些办法对抗状态爆炸：偏序归约（跳过独立步骤的不同排列）、对称性归约、符号表示（BDD），以及基于 SAT/SMT 的有界模型检测，它检查不超过 k 步的所有运行。</p>
+          <h3 style="margin-top:16px">安全性与活性</h3>
+          <ul style="font-size:.9rem;padding-left:20px;margin:6px 0 0">
+            <li><b>安全性</b>：坏事永远不会发生。“永远不会两个都在临界区。”违反它的证据是一条通向坏状态的有限轨迹。</li>
+            <li><b>活性</b>：好事最终会发生。“想进入的进程最终能进入。”违反它的证据是一次无限运行，表现为套索形：一条路径进入一个永远到不了好状态的环。检查活性需要公平性假设，否则一个从不调度某个进程的调度器会让任何进程“饿死”。</li>
+            <li>“先举旗”协议是安全的，但可能死锁：两面旗子都举着，两个进程永远互相等待。没有死锁是活性的必要条件，但还不够。Peterson 算法在弱公平性下还能保证不会饿死。</li>
+          </ul>
+        </div>
+        <div class="codeblock nowrap">
+          <div class="codeblock-head"><span>TLA+ 写的 Peterson（用 TLC 检查）</span><button class="copy">复制</button></div>
+          <pre>---- MODULE Peterson ----
+VARIABLES pc, flag, turn
+vars == &lt;&lt;pc, flag, turn&gt;&gt;
+Other(i) == 1 - i
+
+Init == /\ pc = [i \in {0, 1} |-&gt; "idle"]
+        /\ flag = [i \in {0, 1} |-&gt; FALSE]
+        /\ turn = 0
+
+Raise(i) == /\ pc[i] = "idle"
+            /\ flag' = [flag EXCEPT ![i] = TRUE]
+            /\ pc' = [pc EXCEPT ![i] = "turn"]
+            /\ UNCHANGED turn
+Yield(i) == /\ pc[i] = "turn"
+            /\ turn' = Other(i)
+            /\ pc' = [pc EXCEPT ![i] = "wait"]
+            /\ UNCHANGED flag
+Enter(i) == /\ pc[i] = "wait"
+            /\ (~flag[Other(i)] \/ turn = i)
+            /\ pc' = [pc EXCEPT ![i] = "crit"]
+            /\ UNCHANGED &lt;&lt;flag, turn&gt;&gt;
+Leave(i) == /\ pc[i] = "crit"
+            /\ flag' = [flag EXCEPT ![i] = FALSE]
+            /\ pc' = [pc EXCEPT ![i] = "idle"]
+            /\ UNCHANGED turn
+
+Proc(i) == Yield(i) \/ Enter(i) \/ Leave(i)
+Next == \E i \in {0, 1} : Raise(i) \/ Proc(i)
+Spec == Init /\ [][Next]_vars
+             /\ \A i \in {0, 1} : WF_vars(Proc(i))
+
+MutualExclusion ==                \* 安全性
+  ~(pc[0] = "crit" /\ pc[1] = "crit")
+NoStarvation ==                   \* 活性
+  \A i \in {0, 1} : pc[i] = "turn" ~&gt; pc[i] = "crit"
+====</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="proof">
+    <div class="kicker">第 4 单元</div>
+    <h2>证明循环是正确的</h2>
+    <p class="lede only-beginner">模型检测器需要一个小的、有限的世界。要证明代码对<i>任意</i>输入都正确，我们得靠推理。循环是最难的部分，诀窍是<b>循环不变式</b>：每次循环准备检查条件时都成立的一个事实。先运行下面的循环，再选出能证明它正确求和的不变式。</p>
+    <p class="lede only-advanced">霍尔逻辑证明的是三元组 {P} S {Q}。对一个循环，你要给出不变式 I，完成三个验证条件，再给出一个变式来证明终止。运行用反复减法实现的整数除法，然后选出 I 和变式。每条证明义务都在 n ≤ 12、d ≤ 4 以及较小的 q、r 的所有状态上检查；像 Dafny 这样的验证器会借助 SMT 求解器对所有整数证明它们。</p>
+
+    <div class="two-col">
+      <div class="codeblock nowrap">
+        <div class="codeblock-head"><span id="loopTitle"></span><button class="copy">复制</button></div>
+        <pre id="loopCode"></pre>
+      </div>
+      <div>
+        <div class="label" id="runLabel">运行它</div>
+        <div id="loopVis"></div>
+        <div class="vars" id="loopVars"></div>
+        <div class="controls" style="margin-top:8px">
+          <button class="btn primary" id="loopStep">运行一次迭代 ▶</button>
+          <button class="btn" id="loopReset">重置</button>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:12px"><table class="data" id="loopTable" style="width:auto"></table></div>
+    <div class="insight" id="loopInsight"></div>
+
+    <h3 style="margin-top:24px" id="candTitle">哪个不变式能证明它？</h3>
+    <p class="lede" style="margin-bottom:10px" id="candLede"></p>
+    <div class="cands" id="cands"></div>
+    <div class="obls" id="obls"></div>
+
+    <div class="only-advanced" style="margin-top:20px">
+      <h3>终止性：选一个变式</h3>
+      <p class="lede" style="margin-bottom:10px">部分正确性说的是“如果循环停下，结果就是对的”。要得到完全正确性，需要给出一个整数表达式：循环运行时它永远不为负，并且每次迭代都严格变小。它不可能无限地变小下去，所以循环一定会停。</p>
+      <div class="cands" id="variants"></div>
+      <div class="obls" id="vobls"></div>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>任何循环不变式都要回答的三个问题</b>
+      <ul>
+        <li>它在<b>一开始</b>、第一次迭代之前成立吗？</li>
+        <li>如果它在某次迭代之前成立，那么这次迭代<b>之后</b>它还成立吗？</li>
+        <li>当循环<b>停下</b>时，不变式加上“条件现在为假”，能得出我们承诺的结果吗？</li>
+      </ul>
+      如果三条都成立，循环就对每一个可能的列表都正确，而不只是你跑过的那一个。像 Dafny 这样的工具会让计算机替你检查这三个问题。
+    </div>
+    <div class="only-advanced" style="margin-top:16px">
+      <div class="callout">
+        <b>证明义务的形式化表述</b>
+        <ul>
+          <li><b>初始化</b>：{P} init {I}。前置条件和初始赋值建立 I。</li>
+          <li><b>保持性</b>：{I ∧ B} body {I}。从任何满足 I 和守卫 B 的状态出发，执行一次迭代后仍满足 I。</li>
+          <li><b>退出</b>：I ∧ ¬B ⇒ Q。I 加上守卫的否定，推出后置条件。</li>
+          <li><b>终止</b>：I ∧ B ⇒ V ≥ 0，并且 {I ∧ B ∧ V = V₀} body {V &lt; V₀}。</li>
+        </ul>
+        保持性要对<i>每一个</i>满足 I ∧ B 的状态检查，而不只是程序实际到达的状态。这就是为什么像 <code>q * d &lt;= n</code> 这样成立却太弱的不变式会失败：它说的信息不够，撑不过一步。加强不变式，正是日常证明工作的主要内容。
+      </div>
+      <h3 style="margin-top:18px">各种工具的定位</h3>
+      <div class="tools">
+        <div><b>Dafny、Why3、Verus、SPARK</b>在代码里写 requires、ensures 和不变式。验证器把它们转换成交给 SMT 求解器（Z3、cvc5）的条件。基本自动。</div>
+        <div><b>Lean、Coq（Rocq）、Isabelle/HOL</b>交互式证明助手。证明由你来写，由一个小而可信的内核检查。能力最强，但工作量大得多。</div>
+        <div><b>TLA+、Alloy、SPIN、NuSMV</b>把设计描述成状态和迁移，然后做模型检测。在代码写出来之前就能发现协议 bug。TLAPS 还能证明 TLA+ 规约。</div>
+        <div><b>CBMC、Kani、KLEE</b>对真实的 C、Rust 或 LLVM 代码做有界模型检测和符号执行，范围以循环展开的上限为界。</div>
+      </div>
+      <h3 style="margin-top:18px">在现实世界中</h3>
+      <ul style="font-size:.92rem;padding-left:20px;margin:6px 0 0">
+        <li><b>seL4</b>：一个微内核，它的 C 代码在 Isabelle/HOL 中被证明实现了其抽象规约，在此之上还证明了安全性质。证明假设编译器、启动代码和硬件是正确的；后续工作还检查了编译出的二进制代码。</li>
+        <li><b>CompCert</b>：一个在 Coq 中被证明会保持所编译程序语义的 C 编译器。研究人员用数以百万计的随机程序测试许多编译器时，在 CompCert 经过验证的部分没有发现生成错误代码的 bug，只在未经验证的前端里发现了。</li>
+        <li><b>AWS</b>：从 2011 年起，工程师就在 S3、DynamoDB 等系统上使用 TLA+。模型检测发现了一些微妙的设计 bug，需要几十步的轨迹才能触发，测试和代码审查都漏掉了它们。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">第 5 单元</div>
+    <h2>自我检测</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>interactive-tech-learning 的示例课程。纯 HTML、CSS 和 JS，无任何依赖，离线也能用。上一课：<a href="../database-design/index.zh-CN.html">设计数据库</a>。</footer>
+</main>
+

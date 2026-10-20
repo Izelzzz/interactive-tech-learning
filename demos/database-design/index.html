@@ -1,0 +1,1402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Designing a Database</title>
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #efeee8;
+    --text: #1c1c1a;
+    --muted: #64635d;
+    --border: #dcdbd3;
+    --accent: #3b5bdb;
+    --accent-soft: #e5eaff;
+    --ok: #2b8a3e;
+    --ok-soft: #e3f5e6;
+    --bad: #c92a2a;
+    --bad-soft: #fde8e8;
+    --warn: #b35c00;
+    --warn-soft: #fff1e0;
+    --line: #b9b8b0;
+    --c-cust: #1971c2;
+    --c-cust-soft: #e3f0fc;
+    --c-prod: #2b8a3e;
+    --c-prod-soft: #e3f5e6;
+    --c-ord: #d9480f;
+    --c-ord-soft: #fdeee6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413;
+      --surface: #1e1e1c;
+      --surface-2: #282826;
+      --text: #ecebe6;
+      --muted: #a3a29b;
+      --border: #3a3a37;
+      --accent: #7d97ff;
+      --accent-soft: #252c48;
+      --ok: #5fcf75;
+      --ok-soft: #1c3322;
+      --bad: #ff7b7b;
+      --bad-soft: #3d1f1f;
+      --warn: #ffa94d;
+      --warn-soft: #3a2a17;
+      --line: #5a5a55;
+      --c-cust: #4dabf7;
+      --c-cust-soft: #1a2c3d;
+      --c-prod: #5fcf75;
+      --c-prod-soft: #1c3322;
+      --c-ord: #f0703a;
+      --c-ord-soft: #3a2418;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --surface-2: #282826;
+    --text: #ecebe6;
+    --muted: #a3a29b;
+    --border: #3a3a37;
+    --accent: #7d97ff;
+    --accent-soft: #252c48;
+    --ok: #5fcf75;
+    --ok-soft: #1c3322;
+    --bad: #ff7b7b;
+    --bad-soft: #3d1f1f;
+    --warn: #ffa94d;
+    --warn-soft: #3a2a17;
+    --line: #5a5a55;
+    --c-cust: #4dabf7;
+    --c-cust-soft: #1a2c3d;
+    --c-prod: #5fcf75;
+    --c-prod-soft: #1c3322;
+    --c-ord: #f0703a;
+    --c-ord-soft: #3a2418;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  body[data-level="advanced"] .only-beginner, body[data-level="beginner"] .only-advanced { display: none !important; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { line-height: 1.25; margin: 0; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  code, pre { font-family: var(--mono); }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 0.95rem; margin-right: auto; }
+  .brand a { color: var(--muted); text-decoration: none; font-weight: 500; margin-right: 6px; }
+  .progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--muted); }
+  .bar { width: 120px; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s ease; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 5px 12px; font-size: 0.85rem; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .lang-switch {
+    font-size: 0.85rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface);
+  }
+  .lang-switch:hover { border-color: var(--accent); color: var(--text); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 48px 0 24px; }
+  .hero p { color: var(--muted); max-width: 660px; margin-top: 12px; font-size: 1.05rem; }
+  .units { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 28px; }
+  .unit {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .unit:hover { border-color: var(--accent); }
+  .unit small { color: var(--muted); display: block; }
+  .unit b { display: block; margin: 2px 0; }
+  .unit .tick { float: right; color: var(--ok); font-weight: 700; visibility: hidden; }
+  .unit.done .tick { visibility: visible; }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; margin: 24px 0; scroll-margin-top: 70px;
+  }
+  .kicker { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .lede { color: var(--muted); margin: 6px 0 18px; }
+  .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 7px 14px; font-size: 0.9rem;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .callout { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; font-size: 0.95rem; }
+  .callout ul { margin: 6px 0 0; padding-left: 20px; }
+  .callout li { margin: 3px 0; }
+  .feedback { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; display: none; }
+  .feedback.show { display: block; }
+  .feedback.good { background: var(--ok-soft); }
+  .feedback.bad { background: var(--bad-soft); }
+  .insight { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.92rem; }
+  .insight.bad { background: var(--bad-soft); }
+  .insight.good { background: var(--ok-soft); }
+
+  .codeblock { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface-2); display: flex; flex-direction: column; }
+  .codeblock-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  }
+  .codeblock-head .copy { border: 0; background: none; color: var(--muted); font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+  .codeblock-head .copy:hover { background: var(--surface-2); color: var(--text); }
+  .codeblock pre { margin: 0; padding: 12px 14px; flex: 1; font-size: 0.8rem; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    text-align: left; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px;
+  }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt:disabled { cursor: default; }
+  .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+  .opt.wrong { border-color: var(--bad); background: var(--bad-soft); opacity: .75; }
+
+  @keyframes pop { from { opacity: 0; transform: scale(.85); } }
+  @keyframes flash { from { background: var(--warn-soft); } }
+
+  /* ---------- tables used as data ---------- */
+  .tbl-wrap { overflow-x: auto; min-width: 0; }
+  table.data { border-collapse: collapse; font-size: 0.82rem; width: 100%; }
+  table.data th, table.data td { padding: 5px 9px; border: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  table.data th { font-size: 0.72rem; font-weight: 700; letter-spacing: .03em; color: var(--muted); background: var(--surface-2); }
+  table.data td { font-family: var(--mono); font-size: 0.78rem; background: var(--surface); }
+  table.data th.c { background: var(--c-cust-soft); color: var(--c-cust); }
+  table.data th.p { background: var(--c-prod-soft); color: var(--c-prod); }
+  table.data th.o { background: var(--c-ord-soft); color: var(--c-ord); }
+  table.data td.repeat { background: var(--warn-soft); }
+  table.data td.conflict { background: var(--bad-soft); color: var(--bad); font-weight: 700; }
+  table.data td.touched { animation: flash 1.6s ease-out; outline: 2px solid var(--warn); outline-offset: -2px; }
+  table.data tr.ghost td { background: var(--bad-soft); color: var(--bad); font-style: italic; }
+  table.data tr.removing td { opacity: .3; text-decoration: line-through; transition: opacity .4s; }
+  table.data td.fk { color: var(--accent); }
+  .tname { font: 700 0.85rem var(--mono); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .tname i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .tname.c i { background: var(--c-cust); } .tname.p i { background: var(--c-prod); } .tname.o i { background: var(--c-ord); }
+  .sheet.splitting td.col-c, .sheet.splitting th.c { animation: flyLeft .6s ease-in forwards; }
+  .sheet.splitting td.col-p, .sheet.splitting th.p { animation: flyRight .6s ease-in forwards; }
+  .sheet.splitting td.col-o, .sheet.splitting th.o { animation: flyDown .6s ease-in forwards; }
+  @keyframes flyLeft { to { opacity: 0; transform: translate(-40px, 10px); } }
+  @keyframes flyRight { to { opacity: 0; transform: translate(40px, 10px); } }
+  @keyframes flyDown { to { opacity: 0; transform: translateY(20px); } }
+  .normalized { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr); gap: 12px; }
+  .normalized > div { animation: pop .45s ease-out both; min-width: 0; }
+  .normalized > div:nth-child(2) { animation-delay: .12s; }
+  .normalized > div:nth-child(3) { animation-delay: .24s; }
+  .legend { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin-bottom: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .counter { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+  .counter b { color: var(--text); }
+  .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 14px; }
+  .actions .btn { text-align: left; }
+
+  /* ---------- unit 2: relationships ---------- */
+  .scen-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .scen-nav button { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 2px 11px; font-size: 0.8rem; color: var(--muted); }
+  .scen-nav button.done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .scen-nav button.current { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .scenario { font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; }
+  .rel-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .rel-choices .opt { text-align: center; }
+  .rel-choices .opt b { display: block; font-family: var(--mono); font-size: 1.05rem; }
+  .rel-choices .opt small { color: var(--muted); }
+  .er { background: var(--surface-2); border-radius: 12px; margin-top: 14px; overflow-x: auto; }
+  .er svg { display: block; width: 100%; min-width: 560px; height: auto; }
+  .er .box rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+  .er .box .head { fill: var(--surface-2); }
+  .er .box.join rect.frame { stroke: var(--accent); stroke-dasharray: 5 4; }
+  .er text { fill: var(--text); font: 13px var(--mono); }
+  .er text.title { font-weight: 700; font-size: 13.5px; }
+  .er text.key { fill: var(--muted); font-size: 10px; font-weight: 700; }
+  .er text.fk { fill: var(--accent); }
+  .er text.note { fill: var(--muted); font: 12px system-ui, sans-serif; }
+  .er text.qmark { fill: var(--muted); font: 700 28px system-ui, sans-serif; }
+  .er .rel { stroke: var(--accent); stroke-width: 2; fill: none; }
+  .er .draw { stroke-dasharray: 400; stroke-dashoffset: 400; animation: drawLine .7s ease-out forwards; }
+  .er .appear { animation: pop .45s ease-out both; transform-box: fill-box; transform-origin: center; }
+  @keyframes drawLine { to { stroke-dashoffset: 0; } }
+
+  /* ---------- unit 3: indexes ---------- */
+  .race { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .lanebox { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .lanebox h3 { margin-bottom: 4px; }
+  .lanebox .sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 10px; }
+  .grid100 { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; }
+  .grid100 i { aspect-ratio: 1; border-radius: 2px; background: var(--surface-2); max-width: 100%; }
+  .grid100 i.read { background: var(--line); }
+  .grid100 i.hit { background: var(--ok); }
+  .tree svg { display: block; width: 100%; height: auto; }
+  .tree rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; transition: fill .25s, stroke .25s; }
+  .tree rect.on { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  .tree rect.hitrow { fill: var(--ok-soft); stroke: var(--ok); stroke-width: 2.5; }
+  .tree text { fill: var(--text); font: 11px var(--mono); }
+  .tree line { stroke: var(--line); stroke-width: 1.2; }
+  .tree line.on { stroke: var(--accent); stroke-width: 2.5; }
+  .meter { font-size: 0.85rem; margin-top: 10px; color: var(--muted); }
+  .meter b { font-family: var(--mono); font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .qcards { display: grid; gap: 8px; margin-top: 12px; }
+  .qcard { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+  .qcard code { font-size: 0.85rem; overflow-wrap: anywhere; }
+  .qcard .two { display: flex; gap: 6px; }
+  .qcard .two .btn { font-size: 0.8rem; padding: 4px 10px; }
+  .qcard.right { border-color: var(--ok); background: var(--ok-soft); }
+  .qcard.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .qcard .why { grid-column: 1 / -1; font-size: 0.85rem; display: none; }
+  .qcard.right .why, .qcard.wrong .why { display: block; }
+
+  /* ---------- unit 4: transactions ---------- */
+  .bank { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; margin: 10px 0 6px; }
+  .acct { border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; text-align: center; background: var(--surface); }
+  .acct .who { font-weight: 600; }
+  .acct .bal { font: 700 1.8rem var(--mono); font-variant-numeric: tabular-nums; }
+  .acct.changed { animation: flash 1.2s ease-out; }
+  .coin {
+    position: absolute; top: 34px; left: 0; z-index: 2; pointer-events: none;
+    background: var(--warn); color: #fff; font: 700 0.8rem var(--mono); padding: 4px 10px; border-radius: 999px;
+  }
+  .total { text-align: center; font-size: 0.95rem; margin: 6px 0 12px; }
+  .total b { font-family: var(--mono); }
+  .total.bad b { color: var(--bad); }
+  .total.good b { color: var(--ok); }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; cursor: pointer; }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .log { list-style: none; margin: 10px 0 0; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; font: 0.8rem/1.7 var(--mono); min-height: 60px; }
+  .log li { animation: pop .3s ease-out both; }
+  .log li.crash { color: var(--bad); font-weight: 700; }
+  .log li.ok { color: var(--ok); }
+  .log li.muted { color: var(--muted); }
+  .acid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
+  .acid div { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; }
+  .acid b { display: block; font: 700 1.3rem var(--mono); color: var(--accent); }
+  .racegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 10px; }
+  .racegrid .hd { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .racegrid .st { font: 0.78rem var(--mono); padding: 6px 8px; border-radius: 6px; background: var(--surface-2); animation: pop .3s ease-out both; min-height: 32px; }
+  .racegrid .st.empty { background: none; animation: none; }
+  .racegrid .st.wait { background: var(--warn-soft); color: var(--warn); }
+
+  /* ---------- quiz ---------- */
+  .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip { border: 1.5px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; }
+  .chip:disabled { opacity: .3; cursor: default; }
+  .slots { counter-reset: slot; display: grid; gap: 6px; margin: 14px 0; }
+  .slot { counter-increment: slot; border: 1.5px dashed var(--border); border-radius: 10px; padding: 7px 12px; min-height: 40px; color: var(--muted); font-size: 0.9rem; }
+  .slot::before { content: counter(slot) ". "; color: var(--muted); }
+  .slot.filled { border-style: solid; color: var(--text); }
+  .slot.right { border-color: var(--ok); background: var(--ok-soft); }
+  .slot.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .result { text-align: center; padding: 20px 0; }
+  .result .score { font: 700 3rem system-ui, sans-serif; }
+  .result p { color: var(--muted); margin: 6px 0 16px; }
+
+  footer { color: var(--muted); font-size: 0.82rem; padding: 12px 0 40px; }
+
+  @media (max-width: 760px) {
+    .normalized, .race { grid-template-columns: 1fr; }
+    .acid { grid-template-columns: 1fr 1fr; }
+    .rel-choices { grid-template-columns: 1fr; }
+    .bank { gap: 40px; }
+    section.card { padding: 18px 16px; }
+    .bar { width: 70px; }
+    .qcard { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+  }
+</style>
+</head>
+<body data-level="beginner">
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><a href="../index.html">← Lessons</a> Designing a database</div>
+    <div class="progress" aria-live="polite">
+      <span id="progressText">0 / 5 units</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+    <div class="seg" role="group" aria-label="Explanation level">
+      <button data-level="beginner" aria-pressed="true">Beginner</button>
+      <button data-level="advanced" aria-pressed="false">Advanced</button>
+    </div>
+    <a class="lang-switch" href="index.zh-CN.html" lang="zh-CN" hreflang="zh-CN">中文</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="kicker">Lesson 4</div>
+    <h1>How to design a database that stays correct</h1>
+    <p class="only-beginner">A database is where an app keeps its information. If it is designed badly, data starts contradicting itself, gets lost or becomes slow to find. In this lesson you break a badly designed database on purpose, then fix it.</p>
+    <p class="only-advanced">Relational design is about integrity first and performance second: normalise to remove anomalies, model cardinality explicitly, index for your access paths, and use transactions to keep invariants true under failures and concurrency.</p>
+    <nav class="units">
+      <a class="unit" href="#model" id="unit-model"><span class="tick">✓</span><small>Unit 1</small><b>Spreadsheet → tables</b><small>Break it, then fix it</small></a>
+      <a class="unit" href="#rel" id="unit-rel"><span class="tick">✓</span><small>Unit 2</small><b>Relationships</b><small>Answer 5 situations</small></a>
+      <a class="unit" href="#index" id="unit-index"><span class="tick">✓</span><small>Unit 3</small><b>Indexes</b><small>Race + 4 queries</small></a>
+      <a class="unit" href="#txn" id="unit-txn"><span class="tick">✓</span><small>Unit 4</small><b>Transactions</b><small>Crash with and without</small></a>
+      <a class="unit" href="#quiz" id="unit-quiz"><span class="tick">✓</span><small>Unit 5</small><b>Check yourself</b><small>Finish the quiz</small></a>
+    </nav>
+  </div>
+
+  <!-- ===================== UNIT 1 ===================== -->
+  <section class="card" id="model">
+    <div class="kicker">Unit 1</div>
+    <h2>From one big spreadsheet to proper tables</h2>
+    <p class="lede only-beginner">A small shop keeps every order in one big sheet. It looks fine, but the same information is copied again and again (the orange cells). Use the buttons to see what goes wrong, then split it into tables.</p>
+    <p class="lede only-advanced">A single denormalised table with repeating facts. Trigger the three classic anomalies (update, delete, insert), then normalise to 3NF and repeat the same operations.</p>
+
+    <div class="legend">
+      <span><i style="background:var(--c-cust)"></i><span class="only-beginner">about the customer</span><span class="only-advanced">depends on customer</span></span>
+      <span><i style="background:var(--c-prod)"></i><span class="only-beginner">about the product</span><span class="only-advanced">depends on product</span></span>
+      <span><i style="background:var(--c-ord)"></i><span class="only-beginner">about the order itself</span><span class="only-advanced">depends on the order key</span></span>
+    </div>
+
+    <div id="modelView"></div>
+    <div class="counter" id="modelCounter"></div>
+
+    <div class="actions">
+      <button class="btn" id="actEmail">Ana changes her email</button>
+      <button class="btn" id="actDelete">Delete Ben's only order (#3)</button>
+      <button class="btn" id="actAdd">Add a new product: Webcam ($59)</button>
+    </div>
+    <div class="insight" id="modelInsight"></div>
+    <div class="controls">
+      <button class="btn primary" id="normalizeBtn">Split into tables →</button>
+      <button class="btn" id="modelReset">Reset</button>
+    </div>
+
+    <div class="codeblock only-advanced" style="margin-top:16px" id="ddlBlock">
+      <div class="codeblock-head"><span>Schema (PostgreSQL)</span><button class="copy">Copy</button></div>
+      <pre>CREATE TABLE customers (
+  id     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name   text NOT NULL,
+  email  text NOT NULL UNIQUE
+);
+
+CREATE TABLE products (
+  id     bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name   text NOT NULL,
+  price  numeric(10,2) NOT NULL CHECK (price >= 0)
+);
+
+CREATE TABLE orders (
+  id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  customer_id bigint NOT NULL REFERENCES customers(id),
+  product_id  bigint NOT NULL REFERENCES products(id),
+  unit_price  numeric(10,2) NOT NULL  -- price at purchase time, on purpose
+);</pre>
+    </div>
+
+    <div class="callout only-beginner" style="margin-top:16px">
+      <b>The idea in one line:</b> store each fact in exactly <b>one</b> place. Customers go in a customers table and products in a products table. An order just <i>points</i> to them by number (<code>customer_id</code>, <code>product_id</code>). These pointers are called <b>foreign keys</b>, and each row's own unique number is its <b>primary key</b>.
+    </div>
+    <div class="callout only-advanced" style="margin-top:16px">
+      <b>Normal forms in practice</b>
+      <ul>
+        <li><b>1NF</b>: atomic values with no repeating groups (no <code>products = "Mouse, Keyboard"</code>).</li>
+        <li><b>2NF / 3NF</b>: every non-key column depends on the key, the whole key, and nothing but the key. <code>email</code> depends on the customer, not on the order, so it moves out.</li>
+        <li><b>Deliberate denormalisation</b>: <code>orders.unit_price</code> copies the price on purpose. It records a historical fact (what was charged), not the current price.</li>
+        <li>Denormalise for reads only with a clear owner of truth (materialised views, caches, or columns maintained by triggers).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 2 ===================== -->
+  <section class="card" id="rel">
+    <div class="kicker">Unit 2</div>
+    <h2>Relationships: one or many?</h2>
+    <p class="lede only-beginner">Things in a database are connected. The key question is always "how many of these go with how many of those?" Pick the answer, and the diagram shows how the tables connect.</p>
+    <p class="lede only-advanced">Choose the cardinality, and the diagram shows where the foreign keys live and which constraints enforce it. Advanced mode adds self-referencing relationships.</p>
+
+    <div class="scen-nav" id="relNav"></div>
+    <div class="scenario" id="relText"></div>
+    <div class="rel-choices" id="relChoices"></div>
+    <div class="feedback" id="relFb"></div>
+    <div class="er" id="er"></div>
+    <div class="codeblock only-advanced" style="margin-top:12px"><div class="codeblock-head"><span>DDL</span><button class="copy">Copy</button></div><pre id="relDdl">(answer to see the schema)</pre></div>
+    <div class="controls"><button class="btn primary" id="relNext" style="display:none">Next situation →</button></div>
+  </section>
+
+  <!-- ===================== UNIT 3 ===================== -->
+  <section class="card" id="index">
+    <div class="kicker">Unit 3</div>
+    <h2>Indexes: finding things fast</h2>
+    <p class="lede only-beginner">A table with a million users. Without an index, the database must look at every row. An index works like the alphabet tabs in a phone book: it jumps almost straight to the right place.</p>
+    <p class="lede only-advanced">A sequential scan is O(n) over the heap. A B-tree index lookup is O(log n) page reads, with a fan-out of hundreds, so only 3–4 levels even for very large tables. Indexes cost write amplification and storage.</p>
+
+    <div class="controls" style="margin-top:0">
+      <label class="toggle" for="whoSel">Find:
+        <select id="whoSel" class="btn" style="padding:5px 8px">
+          <option value="ben">ben@mail.com</option>
+          <option value="kai">kai@mail.com</option>
+          <option value="zoe">zoe@mail.com</option>
+        </select>
+      </label>
+      <button class="btn primary" id="raceBtn">▶ Run the search</button>
+    </div>
+    <code id="raceSql" style="display:block;margin:10px 0;font-size:.85rem"></code>
+
+    <div class="race">
+      <div class="lanebox">
+        <h3>Without an index</h3>
+        <div class="sub"><span class="only-beginner">Reads every row, top to bottom.</span><span class="only-advanced">Seq Scan on users · Filter: email = …</span> One square = 10,000 rows.</div>
+        <div class="grid100" id="scanGrid"></div>
+        <div class="meter">Rows read: <b id="scanCount">0</b></div>
+      </div>
+      <div class="lanebox tree">
+        <h3>With an index on email</h3>
+        <div class="sub"><span class="only-beginner">Follows the alphabet tabs down to the right page.</span><span class="only-advanced">Index Scan using users_email_idx · B-tree, 3 levels.</span></div>
+        <svg id="treeSvg" viewBox="0 0 420 210" role="img" aria-label="B-tree index lookup"></svg>
+        <div class="meter">Pages read: <b id="treeCount">0</b></div>
+      </div>
+    </div>
+    <div class="insight" id="raceInsight">Press "Run the search" to start both searches together.</div>
+
+    <h3 style="margin-top:24px" class="only-beginner">Can the database use the index for this search?</h3>
+    <h3 style="margin-top:24px" class="only-advanced">Composite index: which predicates can use it?</h3>
+    <p class="lede only-beginner" style="margin-bottom:0">There is an index on <code>email</code>. Decide for each search.</p>
+    <p class="lede only-advanced" style="margin-bottom:0"><code>CREATE INDEX ON people (last_name, first_name);</code> Think of it as sorted by last name, then first name inside each last name.</p>
+    <div class="qcards" id="qcards"></div>
+
+    <div class="callout only-beginner" style="margin-top:16px"><b>Trade-off:</b> every index makes searches faster, but each insert or update must also update the index, and the index takes up space. Add indexes for the searches your app actually runs often.</div>
+    <div class="callout only-advanced" style="margin-top:16px"><b>Rules of thumb:</b> index foreign keys and your hot WHERE / ORDER BY paths. In composite indexes, put equality columns before range columns. Use partial indexes (<code>WHERE deleted_at IS NULL</code>) and covering indexes (<code>INCLUDE</code>) where they help. Check plans with <code>EXPLAIN (ANALYZE, BUFFERS)</code>, and drop indexes that nothing reads.</div>
+  </section>
+
+  <!-- ===================== UNIT 4 ===================== -->
+  <section class="card" id="txn">
+    <div class="kicker">Unit 4</div>
+    <h2>Transactions: all or nothing</h2>
+    <p class="lede only-beginner">Alice sends Bob $100. That's two changes: take $100 from Alice, then give $100 to Bob. What if the server crashes between them?</p>
+    <p class="lede only-advanced">A transfer is two writes that must preserve one invariant: the total balance stays constant. Inject a crash between the writes, with and without a transaction.</p>
+
+    <label class="toggle" for="useTxn"><input type="checkbox" id="useTxn"> <span>Wrap it in a transaction (<code>BEGIN … COMMIT</code>)</span></label>
+
+    <div class="bank" id="bank">
+      <div class="acct" id="acctA"><div class="who">Alice</div><div class="bal" id="balA">$500</div></div>
+      <div class="acct" id="acctB"><div class="who">Bob</div><div class="bal" id="balB">$200</div></div>
+    </div>
+    <div class="total" id="total"></div>
+    <div class="controls" style="margin-top:0">
+      <button class="btn primary" id="runOk">Send $100</button>
+      <button class="btn" id="runCrash">Send $100, crash halfway</button>
+      <button class="btn" id="bankReset">Reset balances</button>
+    </div>
+    <ul class="log" id="log"></ul>
+    <div class="insight" id="txnInsight">Try the crash with the transaction switched off first, then switched on.</div>
+
+    <div class="acid only-beginner">
+      <div><b>A</b>All or nothing: every step happens, or none do.</div>
+      <div><b>C</b>Rules stay true, such as "money is never created or lost".</div>
+      <div><b>I</b>Two people at once don't mess each other up.</div>
+      <div><b>D</b>Once it says "done", it survives a power cut.</div>
+    </div>
+    <div class="acid only-advanced">
+      <div><b>A</b>Atomicity: undo log / MVCC; ROLLBACK on failure.</div>
+      <div><b>C</b>Consistency: constraints, FKs, CHECKs hold at commit.</div>
+      <div><b>I</b>Isolation: the level chosen trades anomalies for concurrency.</div>
+      <div><b>D</b>Durability: WAL is fsynced before COMMIT returns.</div>
+    </div>
+
+    <div class="only-advanced" style="margin-top:24px">
+      <h3>Concurrency: two withdrawals at once</h3>
+      <p class="lede" style="margin-bottom:8px">Two sessions each withdraw $100 from Alice's $500 at the same moment. The correct result is $300.</p>
+      <div class="controls" style="margin-top:0">
+        <button class="btn" id="raceBad">▶ Read, then write (naive)</button>
+        <button class="btn" id="raceGood">▶ Atomic UPDATE (row lock)</button>
+      </div>
+      <div class="racegrid" id="raceGrid"></div>
+      <div class="insight" id="raceRes" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- ===================== UNIT 5 ===================== -->
+  <section class="card" id="quiz">
+    <div class="kicker">Unit 5</div>
+    <h2>Check yourself</h2>
+    <div id="quizBox" style="margin-top:14px"></div>
+  </section>
+
+  <footer>A demo for interactive-tech-learning. Plain HTML, CSS and JS with no dependencies, so it also works offline. Previous lesson: <a href="../sql/index.html">SQL, hands on</a>. Next lesson: <a href="../formal-verification/index.html">Formal verification</a>.</footer>
+</main>
+
+<script>
+(() => {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, reduced ? Math.min(ms, 60) : ms));
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const NS = 'http://www.w3.org/2000/svg';
+
+  /* ---------------- saved progress ---------------- */
+  const KEY = 'itl-database-design-v1';
+  let saved = { level: 'beginner', modelDone: false, rel: [], raced: false, qcards: [], crashNoTxn: false, crashTxn: false, quizDone: false };
+  try { Object.assign(saved, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+  let level = saved.level === 'advanced' ? 'advanced' : 'beginner';
+  // Pick the beginner or advanced variant of a value.
+  const L = (beginner, advanced) => level === 'advanced' ? advanced : beginner;
+  const relDone = new Set(saved.rel);
+  const qDone = new Set(saved.qcards);
+
+  function updateProgress() {
+    const done = {
+      model: saved.modelDone,
+      rel: relDone.size >= 5,
+      index: saved.raced && qDone.size >= 4,
+      txn: saved.crashNoTxn && saved.crashTxn,
+      quiz: saved.quizDone,
+    };
+    const n = Object.values(done).filter(Boolean).length;
+    $('progressText').textContent = `${n} / 5 units`;
+    $('progressBar').style.width = `${(n / 5) * 100}%`;
+    for (const k in done) $('unit-' + k).classList.toggle('done', done[k]);
+    saved.rel = [...relDone]; saved.qcards = [...qDone];
+    persist();
+  }
+
+  /* =========================================================
+     UNIT 1: spreadsheet → tables
+     ========================================================= */
+  let model;
+  function modelReset() {
+    model = {
+      mode: 'sheet',
+      sheet: [
+        { id: 1, customer: 'Ana', email: 'ana@mail.com', product: 'Keyboard', price: 49 },
+        { id: 2, customer: 'Ana', email: 'ana@mail.com', product: 'Mouse', price: 19 },
+        { id: 3, customer: 'Ben', email: 'ben@mail.com', product: 'Keyboard', price: 49 },
+        { id: 4, customer: 'Ana', email: 'ana@mail.com', product: 'Monitor', price: 199 },
+        { id: 5, customer: 'Cleo', email: 'cleo@mail.com', product: 'Mouse', price: 19 },
+      ],
+      customers: [
+        { id: 1, name: 'Ana', email: 'ana@mail.com' },
+        { id: 2, name: 'Ben', email: 'ben@mail.com' },
+        { id: 3, name: 'Cleo', email: 'cleo@mail.com' },
+      ],
+      products: [
+        { id: 1, name: 'Keyboard', price: 49 },
+        { id: 2, name: 'Mouse', price: 19 },
+        { id: 3, name: 'Monitor', price: 199 },
+      ],
+      orders: [
+        { id: 1, customer_id: 1, product_id: 1, unit_price: 49 },
+        { id: 2, customer_id: 1, product_id: 2, unit_price: 19 },
+        { id: 3, customer_id: 2, product_id: 1, unit_price: 49 },
+        { id: 4, customer_id: 1, product_id: 3, unit_price: 199 },
+        { id: 5, customer_id: 3, product_id: 2, unit_price: 19 },
+      ],
+      touched: new Set(), ghost: false, cells: 0, used: new Set(),
+    };
+    renderModel();
+    say(L('Try the three buttons above. Each one shows a different problem with the single sheet.',
+          'Run each operation against the single table and note which invariant breaks.'));
+  }
+
+  function say(text, kind = '') {
+    $('modelInsight').className = 'insight ' + kind;
+    $('modelInsight').textContent = text;
+  }
+
+  function renderModel() {
+    const t = model.touched;
+    if (model.mode === 'sheet') {
+      // count how often each customer/email and product/price pair appears
+      const seen = {};
+      model.sheet.forEach(r => { seen['c' + r.customer] = (seen['c' + r.customer] || 0) + 1; seen['p' + r.product] = (seen['p' + r.product] || 0) + 1; });
+      const emails = {};
+      model.sheet.forEach(r => { (emails[r.customer] ||= new Set()).add(r.email); });
+      const rows = model.sheet.map(r => {
+        const rep = (k) => seen[k] > 1 ? 'repeat' : '';
+        const conflict = emails[r.customer].size > 1 ? 'conflict' : '';
+        const tc = (f) => t.has(`s${r.id}${f}`) ? 'touched' : '';
+        return `<tr><td class="col-o">${r.id}</td>
+          <td class="col-c ${rep('c' + r.customer)}">${r.customer}</td>
+          <td class="col-c ${conflict || rep('c' + r.customer)} ${tc('email')}">${r.email}</td>
+          <td class="col-p ${rep('p' + r.product)}">${r.product}</td>
+          <td class="col-p ${rep('p' + r.product)}">$${r.price}</td></tr>`;
+      }).join('');
+      const ghost = model.ghost ? `<tr class="ghost"><td>?</td><td>?</td><td>?</td><td>Webcam</td><td>$59</td></tr>` : '';
+      $('modelView').innerHTML = `<div class="tname"><i style="background:var(--muted)"></i>orders_sheet</div>
+        <div class="tbl-wrap"><table class="data sheet" id="sheet"><thead><tr>
+          <th class="o">order</th><th class="c">customer</th><th class="c">email</th><th class="p">product</th><th class="p">price</th>
+        </tr></thead><tbody>${rows}${ghost}</tbody></table></div>`;
+    } else {
+      const tc = (k) => t.has(k) ? 'touched' : '';
+      const cust = model.customers.map(c => `<tr><td>${c.id}</td><td>${c.name}</td><td class="${tc('c' + c.id + 'email')}">${c.email}</td></tr>`).join('');
+      const prod = model.products.map(p => `<tr><td class="${tc('p' + p.id)}">${p.id}</td><td class="${tc('p' + p.id)}">${p.name}</td><td class="${tc('p' + p.id)}">$${p.price}</td></tr>`).join('');
+      const adv = level === 'advanced';
+      const ord = model.orders.map(o => `<tr><td>${o.id}</td><td class="fk">${o.customer_id}</td><td class="fk">${o.product_id}</td>${adv ? `<td>$${o.unit_price}</td>` : ''}</tr>`).join('');
+      const joined = model.orders.map(o => {
+        const c = model.customers.find(x => x.id === o.customer_id), p = model.products.find(x => x.id === o.product_id);
+        return `<tr><td>${o.id}</td><td>${c.name}</td><td class="${tc('c' + c.id + 'email')}">${c.email}</td><td>${p.name}</td><td>$${adv ? o.unit_price : p.price}</td></tr>`;
+      }).join('');
+      $('modelView').innerHTML = `<div class="normalized">
+          <div><div class="tname c"><i></i>customers</div><div class="tbl-wrap"><table class="data"><thead><tr><th class="c">id (PK)</th><th class="c">name</th><th class="c">email</th></tr></thead><tbody>${cust}</tbody></table></div></div>
+          <div><div class="tname p"><i></i>products</div><div class="tbl-wrap"><table class="data"><thead><tr><th class="p">id (PK)</th><th class="p">name</th><th class="p">price</th></tr></thead><tbody>${prod}</tbody></table></div></div>
+          <div><div class="tname o"><i></i>orders</div><div class="tbl-wrap"><table class="data"><thead><tr><th class="o">id (PK)</th><th class="o">customer_id →</th><th class="o">product_id →</th>${adv ? '<th class="o">unit_price</th>' : ''}</tr></thead><tbody>${ord}</tbody></table></div></div>
+        </div>
+        <div class="label" style="margin-top:14px">${L('What the app shows (tables joined back together)', 'SELECT … FROM orders JOIN customers … JOIN products …')}</div>
+        <div class="tbl-wrap"><table class="data"><thead><tr><th>order</th><th>customer</th><th>email</th><th>product</th><th>price</th></tr></thead><tbody>${joined}</tbody></table></div>`;
+    }
+    const copies = model.mode === 'sheet'
+      ? model.sheet.length * 4 - new Set(model.sheet.map(r => r.customer)).size * 2 - new Set(model.sheet.map(r => r.product)).size * 2
+      : 0;
+    $('modelCounter').innerHTML = model.mode === 'sheet'
+      ? `Repeated values: <b>${copies}</b> · Cells changed by your last action: <b>${model.cells}</b>`
+      : `Repeated values: <b>0</b> · Cells changed by your last action: <b>${model.cells}</b>`;
+    $('normalizeBtn').style.display = model.mode === 'sheet' ? '' : 'none';
+    model.touched = new Set();
+  }
+
+  function markUsed(a) {
+    model.used.add(model.mode + a);
+    if (model.mode === 'tables' && model.used.size >= 2) { saved.modelDone = true; updateProgress(); }
+  }
+
+  $('actEmail').addEventListener('click', () => {
+    const next = model.emailVer = (model.emailVer || 1) + 1;
+    const email = `ana${next}@mail.com`;
+    if (model.mode === 'sheet') {
+      const row = model.sheet.find(r => r.customer === 'Ana');
+      if (!row) return say('Ana has no rows left.');
+      row.email = email;
+      model.touched.add(`s${row.id}email`);
+      model.cells = 1;
+      renderModel();
+      say(L(`Ana's email is copied in 3 rows, and the app only updated 1. Now the sheet disagrees with itself (red): which email is the real one?`,
+            `Update anomaly: the fact "Ana's email" is stored 3 times. A partial update leaves contradictory rows, and no constraint can catch it.`), 'bad');
+    } else {
+      model.customers[0].email = email;
+      model.touched.add('c1email');
+      model.cells = 1;
+      renderModel();
+      say(L(`Changed 1 cell in customers. Every order shows the new email automatically, because orders only point to Ana.`,
+            `One row updated (customers.id = 1). The join derives the email for every order, so there's nothing to keep in sync.`), 'good');
+    }
+    markUsed('email');
+  });
+
+  $('actDelete').addEventListener('click', async () => {
+    if (model.mode === 'sheet') {
+      const idx = model.sheet.findIndex(r => r.id === 3);
+      if (idx < 0) return say('Order #3 is already deleted. Press Reset to try again.');
+      document.querySelectorAll('#sheet tbody tr')[idx].classList.add('removing');
+      await sleep(450);
+      model.sheet.splice(idx, 1);
+      model.cells = 5;
+      renderModel();
+      say(L(`Order #3 is gone, and so is everything we knew about Ben: his name and email aren't stored anywhere else.`,
+            `Delete anomaly: removing the last order for Ben also destroyed an unrelated fact (Ben exists, with his email).`), 'bad');
+    } else {
+      const idx = model.orders.findIndex(o => o.id === 3);
+      if (idx < 0) return say('Order #3 is already deleted. Press Reset to try again.');
+      model.orders.splice(idx, 1);
+      model.cells = 1;
+      renderModel();
+      say(L(`Order #3 is deleted, but Ben is still safe in the customers table.`,
+            `Only the orders row is gone; customers.id = 2 is untouched. (Deleting a customer who still has orders would be blocked by the foreign key.)`), 'good');
+    }
+    markUsed('delete');
+  });
+
+  $('actAdd').addEventListener('click', () => {
+    if (model.mode === 'sheet') {
+      model.ghost = true;
+      model.cells = 0;
+      renderModel();
+      model.ghost = false;
+      say(L(`There's nowhere to put it! Every row is an order, so a product nobody has bought yet would need a fake order with no customer (red row).`,
+            `Insert anomaly: you can't record a product without inventing an order, because product facts can only exist inside order rows.`), 'bad');
+    } else {
+      if (!model.products.find(p => p.name === 'Webcam')) model.products.push({ id: 4, name: 'Webcam', price: 59 });
+      model.touched.add('p4');
+      model.cells = 3;
+      renderModel();
+      say(L(`Webcam added to products. It can exist before anyone orders it.`,
+            `INSERT INTO products: the product exists independently of orders.`), 'good');
+    }
+    markUsed('add');
+  });
+
+  $('normalizeBtn').addEventListener('click', async () => {
+    const sheet = $('sheet');
+    if (sheet) { sheet.classList.add('splitting'); await sleep(650); }
+    model.mode = 'tables';
+    model.cells = 0;
+    model.used = new Set();
+    renderModel();
+    say(L(`Split into three tables: each customer and each product is stored once, and orders point to them by number. Now try the same three buttons again.`,
+          `Normalised: customer and product facts each have exactly one home, and orders reference them via foreign keys. Repeat the operations.`));
+  });
+  $('modelReset').addEventListener('click', modelReset);
+
+  /* =========================================================
+     UNIT 2: relationships
+     ========================================================= */
+  const box = (name, cols) => ({ name, cols });
+  const REL = [
+    { id: 'passport', text: 'A person has one passport; a passport belongs to exactly one person.', a: '1:1',
+      A: box('people', [['PK', 'id'], ['', 'name']]), B: box('passports', [['PK', 'id'], ['FK UQ', 'person_id'], ['', 'number']]),
+      note: 'UQ = unique: no two passports can point to the same person.',
+      beginner: 'One on each side. The passports table stores which person it belongs to, and no two passports may point to the same person.',
+      advanced: '1:1 is a 1:N with a UNIQUE constraint on the foreign key. Put the FK on the side that is optional or created later. Often the two tables could be merged, so split only for optionality, security or very wide rows.',
+      ddl: 'CREATE TABLE passports (\n  id        bigint PRIMARY KEY,\n  person_id bigint NOT NULL UNIQUE REFERENCES people(id),\n  number    text NOT NULL\n);' },
+    { id: 'orders', text: 'A customer places many orders; each order belongs to one customer.', a: '1:N',
+      A: box('customers', [['PK', 'id'], ['', 'name']]), B: box('orders', [['PK', 'id'], ['FK', 'customer_id'], ['', 'total']]),
+      beginner: 'One customer, many orders. Each order stores its customer\'s number, and the "many" side holds the pointer.',
+      advanced: 'The FK always goes on the many side (orders.customer_id). Index it: Postgres does not index foreign keys automatically, and joins and ON DELETE checks need it.',
+      ddl: 'CREATE TABLE orders (\n  id          bigint PRIMARY KEY,\n  customer_id bigint NOT NULL REFERENCES customers(id),\n  total       numeric(10,2) NOT NULL\n);\nCREATE INDEX ON orders (customer_id);' },
+    { id: 'students', text: 'A student enrolls in many courses; a course has many students.', a: 'N:M',
+      A: box('students', [['PK', 'id'], ['', 'name']]), J: box('enrollments', [['PK FK', 'student_id'], ['PK FK', 'course_id'], ['', 'enrolled_at']]), B: box('courses', [['PK', 'id'], ['', 'title']]),
+      beginner: 'Many on both sides. Neither table can hold the pointer, so you add a third table in the middle. Each row in it says "this student is in this course".',
+      advanced: 'N:M needs a junction table whose PK is (student_id, course_id), which also prevents duplicate enrolments. The junction often gets its own attributes (enrolled_at, grade) and becomes an entity in its own right.',
+      ddl: 'CREATE TABLE enrollments (\n  student_id  bigint REFERENCES students(id),\n  course_id   bigint REFERENCES courses(id),\n  enrolled_at timestamptz NOT NULL DEFAULT now(),\n  PRIMARY KEY (student_id, course_id)\n);\nCREATE INDEX ON enrollments (course_id);' },
+    { id: 'comments', text: 'A blog post has many comments; each comment is on one post.', a: '1:N',
+      A: box('posts', [['PK', 'id'], ['', 'title']]), B: box('comments', [['PK', 'id'], ['FK', 'post_id'], ['', 'body']]),
+      beginner: 'One post, many comments, so the pointer goes on the comments.',
+      advanced: 'A classic 1:N. Decide what happens when a post is deleted: ON DELETE CASCADE removes its comments, and RESTRICT blocks the delete.',
+      ddl: 'CREATE TABLE comments (\n  id      bigint PRIMARY KEY,\n  post_id bigint NOT NULL REFERENCES posts(id) ON DELETE CASCADE,\n  body    text NOT NULL\n);' },
+    { id: 'movies', text: 'A movie has many actors; an actor appears in many movies.', a: 'N:M',
+      A: box('movies', [['PK', 'id'], ['', 'title']]), J: box('roles', [['PK FK', 'movie_id'], ['PK FK', 'actor_id'], ['', 'character']]), B: box('actors', [['PK', 'id'], ['', 'name']]),
+      beginner: 'Many on both sides again, so a middle table. It can even store extra facts, such as which character the actor played.',
+      advanced: 'The junction carries data (character). If an actor can play two characters in one movie, the PK must include character, or use a surrogate id with a UNIQUE constraint.',
+      ddl: 'CREATE TABLE roles (\n  movie_id  bigint REFERENCES movies(id),\n  actor_id  bigint REFERENCES actors(id),\n  character text NOT NULL,\n  PRIMARY KEY (movie_id, actor_id, character)\n);' },
+    { id: 'manager', adv: true, text: 'An employee has one manager, who is also an employee.', a: '1:N', self: true,
+      A: box('employees', [['PK', 'id'], ['', 'name']]), B: box('employees', [['PK', 'id'], ['FK', 'manager_id'], ['', 'name']]),
+      advanced: 'Self-referencing 1:N: manager_id points back into the same table and is NULL for the CEO. Query the hierarchy with WITH RECURSIVE.',
+      ddl: 'CREATE TABLE employees (\n  id         bigint PRIMARY KEY,\n  name       text NOT NULL,\n  manager_id bigint REFERENCES employees(id)  -- NULL for the CEO\n);' },
+    { id: 'follows', adv: true, text: 'A user can follow many users and be followed by many users.', a: 'N:M', self: true,
+      A: box('users', [['PK', 'id'], ['', 'handle']]), J: box('follows', [['PK FK', 'follower_id'], ['PK FK', 'followee_id'], ['', 'since']]), B: box('users', [['PK', 'id'], ['', 'handle']]),
+      advanced: 'A self-referencing N:M junction. Add CHECK (follower_id <> followee_id), and index both directions so you can list followers and following.',
+      ddl: 'CREATE TABLE follows (\n  follower_id bigint REFERENCES users(id),\n  followee_id bigint REFERENCES users(id),\n  since       timestamptz NOT NULL DEFAULT now(),\n  PRIMARY KEY (follower_id, followee_id),\n  CHECK (follower_id <> followee_id)\n);\nCREATE INDEX ON follows (followee_id);' },
+  ];
+  const CHOICES = [
+    ['1:1', 'One-to-one', 'one ↔ one'],
+    ['1:N', 'One-to-many', 'one ↔ many'],
+    ['N:M', 'Many-to-many', 'many ↔ many'],
+  ];
+  let ri = 0;
+  const visibleRel = () => REL.filter(r => !r.adv || level === 'advanced');
+
+  function svgEl(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  // Draw one table box; returns its geometry.
+  function drawBox(svg, b, x, y, opts = {}) {
+    const w = 170, rowH = 22, h = 30 + b.cols.length * rowH + 6;
+    const g = svgEl('g', { class: 'box' + (opts.join ? ' join' : '') + (opts.appear ? ' appear' : '') }, svg);
+    if (opts.delay) g.style.animationDelay = opts.delay;
+    svgEl('rect', { class: 'frame', x, y, width: w, height: h, rx: 8 }, g);
+    svgEl('rect', { class: 'head', x: x + 1, y: y + 1, width: w - 2, height: 28, rx: 7 }, g);
+    const t = svgEl('text', { class: 'title', x: x + 12, y: y + 19 }, g); t.textContent = b.name;
+    if (opts.showCols !== false) b.cols.forEach(([key, col], i) => {
+      const cy = y + 30 + (i + 1) * rowH - 6;
+      if (key) { const k = svgEl('text', { class: 'key', x: x + 10, y: cy }, g); k.textContent = key; }
+      const c = svgEl('text', { class: key.includes('FK') ? 'fk' : '', x: x + 52, y: cy }, g); c.textContent = col;
+    });
+    return { x, y, w, h, mid: y + 46 };
+  }
+
+  // Cardinality mark at the end of a horizontal connector. dir = -1 when the box is to the left.
+  function mark(svg, x, y, dir, kind) {
+    if (kind === 'many') {
+      svgEl('path', { class: 'rel draw', d: `M${x + dir * 16},${y} L${x},${y - 10} M${x + dir * 16},${y} L${x},${y} M${x + dir * 16},${y} L${x},${y + 10}` }, svg);
+      svgEl('path', { class: 'rel draw', d: `M${x + dir * 22},${y - 8} L${x + dir * 22},${y + 8}` }, svg);
+    } else {
+      svgEl('path', { class: 'rel draw', d: `M${x + dir * 10},${y - 8} L${x + dir * 10},${y + 8} M${x + dir * 16},${y - 8} L${x + dir * 16},${y + 8}` }, svg);
+    }
+  }
+
+  function connect(svg, a, b, kindA, kindB) {
+    const x1 = a.x + a.w, x2 = b.x, y = Math.min(a.mid, b.mid);
+    svgEl('path', { class: 'rel draw', d: `M${x1},${y} L${x2},${y}` }, svg);
+    mark(svg, x1, y, 1, kindA);
+    mark(svg, x2, y, -1, kindB);
+  }
+
+  function drawER(r, answered) {
+    const host = $('er');
+    host.innerHTML = '';
+    const svg = svgEl('svg', { viewBox: '0 0 640 170', role: 'img', 'aria-label': 'Entity relationship diagram' }, host);
+    if (!answered) {
+      drawBox(svg, r.A, 40, 20, { showCols: false });
+      drawBox(svg, r.B, 430, 20, { showCols: false });
+      const q = svgEl('text', { class: 'qmark', x: 320, y: 48, 'text-anchor': 'middle' }, svg); q.textContent = '?';
+      return;
+    }
+    if (r.a === 'N:M') {
+      const a = drawBox(svg, r.A, 10, 20, { appear: true });
+      const j = drawBox(svg, r.J, 235, 20, { appear: true, join: true, delay: '.25s' });
+      const b = drawBox(svg, r.B, 460, 20, { appear: true });
+      connect(svg, a, j, 'one', 'many');
+      connect(svg, j, b, 'many', 'one');
+    } else {
+      const a = drawBox(svg, r.A, 40, 20, { appear: true });
+      const b = drawBox(svg, r.B, 430, 20, { appear: true });
+      connect(svg, a, b, 'one', r.a === '1:1' ? 'one' : 'many');
+    }
+    const note = r.self ? `Both "${r.A.name}" boxes are the same table.` : r.note;
+    if (note) {
+      const n = svgEl('text', { class: 'note', x: 320, y: 160, 'text-anchor': 'middle' }, svg);
+      n.textContent = note;
+    }
+  }
+
+  function renderRelNav() {
+    const rs = visibleRel();
+    $('relNav').innerHTML = '';
+    rs.forEach((r, i) => {
+      const b = document.createElement('button');
+      b.textContent = i + 1;
+      b.className = (relDone.has(r.id) ? 'done ' : '') + (i === ri ? 'current' : '');
+      b.setAttribute('aria-label', `Situation ${i + 1}`);
+      b.addEventListener('click', () => { ri = i; renderRel(); });
+      $('relNav').appendChild(b);
+    });
+  }
+
+  function relFeedback(r) {
+    $('relFb').className = 'feedback show good';
+    $('relFb').innerHTML = `<b>${CHOICES.find(c => c[0] === r.a)[1]}.</b> ${esc(r[level] || r.advanced)}`;
+    $('relDdl').textContent = r.ddl;
+  }
+
+  function renderRel() {
+    const rs = visibleRel();
+    if (ri >= rs.length) ri = 0;
+    const r = rs[ri];
+    const done = relDone.has(r.id);
+    renderRelNav();
+    $('relText').textContent = r.text;
+    $('relFb').className = 'feedback';
+    $('relDdl').textContent = '(answer to see the schema)';
+    $('relNext').style.display = done ? '' : 'none';
+    $('relChoices').innerHTML = '';
+    CHOICES.forEach(([key, name, hint]) => {
+      const b = document.createElement('button');
+      b.className = 'opt';
+      b.innerHTML = `<b>${key}</b>${name}<br><small>${hint}</small>`;
+      if (done) { b.disabled = true; if (key === r.a) b.classList.add('right'); }
+      b.addEventListener('click', () => {
+        if (key !== r.a) {
+          b.classList.add('wrong'); b.disabled = true;
+          $('relFb').className = 'feedback show bad';
+          $('relFb').innerHTML = `<b>Not quite.</b> ${key === '1:1' ? 'Can one side really have only one of the other?' : key === '1:N' ? 'Check both directions. Can each side have many of the other?' : 'Ask from each side: can it really have many?'} Try again.`;
+          return;
+        }
+        $('relChoices').querySelectorAll('.opt').forEach(x => x.disabled = true);
+        b.classList.add('right');
+        relFeedback(r);
+        drawER(r, true);
+        relDone.add(r.id); renderRelNav(); updateProgress();
+        $('relNext').style.display = '';
+      });
+      $('relChoices').appendChild(b);
+    });
+    drawER(r, done);
+    if (done) relFeedback(r);
+  }
+
+  $('relNext').addEventListener('click', () => {
+    const rs = visibleRel();
+    const next = rs.findIndex((r, i) => i > ri && !relDone.has(r.id));
+    const any = rs.findIndex(r => !relDone.has(r.id));
+    ri = next >= 0 ? next : any >= 0 ? any : (ri + 1) % rs.length;
+    renderRel();
+  });
+
+  /* =========================================================
+     UNIT 3: indexes
+     ========================================================= */
+  const LEAVES = ['a–c', 'd–f', 'g–h', 'i–k', 'l–n', 'o–q', 'r–t', 'u–w', 'x–z'];
+  const ROW_POS = { ben: 37, kai: 61, zoe: 88 };
+  const LEAF_FOR = { ben: 0, kai: 3, zoe: 8 };
+  let raceId = 0;
+
+  function buildGrid() {
+    $('scanGrid').innerHTML = Array.from({ length: 100 }, () => '<i></i>').join('');
+  }
+
+  function buildTree() {
+    const svg = $('treeSvg');
+    svg.innerHTML = '';
+    const lines = svgEl('g', {}, svg);
+    // root
+    svgEl('rect', { id: 'tn-root', x: 150, y: 8, width: 120, height: 30, rx: 6 }, svg);
+    const rt = svgEl('text', { x: 210, y: 28, 'text-anchor': 'middle' }, svg); rt.textContent = 'a–h | i–q | r–z';
+    // internal
+    const ix = [20, 150, 280];
+    ['a–c | d–f | g–h', 'i–k | l–n | o–q', 'r–t | u–w | x–z'].forEach((lab, i) => {
+      svgEl('line', { id: `tl-r${i}`, x1: 210, y1: 38, x2: ix[i] + 60, y2: 70 }, lines);
+      svgEl('rect', { id: `tn-i${i}`, x: ix[i], y: 70, width: 120, height: 30, rx: 6 }, svg);
+      const t = svgEl('text', { x: ix[i] + 60, y: 90, 'text-anchor': 'middle' }, svg); t.textContent = lab;
+    });
+    // leaves
+    LEAVES.forEach((lab, k) => {
+      const parent = Math.floor(k / 3);
+      const x = 6 + k * 45.5;
+      svgEl('line', { id: `tl-i${k}`, x1: ix[parent] + 60, y1: 100, x2: x + 20, y2: 135 }, lines);
+      svgEl('rect', { id: `tn-l${k}`, x, y: 135, width: 40, height: 26, rx: 5 }, svg);
+      const t = svgEl('text', { x: x + 20, y: 152, 'text-anchor': 'middle' }, svg); t.textContent = lab;
+    });
+    // the row in the table
+    svgEl('rect', { id: 'tn-row', x: 130, y: 178, width: 160, height: 26, rx: 5 }, svg);
+    const rr = svgEl('text', { id: 'tn-rowtext', x: 210, y: 195, 'text-anchor': 'middle' }, svg); rr.textContent = 'table row';
+    svgEl('line', { id: 'tl-row', x1: 210, y1: 161, x2: 210, y2: 178, opacity: 0 }, lines);
+  }
+
+  function updateRaceSql() {
+    const who = $('whoSel').value;
+    $('raceSql').textContent = L(`Find the user whose email is ${who}@mail.com`, `SELECT * FROM users WHERE email = '${who}@mail.com';  -- 1,000,000 rows`);
+  }
+
+  async function runRace() {
+    const id = ++raceId;
+    const who = $('whoSel').value;
+    buildGrid(); buildTree();
+    $('scanCount').textContent = '0'; $('treeCount').textContent = '0';
+    $('raceInsight').className = 'insight';
+    $('raceInsight').textContent = L('Searching…', 'Executing both plans…');
+    const alive = () => id === raceId;
+
+    const scan = (async () => {
+      const cells = $('scanGrid').children;
+      for (let i = 0; i < 100; i++) {
+        if (!alive()) return;
+        cells[i].classList.add(i === ROW_POS[who] ? 'hit' : 'read');
+        $('scanCount').textContent = ((i + 1) * 10000).toLocaleString('en-US');
+        await sleep(32);
+      }
+    })();
+
+    const tree = (async () => {
+      const leaf = LEAF_FOR[who], parent = Math.floor(leaf / 3);
+      const steps = [['tn-root'], [`tl-r${parent}`, `tn-i${parent}`], [`tl-i${leaf}`, `tn-l${leaf}`]];
+      let pages = 0;
+      for (const ids of steps) {
+        await sleep(450); if (!alive()) return;
+        ids.forEach(x => $(x).classList.add('on'));
+        $('treeCount').textContent = ++pages;
+      }
+      await sleep(450); if (!alive()) return;
+      const lx = 6 + leaf * 45.5 + 20;
+      $('tl-row').setAttribute('x1', lx);
+      $('tl-row').setAttribute('opacity', 1);
+      $('tl-row').classList.add('on');
+      $('tn-row').classList.add('hitrow');
+      $('tn-rowtext').textContent = `${who}@mail.com ✓`;
+      $('treeCount').textContent = ++pages;
+    })();
+
+    await tree;
+    if (!alive()) return;
+    $('raceInsight').textContent = L('The index already found the row after reading 4 pages. The full scan is still going…', 'Index Scan finished: 4 buffers. Seq Scan is still reading the heap…');
+    await scan;
+    if (!alive()) return;
+    $('raceInsight').className = 'insight good';
+    $('raceInsight').textContent = L(
+      `The scan found ${who} about ${ROW_POS[who]}% of the way down, but had to keep going to the end: there could be another row with that email further down. 1,000,000 rows read versus 4 pages.`,
+      `Seq Scan read all 1,000,000 rows (without a UNIQUE index the planner can't stop early). The B-tree needed 3 index pages plus 1 heap page. log₂₅₆(10⁶) ≈ 2.5, so 3 levels covers it.`);
+    saved.raced = true; updateProgress();
+  }
+  $('raceBtn').addEventListener('click', runRace);
+  $('whoSel').addEventListener('change', () => {
+    raceId++;   // cancel a race that is still animating for the previous name
+    updateRaceSql(); buildGrid(); buildTree();
+    $('scanCount').textContent = '0'; $('treeCount').textContent = '0';
+    $('raceInsight').className = 'insight';
+    $('raceInsight').textContent = L('Press "Run the search" to start both searches together.', 'Run both plans for the new value.');
+  });
+
+  const QCARDS = {
+    beginner: [
+      { id: 'b1', q: "WHERE email = 'ben@mail.com'", uses: true, why: 'An exact match on the indexed column is the perfect case.' },
+      { id: 'b2', q: "WHERE name = 'Ben'", uses: false, why: 'The index is on email, not name. This search has to scan every row (or needs its own index on name).' },
+      { id: 'b3', q: "WHERE email LIKE 'ben%'", uses: true, why: 'It "starts with ben", like flipping to the B tab and then looking for "ben".' },
+      { id: 'b4', q: "WHERE email LIKE '%@mail.com'", uses: false, why: 'It ends with something. The index is sorted by the start of the text, so it can\'t jump to "ends with".' },
+      { id: 'b5', q: 'ORDER BY email LIMIT 10', uses: true, why: 'The index is already sorted by email, so the first 10 entries are the answer.' },
+    ],
+    advanced: [
+      { id: 'a1', q: "WHERE last_name = 'Lee'", uses: true, why: 'This is the leftmost prefix of the index.' },
+      { id: 'a2', q: "WHERE last_name = 'Lee' AND first_name = 'Ana'", uses: true, why: 'Both columns match in index order, the best case.' },
+      { id: 'a3', q: "WHERE first_name = 'Ana'", uses: false, why: 'This skips the leading column. Ana is scattered across every last_name. (Some engines have a skip scan, but don\'t rely on it.)' },
+      { id: 'a4', q: 'ORDER BY last_name, first_name LIMIT 20', uses: true, why: 'The index order matches the sort, so no sort step is needed.' },
+      { id: 'a5', q: "WHERE lower(last_name) = 'lee'", uses: false, why: 'A function on the column hides it from the index. Create an expression index on (lower(last_name)) instead.' },
+      { id: 'a6', q: "WHERE last_name > 'K' AND first_name = 'Ana'", uses: true, why: 'Partly: the range on last_name uses the index, but first_name after a range can only filter. Put equality columns first.' },
+    ],
+  };
+
+  function renderQcards() {
+    $('qcards').innerHTML = '';
+    for (const c of QCARDS[level]) {
+      const div = document.createElement('div');
+      div.className = 'qcard';
+      div.innerHTML = `<code>${esc(c.q)}</code>
+        <div class="two"><button class="btn">✓ Uses index</button><button class="btn">✗ Can't use it</button></div>
+        <div class="why"></div>`;
+      const [yes, no] = div.querySelectorAll('.two .btn');
+      const answer = (saysYes) => {
+        const ok = saysYes === c.uses;
+        div.className = 'qcard ' + (ok ? 'right' : 'wrong');
+        div.querySelector('.why').innerHTML = `<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(c.why)}`;
+        yes.disabled = no.disabled = true;
+        qDone.add(c.id); updateProgress();
+      };
+      yes.addEventListener('click', () => answer(true));
+      no.addEventListener('click', () => answer(false));
+      $('qcards').appendChild(div);
+    }
+  }
+
+  /* =========================================================
+     UNIT 4: transactions
+     ========================================================= */
+  let bal = { a: 500, b: 200 }, txBusy = false;
+
+  function renderBank(changed) {
+    $('balA').textContent = `$${bal.a}`;
+    $('balB').textContent = `$${bal.b}`;
+    for (const k of changed || []) {
+      const el = $(k === 'a' ? 'acctA' : 'acctB');
+      el.classList.remove('changed'); void el.offsetWidth; el.classList.add('changed');
+    }
+    const total = bal.a + bal.b;
+    $('total').className = 'total ' + (total === 700 ? 'good' : 'bad');
+    $('total').innerHTML = L(`Money in the bank: <b>$${total}</b> ${total === 700 ? '✓ (should always be $700)' : '✗ (should be $700!)'}`,
+                             `Invariant SUM(balance) = <b>${total}</b> ${total === 700 ? '✓' : '✗ violated (expected 700)'}`);
+  }
+
+  function log(text, cls = '') {
+    const li = document.createElement('li');
+    li.textContent = text; li.className = cls;
+    $('log').appendChild(li);
+  }
+
+  async function flyCoin(fromLeft, crash) {
+    const bank = $('bank');
+    const coin = document.createElement('span');
+    coin.className = 'coin'; coin.textContent = '$100';
+    bank.appendChild(coin);
+    const W = bank.clientWidth - coin.offsetWidth;
+    const start = fromLeft ? W * 0.18 : W * 0.82;
+    const end = crash ? W * 0.5 : (fromLeft ? W * 0.82 : W * 0.18);
+    const frames = crash
+      ? [{ transform: `translate(${start}px,0)` }, { transform: `translate(${end}px,-6px)`, offset: 0.7 }, { transform: `translate(${end}px,60px) rotate(40deg)`, opacity: 0 }]
+      : [{ transform: `translate(${start}px,0)` }, { transform: `translate(${end}px,0)` }];
+    await coin.animate(frames, { duration: reduced ? 50 : 1000, easing: 'ease-in-out', fill: 'forwards' }).finished;
+    coin.remove();
+  }
+
+  async function transfer(crash) {
+    if (txBusy) return;
+    txBusy = true;
+    document.querySelectorAll('#txn .controls .btn, #useTxn').forEach(b => b.disabled = true);
+    const tx = $('useTxn').checked;
+    $('log').innerHTML = '';
+    const snapshot = { ...bal };
+    if (tx) { log('BEGIN;', 'muted'); await sleep(400); }
+    log(L('1. Take $100 from Alice', "UPDATE accounts SET balance = balance - 100 WHERE name = 'alice';"));
+    bal.a -= 100; renderBank(['a']);
+    await sleep(300);
+    await flyCoin(true, crash);
+    if (crash) {
+      log(L('💥 The server crashed before step 2!', '💥 FATAL: server process terminated (before second UPDATE)'), 'crash');
+      await sleep(700);
+      if (tx) {
+        log(L('↩ On restart, the unfinished transaction is undone', '↩ recovery: transaction never committed → ROLLBACK'), 'ok');
+        bal = snapshot; renderBank(['a']);
+        $('txnInsight').className = 'insight good';
+        $('txnInsight').textContent = L('The transaction never finished, so the database undid step 1. Alice has her $100 back, and no money was lost.',
+                                        'Atomicity: the uncommitted write is invisible and discarded during recovery. The invariant holds.');
+        saved.crashTxn = true;
+      } else {
+        $('txnInsight').className = 'insight bad';
+        $('txnInsight').textContent = L('Step 1 was saved but step 2 never happened: $100 has vanished from the bank. Now switch on the transaction and try again.',
+                                        'Each statement auto-committed on its own, so the first write is durable and the second never ran. The invariant is broken. Enable the transaction and retry.');
+        saved.crashNoTxn = true;
+      }
+      updateProgress();
+    } else {
+      log(L('2. Give $100 to Bob', "UPDATE accounts SET balance = balance + 100 WHERE name = 'bob';"));
+      bal.b += 100; renderBank(['b']);
+      if (tx) { await sleep(300); log('COMMIT;', 'ok'); }
+      $('txnInsight').className = 'insight';
+      $('txnInsight').textContent = L('No crash, so it worked either way. The difference only shows when something goes wrong, so try the crash button.',
+                                      'Happy path: both variants are equivalent. Inject the failure to see the difference.');
+    }
+    document.querySelectorAll('#txn .controls .btn, #useTxn').forEach(b => b.disabled = false);
+    txBusy = false;
+  }
+  $('runOk').addEventListener('click', () => transfer(false));
+  $('runCrash').addEventListener('click', () => transfer(true));
+  $('bankReset').addEventListener('click', () => {
+    bal = { a: 500, b: 200 }; renderBank(['a', 'b']); $('log').innerHTML = '';
+    $('txnInsight').className = 'insight';
+    $('txnInsight').textContent = 'Balances reset.';
+  });
+
+  // Advanced: lost-update race
+  const RACE = {
+    bad: [
+      ['A', 'SELECT balance → 500'],
+      ['B', 'SELECT balance → 500'],
+      ['A', 'UPDATE SET balance = 400  (500 − 100)'],
+      ['B', 'UPDATE SET balance = 400  (500 − 100)'],
+      ['A', 'COMMIT'],
+      ['B', 'COMMIT'],
+    ],
+    good: [
+      ['A', 'UPDATE SET balance = balance − 100 → 400  🔒 row locked'],
+      ['B', 'UPDATE SET balance = balance − 100 … waiting for A', 'wait'],
+      ['A', 'COMMIT  🔓'],
+      ['B', '… re-reads 400 → 300'],
+      ['B', 'COMMIT'],
+    ],
+  };
+  let raceRun = 0;
+  async function runConcurrency(kind) {
+    const id = ++raceRun;
+    const grid = $('raceGrid');
+    grid.innerHTML = '<div class="hd">Session A</div><div class="hd">Session B</div>';
+    $('raceRes').style.display = 'none';
+    for (const [who, text, cls] of RACE[kind]) {
+      await sleep(700); if (id !== raceRun) return;
+      const a = document.createElement('div'), b = document.createElement('div');
+      a.className = 'st' + (who === 'A' ? ' ' + (cls || '') : ' empty');
+      b.className = 'st' + (who === 'B' ? ' ' + (cls || '') : ' empty');
+      (who === 'A' ? a : b).textContent = text;
+      grid.append(a, b);
+    }
+    await sleep(500); if (id !== raceRun) return;
+    const res = $('raceRes');
+    res.style.display = '';
+    if (kind === 'bad') {
+      res.className = 'insight bad';
+      res.textContent = 'Final balance $400, but two withdrawals of $100 happened, so it should be $300. This is a lost update: B overwrote A\'s write with a value computed from stale data. Read Committed does not prevent it.';
+    } else {
+      res.className = 'insight good';
+      res.textContent = 'Final balance $300 ✓. The atomic UPDATE computes from the current row value under a row lock, so B waits and then applies its change on top. SELECT … FOR UPDATE or Serializable isolation also work.';
+    }
+  }
+  $('raceBad').addEventListener('click', () => runConcurrency('bad'));
+  $('raceGood').addEventListener('click', () => runConcurrency('good'));
+
+  /* =========================================================
+     UNIT 5: quiz
+     ========================================================= */
+  const QUIZ_BEGINNER = [
+    { q: 'Why is it a problem to copy a customer\'s email onto every one of their orders?',
+      opts: ['It makes the database slower to open', 'When it changes, you must update many rows and might miss some', 'Emails can\'t be stored in tables', 'It isn\'t a problem'], a: 1,
+      why: 'Copies drift apart. Store each fact once and point to it.' },
+    { q: 'What is a primary key for?',
+      opts: ['Encrypting the table', 'Uniquely identifying each row', 'Sorting the table alphabetically', 'Storing passwords'], a: 1,
+      why: 'Every row gets a value that no other row has (often just a number), so other tables can point to it.' },
+    { q: 'What is a foreign key?',
+      opts: ['A key from another country', 'A column that points to a row in another table', 'A backup of the primary key', 'A password for the table'], a: 1,
+      why: 'For example, orders.customer_id points to customers.id, and the database can make sure that customer exists.' },
+    { q: 'Students take many courses, and courses have many students. What do you need?',
+      opts: ['A course_id column on students', 'A student_id column on courses', 'A third table, e.g. "enrollments"', 'One big table with everything'], a: 2,
+      why: 'Many-to-many needs a table in the middle, where each row links one student to one course.' },
+    { q: 'What does adding an index do?',
+      opts: ['Makes finding rows much faster, but makes writes a bit slower', 'Makes everything faster for free', 'Deletes duplicate rows', 'Backs up the table'], a: 0,
+      why: 'Searches jump straight to the right place, but every insert or update must also update the index.' },
+    { q: 'A bank transfer runs inside a transaction. What does that guarantee?',
+      opts: ['It runs faster', 'Both updates happen, or neither does', 'Nobody can see the balances', 'It can never fail'], a: 1,
+      why: 'All or nothing. If anything fails halfway, the finished steps are undone.' },
+    { type: 'order',
+      q: 'Put the database design steps in order.',
+      items: ['List the things you store (customers, products…)', 'Give each table a primary key', 'Connect tables with foreign keys', 'Add indexes for common searches'],
+      why: 'Things → identities → connections → speed.' },
+  ];
+  const QUIZ_ADVANCED = [
+    { q: 'Composite index on (country, city). Which query cannot use it efficiently?',
+      opts: ['WHERE country = ?', 'WHERE country = ? AND city = ?', 'WHERE city = ?', 'ORDER BY country, city'], a: 2,
+      why: 'The leftmost prefix rule: without country, the cities are scattered throughout the index.' },
+    { q: 'Why store unit_price on order lines when products already has price?',
+      opts: ['To save a join', 'Prices change; the order must record what was actually charged', 'Foreign keys require it', 'For indexing'], a: 1,
+      why: 'It is a different fact (the historical price), so this is intentional, not an anomaly.' },
+    { q: 'Two sessions read balance 500 and both write 400. Which anomaly is this?',
+      opts: ['Dirty read', 'Lost update', 'Phantom read', 'Deadlock'], a: 1,
+      why: 'The second write overwrote the first, which was based on a stale read.' },
+    { q: 'What is the simplest fix for that?',
+      opts: ['UPDATE … SET balance = balance - 100 (atomic, row-locked)', 'Add an index on balance', 'Use a bigger server', 'Read the balance twice'], a: 0,
+      why: 'The database computes the new value from the current row under a lock. SELECT … FOR UPDATE also works.' },
+    { q: 'customers 1—N orders. Where does the foreign key go?',
+      opts: ['orders.customer_id', 'customers.order_id', 'Always a junction table', 'On both sides'], a: 0,
+      why: 'The FK always lives on the many side. Remember to index it.' },
+    { q: 'There is an index on email, but the query uses WHERE lower(email) = ?. What is the fix?',
+      opts: ['An expression index on lower(email), or store emails normalised', 'Drop the index', 'Add LIMIT 1', 'Rewrite it as OR'], a: 0,
+      why: 'A function applied to the column prevents a plain index from matching it.' },
+    { q: 'In the SQL standard, which isolation level prevents non-repeatable reads but still allows phantoms?',
+      opts: ['Read Uncommitted', 'Read Committed', 'Repeatable Read', 'Serializable'], a: 2,
+      why: 'Repeatable Read allows phantoms in the standard. (PostgreSQL\'s implementation is stricter than the standard here.)' },
+    { type: 'order',
+      q: 'Put the transfer in order.',
+      items: ['BEGIN', "UPDATE … balance - 100 WHERE name = 'alice'", "UPDATE … balance + 100 WHERE name = 'bob'", 'COMMIT'],
+      why: 'Both writes sit between BEGIN and COMMIT, so they become visible together or not at all.' },
+  ];
+  let QUIZ = QUIZ_BEGINNER;
+  let qi = 0, score = 0;
+
+  function renderQuiz() {
+    const box = $('quizBox');
+    if (qi >= QUIZ.length) {
+      const pct = Math.round((score / QUIZ.length) * 100);
+      box.innerHTML = `<div class="result"><div class="score">${score} / ${QUIZ.length}</div>
+        <p>${pct === 100 ? 'Perfect. Your data is in good hands.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay the units, then try again.'}</p>
+        <button class="btn primary" id="retry">Try again</button></div>`;
+      $('retry').addEventListener('click', () => { qi = 0; score = 0; renderQuiz(); });
+      saved.quizDone = true; updateProgress();
+      return;
+    }
+    const item = QUIZ[qi];
+    box.innerHTML = `<div class="quiz-meta"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>
+      <div class="q">${esc(item.q)}</div><div id="qBody"></div>
+      <div class="feedback" id="fb"></div>
+      <div class="controls"><button class="btn primary" id="qNext" style="display:none">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`;
+    $('qNext').addEventListener('click', () => { qi++; renderQuiz(); });
+    (item.type === 'order' ? renderOrder : renderMC)(item);
+  }
+
+  function reveal(ok, why) {
+    if (ok) score++;
+    const fb = $('fb');
+    fb.className = 'feedback show ' + (ok ? 'good' : 'bad');
+    fb.innerHTML = `<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`;
+    $('qNext').style.display = '';
+    $('qNext').focus();
+  }
+
+  function renderMC(item) {
+    const wrap = document.createElement('div'); wrap.className = 'opts';
+    item.opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o;
+      b.addEventListener('click', () => {
+        wrap.querySelectorAll('.opt').forEach((x, j) => {
+          x.disabled = true;
+          if (j === item.a) x.classList.add('right');
+        });
+        if (i !== item.a) b.classList.add('wrong');
+        reveal(i === item.a, item.why);
+      });
+      wrap.appendChild(b);
+    });
+    $('qBody').appendChild(wrap);
+  }
+
+  function renderOrder(item) {
+    const shuffled = [...item.items];
+    do { shuffled.sort(() => Math.random() - 0.5); } while (shuffled.join() === item.items.join());
+    const picked = [];
+    $('qBody').innerHTML = `<div class="chips" id="chips"></div><div class="slots" id="slots"></div>
+      <div class="controls"><button class="btn" id="oClear">Clear</button><button class="btn primary" id="oCheck" disabled>Check order</button></div>`;
+    const draw = () => {
+      $('chips').innerHTML = ''; $('slots').innerHTML = '';
+      shuffled.forEach(s => {
+        const c = document.createElement('button');
+        c.className = 'chip'; c.textContent = s; c.disabled = picked.includes(s);
+        c.addEventListener('click', () => { picked.push(s); draw(); });
+        $('chips').appendChild(c);
+      });
+      item.items.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'slot' + (picked[i] ? ' filled' : '');
+        d.textContent = picked[i] || '';
+        $('slots').appendChild(d);
+      });
+      $('oCheck').disabled = picked.length !== item.items.length;
+    };
+    $('oClear').addEventListener('click', () => { picked.length = 0; draw(); });
+    $('oCheck').addEventListener('click', () => {
+      const slots = $('slots').children;
+      let ok = true;
+      picked.forEach((s, i) => {
+        const right = s === item.items[i];
+        ok = ok && right;
+        slots[i].classList.add(right ? 'right' : 'wrong');
+        if (!right) slots[i].textContent = `${s}  (should be: ${item.items[i]})`;
+      });
+      $('chips').querySelectorAll('button').forEach(b => b.disabled = true);
+      $('oCheck').disabled = true; $('oClear').disabled = true;
+      reveal(ok, item.why);
+    });
+    draw();
+  }
+
+  /* ---------------- shared ---------------- */
+  document.querySelectorAll('.codeblock .copy').forEach(btn => btn.addEventListener('click', async () => {
+    const text = btn.closest('.codeblock').querySelector('pre').textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; }
+    catch (e) { btn.textContent = 'Copy failed'; }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1200);
+  }));
+
+  function applyLevel() {
+    document.body.dataset.level = level;
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.level === level)));
+    renderModel();
+    renderRel();
+    updateRaceSql();
+    renderQcards();
+    renderBank();
+    QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
+    qi = 0; score = 0;
+    renderQuiz();
+  }
+
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.level === level) return;
+    level = b.dataset.level;
+    saved.level = level; persist();
+    applyLevel();
+  }));
+
+  /* ---------------- init ---------------- */
+  modelReset();
+  buildGrid();
+  buildTree();
+  applyLevel();
+  updateProgress();
+})();
+</script>
+</body>
+</html>

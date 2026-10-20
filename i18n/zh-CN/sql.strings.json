@@ -1,0 +1,841 @@
+{
+ "title": "用 SQL 向数据库提问",
+ "strings": [
+  [
+   "\"Unknown, so WHERE drops Eli. Use city IS DISTINCT FROM 'Paris' if he should be included.\"",
+   "\"结果未知，所以 WHERE 会丢掉 Eli。如果应该包含他，请用 city IS DISTINCT FROM 'Paris'。\""
+  ],
+  [
+   "\"city <> 'Paris'   -- Eli, city is NULL\"",
+   "\"city <> 'Paris'   -- Eli 的 city 是 NULL\""
+  ],
+  [
+   "' For INNER JOIN, a condition in ON or in WHERE gives the same result.'",
+   "' 对 INNER JOIN 来说，条件放在 ON 里还是 WHERE 里，结果都一样。'"
+  ],
+  [
+   "' Now the condition is part of the match on the preserved side: small orders are still kept, just without a customer.'",
+   "' 现在条件成了被保留一侧匹配规则的一部分：小额订单仍会保留，只是没有对应的顾客。'"
+  ],
+  [
+   "' The WHERE runs after the join, so it removes small orders, as you would expect here: the filter is on the preserved side.'",
+   "' WHERE 在连接之后执行，所以它会去掉小额订单，这里正符合预期：过滤条件作用在被保留的那一侧。'"
+  ],
+  [
+   "' With WHERE o.amount > 50, every row with a NULL amount fails the filter (NULL > 50 is not TRUE): Gus and Hana disappear, and so do customers whose orders are all small. Unmatched orders over 50, like order 10, survive. The FULL JOIN now behaves like a RIGHT JOIN. Move the condition into ON to keep every row.'",
+   "'加上 WHERE o.amount > 50 后，amount 为 NULL 的行都无法通过过滤（NULL > 50 不为 TRUE）：Gus 和 Hana 消失了，订单金额都很小的客户也消失了。而没有匹配客户、金额大于 50 的订单（比如订单 10）保留了下来。FULL JOIN 现在的行为等同于 RIGHT JOIN。把条件移到 ON 里就能保留每一行。'"
+  ],
+  [
+   "' With WHERE o.amount > 50, the NULL-padded rows fail the filter (NULL > 50 is not TRUE), and so do customers whose orders are all small. The outer join has turned into an INNER JOIN. Move the condition into ON to keep every customer.'",
+   "' 加上 WHERE o.amount > 50 后，用 NULL 补齐的行无法通过过滤（NULL > 50 不是 TRUE），订单都很小的顾客也一样。外连接变成了 INNER JOIN。把条件挪进 ON，才能保留每一位顾客。'"
+  ],
+  [
+   "' With the condition in ON, it only decides which orders count as a match. Every customer is kept, Dev and Fay get NULL rows, and the small orders now appear on their own with a NULL customer.'",
+   "'条件放在 ON 里时，它只决定哪些订单算作匹配。每个客户都会保留，Dev 和 Fay 得到 NULL 行，而小额订单则单独出现，客户列为 NULL。'"
+  ],
+  [
+   "' With the condition in ON, it only decides which orders count as a match. Every customer is kept; Dev and Fay, who only have small orders, now get NULL rows.'",
+   "' 条件放在 ON 里时，它只决定哪些订单算作匹配。每位顾客都会保留；只有小额订单的 Dev 和 Fay 现在得到的是 NULL 行。'"
+  ],
+  [
+   "'11 and 11'",
+   "'11 和 11'"
+  ],
+  [
+   "'11 and 4'",
+   "'11 和 4'"
+  ],
+  [
+   "'11 and 7'",
+   "'11 和 7'"
+  ],
+  [
+   "'3 random products'",
+   "'随机 3 件商品'"
+  ],
+  [
+   "'7 and 7'",
+   "'7 和 7'"
+  ],
+  [
+   "'A full scan with no ordering: the row order is whatever the plan produces.'",
+   "'全表扫描且不排序：行的顺序取决于执行计划。'"
+  ],
+  [
+   "'AVG(rating) divides by the number of non-NULL ratings. A bucket whose ratings are all NULL gets NULL, not 0. Use COALESCE(rating, 0) only if a missing rating really means 0.'",
+   "'AVG(rating) 除以的是非 NULL 评分的个数。如果一个桶的评分全是 NULL，结果是 NULL 而不是 0。只有当缺失的评分确实等于 0 时，才用 COALESCE(rating, 0)。'"
+  ],
+  [
+   "'Aggregates skip NULLs, so the average is (4 + 2) / 2 = 3. It would be NULL only if every rating were NULL.'",
+   "'聚合函数会跳过 NULL，所以平均值是 (4 + 2) / 2 = 3。只有所有评分都是 NULL 时，结果才是 NULL。'"
+  ],
+  [
+   "'All 11 rows stay. Each partition (shaded bands) restarts ROW_NUMBER at 1, and the running SUM adds up within the customer in id order. Typical uses: top-N per group, running totals, and comparing a row with its group.'",
+   "'11 行全部保留。每个分区（带底色的色带）的 ROW_NUMBER 都从 1 重新开始，累计 SUM 按 id 顺序在同一位顾客内累加。典型用途：每组取前 N 名、累计总额，以及把一行和它所在的组做比较。'"
+  ],
+  [
+   "'All customers'",
+   "'所有顾客'"
+  ],
+  [
+   "'All rows'",
+   "'所有行'"
+  ],
+  [
+   "'An error in every database'",
+   "'在任何数据库里都报错'"
+  ],
+  [
+   "'An error'",
+   "'报错'"
+  ],
+  [
+   "'Any comparison with NULL is unknown, even with NULL itself.'",
+   "'任何与 NULL 的比较结果都是未知，即使和 NULL 自己比较也一样。'"
+  ],
+  [
+   "'Blocking the word DROP'",
+   "'屏蔽 DROP 这个词'"
+  ],
+  [
+   "'COUNT(*) counts rows. COUNT(col) counts non-NULL values of col.'",
+   "'COUNT(*) 统计行数。COUNT(col) 统计 col 中非 NULL 值的个数。'"
+  ],
+  [
+   "'COUNT(rating) skips NULLs. Across all orders, COUNT(*) is 11 but COUNT(rating) is 7, because 4 orders are not rated yet.'",
+   "'COUNT(rating) 会跳过 NULL。在全部订单上，COUNT(*) 是 11，而 COUNT(rating) 是 7，因为有 4 笔订单还没有评分。'"
+  ],
+  [
+   "'Change one option and run again to see how the result changes.'",
+   "'改一个选项再运行一次，看看结果怎么变。'"
+  ],
+  [
+   "'Comparisons with NULL are unknown, never TRUE. Use IS NULL.'",
+   "'与 NULL 的比较结果是未知，永远不是 TRUE。请用 IS NULL。'"
+  ],
+  [
+   "'Copied'",
+   "'已复制'"
+  ],
+  [
+   "'Copy failed'",
+   "'复制失败'"
+  ],
+  [
+   "'Copy'",
+   "'复制'"
+  ],
+  [
+   "'Customers without orders'",
+   "'没有订单的顾客'"
+  ],
+  [
+   "'DESC sorts from largest to smallest, and LIMIT 3 keeps the top 3 rows.'",
+   "'DESC 从大到小排序，LIMIT 3 保留最前面的 3 行。'"
+  ],
+  [
+   "'Escaping quotes by hand'",
+   "'手动转义引号'"
+  ],
+  [
+   "'Every customer with their city'",
+   "'每位顾客及其城市'"
+  ],
+  [
+   "'FROM (and any JOINs) builds the working set: 11 rows, all columns. Nothing else exists yet.'",
+   "'FROM（以及所有 JOIN）构建出工作集：11 行，所有列。此时其他东西都还不存在。'"
+  ],
+  [
+   "'FROM: the database starts by loading the table. All 11 orders are on the table, with every column.'",
+   "'FROM：数据库先把表加载进来。11 笔订单全部摆在面前，所有列都在。'"
+  ],
+  [
+   "'FULL OUTER JOIN preserves unmatched rows from both sides: Gus and Hana with NULL orders, and order 10 with a NULL customer.'",
+   "'FULL OUTER JOIN 保留两侧所有没有匹配的行：Gus 和 Hana 的订单列为 NULL，订单 10 的顾客列为 NULL。'"
+  ],
+  [
+   "'GROUP BY makes one bucket per city, and COUNT(*) counts the rows in each bucket.'",
+   "'GROUP BY 为每个城市建一个桶，COUNT(*) 统计每个桶里的行数。'"
+  ],
+  [
+   "'GROUP BY partitions the rows into 5 groups (NULL forms its own group). From here on, each group is one row.'",
+   "'GROUP BY 把行划分成 5 组（NULL 自成一组）。从这里开始，每组就是一行。'"
+  ],
+  [
+   "'GROUP BY treats all NULLs as one group, even though NULL = NULL is not TRUE.'",
+   "'GROUP BY 把所有 NULL 视为同一组，尽管 NULL = NULL 并不是 TRUE。'"
+  ],
+  [
+   "'GROUP BY: rows with the same customer_id go into one bucket. 9 rows become 5 buckets, including one for NULL.'",
+   "'GROUP BY：customer_id 相同的行进入同一个桶。9 行变成 5 个桶，其中一个是 NULL。'"
+  ],
+  [
+   "'HAVING can use COUNT or SUM because it runs after the buckets exist. WHERE could not.'",
+   "'HAVING 能用 COUNT 或 SUM，因为它在桶建好之后才执行。WHERE 做不到。'"
+  ],
+  [
+   "'HAVING filters groups and may use aggregates. 3 groups pass COUNT(*) >= 2.'",
+   "'HAVING 过滤分组，可以使用聚合函数。有 3 组满足 COUNT(*) >= 2。'"
+  ],
+  [
+   "'HAVING filters whole groups after they are counted. WHERE runs before grouping, so the count does not exist yet.'",
+   "'HAVING 在计数之后过滤整个分组。WHERE 在分组之前执行，那时还没有计数。'"
+  ],
+  [
+   "'HAVING sees aggregates because it runs after GROUP BY. An aggregate in WHERE is an error.'",
+   "'HAVING 能看到聚合值，因为它在 GROUP BY 之后执行。在 WHERE 里写聚合函数会报错。'"
+  ],
+  [
+   "'HAVING: whole buckets are checked. Only customers with at least 2 orders stay: 3 buckets.'",
+   "'HAVING：检查整个桶。只留下至少有 2 笔订单的顾客：3 个桶。'"
+  ],
+  [
+   "'Hiding error messages'",
+   "'隐藏错误信息'"
+  ],
+  [
+   "'How does SUM(amount) OVER (PARTITION BY customer_id) differ from GROUP BY customer_id?'",
+   "'SUM(amount) OVER (PARTITION BY customer_id) 和 GROUP BY customer_id 有什么不同？'"
+  ],
+  [
+   "'INNER JOIN emits only pairs that satisfy the ON predicate. Unmatched rows on either side (Gus, Hana, order 10) vanish.'",
+   "'INNER JOIN 只输出满足 ON 谓词的配对。两侧没有匹配的行（Gus、Hana、订单 10）都会消失。'"
+  ],
+  [
+   "'INNER JOIN keeps only pairs that match. Gus and Hana have no orders, and order 10 has no customer, so all three are left out (faded).'",
+   "'INNER JOIN 只保留能配上对的行。Gus 和 Hana 没有订单，订单 10 没有顾客，所以这三个都被排除了（变淡）。'"
+  ],
+  [
+   "'INNER JOIN only keeps rows that have a match on both sides.'",
+   "'INNER JOIN 只保留两侧都能匹配上的行。'"
+  ],
+  [
+   "'IS NULL is the correct test. Eli is found.'",
+   "'IS NULL 才是正确的判断方式。找到了 Eli。'"
+  ],
+  [
+   "'IS NULL is the test made for this. It never returns NULL.'",
+   "'IS NULL 就是专门干这个的。它永远不会返回 NULL。'"
+  ],
+  [
+   "'In FROM'",
+   "'写在 FROM 里'"
+  ],
+  [
+   "'In HAVING'",
+   "'写在 HAVING 里'"
+  ],
+  [
+   "'In ORDER BY'",
+   "'写在 ORDER BY 里'"
+  ],
+  [
+   "'In WHERE'",
+   "'写在 WHERE 里'"
+  ],
+  [
+   "'In standard SQL, which clause can refer to the alias total?'",
+   "'在标准 SQL 中，哪个子句可以引用别名 total？'"
+  ],
+  [
+   "'It can only be used with ORDER BY'",
+   "'它只能和 ORDER BY 一起用'"
+  ],
+  [
+   "'It expands to 3 <> 1 AND 3 <> 2 AND 3 <> NULL. The last part is NULL, so the whole thing can never be TRUE.'",
+   "'它展开为 3 <> 1 AND 3 <> 2 AND 3 <> NULL。最后一部分是 NULL，所以整个表达式永远不可能是 TRUE。'"
+  ],
+  [
+   "'It ignores NULL customers'",
+   "'它会忽略 NULL 顾客'"
+  ],
+  [
+   "'It is just faster syntax'",
+   "'只是更快的写法'"
+  ],
+  [
+   "'It keeps every row and adds the group total next to each one'",
+   "'它保留每一行，并在每行旁边加上该组的总额'"
+  ],
+  [
+   "'LEFT JOIN keeps every customer. Gus and Hana have no orders, so their order columns are filled with NULL. Order 10 has no customer, so it is still left out.'",
+   "'LEFT JOIN 会保留每一位顾客。Gus 和 Hana 没有订单，所以他们的订单列用 NULL 填充。订单 10 没有顾客，所以仍然被排除。'"
+  ],
+  [
+   "'LEFT JOIN keeps every row from the left table and fills the missing side with NULL.'",
+   "'LEFT JOIN 保留左表的每一行，缺失的那一侧用 NULL 填充。'"
+  ],
+  [
+   "'LEFT JOIN preserves every left row; customers without a match are padded with NULLs on the right. Unmatched right rows (order 10) are dropped.'",
+   "'LEFT JOIN 保留左表的每一行；没有匹配的顾客在右侧用 NULL 补齐。右表中没有匹配的行（订单 10）被丢弃。'"
+  ],
+  [
+   "'LIMIT applies last. With ORDER BY + LIMIT, many engines use a top-N sort and never sort the full set.'",
+   "'LIMIT 最后才生效。ORDER BY + LIMIT 时，很多引擎会用 top-N 排序，根本不对整个结果集排序。'"
+  ],
+  [
+   "'LIMIT without ORDER BY gives you some rows, but which ones is not guaranteed. Add ORDER BY to make it predictable.'",
+   "'没有 ORDER BY 的 LIMIT 会给你一些行，但具体是哪些行没有保证。加上 ORDER BY 才能让结果可预期。'"
+  ],
+  [
+   "'LIMIT without ORDER BY is non-deterministic: the database may return any qualifying rows.'",
+   "'没有 ORDER BY 的 LIMIT 是不确定的：数据库可能返回任意满足条件的行。'"
+  ],
+  [
+   "'LIMIT: finally, keep only the first 2 rows. That is the answer.'",
+   "'LIMIT：最后只保留前 2 行。这就是答案。'"
+  ],
+  [
+   "'NOT EXISTS only asks whether a matching row exists, so NULLs in orders cannot spoil it. Gus and Hana are found. Prefer it over NOT IN with subqueries.'",
+   "'NOT EXISTS 只问“是否存在匹配的行”，所以 orders 里的 NULL 影响不了它。找到了 Gus 和 Hana。用子查询时，优先用它而不是 NOT IN。'"
+  ],
+  [
+   "'NULL > 50 is not TRUE, so WHERE drops the NULL-padded rows. Put the condition in ON to keep them.'",
+   "'NULL > 50 不是 TRUE，所以 WHERE 会丢掉用 NULL 补齐的行。把条件放进 ON 才能保留它们。'"
+  ],
+  [
+   "'No WHERE, no ORDER BY, no LIMIT: you get every row, in whatever order the database finds them.'",
+   "'没有 WHERE、没有 ORDER BY、也没有 LIMIT：你会拿到所有行，顺序就是数据库找到它们的顺序。'"
+  ],
+  [
+   "'No customer has that name.'",
+   "'没有叫这个名字的顾客。'"
+  ],
+  [
+   "'No rows'",
+   "'没有行'"
+  ],
+  [
+   "'No rows, ever'",
+   "'永远没有行'"
+  ],
+  [
+   "'ORDER BY runs after SELECT, so it is the one clause that can reference output aliases in standard SQL.'",
+   "'ORDER BY 在 SELECT 之后执行，所以在标准 SQL 中，它是唯一能引用输出别名的子句。'"
+  ],
+  [
+   "'ORDER BY: runs after SELECT, so it can use the name \"total\". Biggest total first.'",
+   "'ORDER BY：在 SELECT 之后执行，所以可以用名字“total”。总额最大的排在最前。'"
+  ],
+  [
+   "'One FALSE is enough for AND.'",
+   "'对于 AND，只要有一个 FALSE 就够了。'"
+  ],
+  [
+   "'One TRUE is enough for OR, whatever the unknown value turns out to be.'",
+   "'对于 OR，只要有一个 TRUE 就够了，不管那个未知值最终是什么。'"
+  ],
+  [
+   "'One row per city, with how many customers live there'",
+   "'每个城市一行，以及住在那里的顾客人数'"
+  ],
+  [
+   "'Only ORDER BY runs after SELECT. MySQL and SQLite also accept the alias in HAVING (and PostgreSQL in GROUP BY) as an extension, but portable SQL repeats the expression: HAVING SUM(amount) > 100.'",
+   "'只有 ORDER BY 在 SELECT 之后执行。MySQL 和 SQLite 作为扩展也允许在 HAVING 中使用别名（PostgreSQL 允许在 GROUP BY 中使用），但可移植的 SQL 会重复写表达式：HAVING SUM(amount) > 100。'"
+  ],
+  [
+   "'Only the guest order'",
+   "'只有访客订单'"
+  ],
+  [
+   "'Order 10 has no customer, so it lands in a bucket of its own: NULL.'",
+   "'订单 10 没有顾客，所以它单独进了一个桶：NULL。'"
+  ],
+  [
+   "'Parameterized queries (placeholders)'",
+   "'参数化查询（占位符）'"
+  ],
+  [
+   "'Parameters are sent separately from the SQL text, so input can never change the structure of the query. Filters and escaping miss cases.'",
+   "'参数与 SQL 文本分开发送，所以输入永远改变不了查询的结构。过滤和转义总会有遗漏。'"
+  ],
+  [
+   "'Prefer WHERE for row filters: it shrinks the input before the aggregation does any work. HAVING is for conditions on aggregates.'",
+   "'行级过滤优先用 WHERE：它在聚合开始之前就缩小了输入。HAVING 用于针对聚合结果的条件。'"
+  ],
+  [
+   "'Press Run to evaluate the query.'",
+   "'点“运行”来求值这条查询。'"
+  ],
+  [
+   "'Press Run to evaluate.'",
+   "'点“运行”来求值。'"
+  ],
+  [
+   "'Press Run to send the query to the database.'",
+   "'点“运行”，把查询发给数据库。'"
+  ],
+  [
+   "'Press Run to watch the rows go into buckets.'",
+   "'点“运行”，看数据行怎样被放进各个桶。'"
+  ],
+  [
+   "'Products that cost 3'",
+   "'价格为 3 的商品'"
+  ],
+  [
+   "'Put the clauses in the logical order the database evaluates them.'",
+   "'把各子句按数据库逻辑求值的顺序排好。'"
+  ],
+  [
+   "'Put the parts of a query in the order you write them.'",
+   "'把查询的各部分按书写顺序排好。'"
+  ],
+  [
+   "'RIGHT JOIN preserves every order instead. The guest order 10 appears with NULL customer columns, while Gus and Hana are dropped. It equals orders LEFT JOIN customers.'",
+   "'RIGHT JOIN 改为保留每一笔订单。访客订单 10 出现了，顾客列为 NULL，而 Gus 和 Hana 被丢弃。它等价于 orders LEFT JOIN customers。'"
+  ],
+  [
+   "'Ratings in a group are 4, NULL, 2. What is AVG(rating)?'",
+   "'一组里的评分是 4、NULL、2。AVG(rating) 是多少？'"
+  ],
+  [
+   "'Rows where city is missing'",
+   "'city 缺失的行'"
+  ],
+  [
+   "'SELECT customer_id, SUM(amount) AS total\\nFROM orders\\nGROUP BY customer_id\\n???  -- which clause may use \"total\"?'",
+   "'SELECT customer_id, SUM(amount) AS total\\nFROM orders\\nGROUP BY customer_id\\n???  -- 哪个子句可以使用 “total”？'"
+  ],
+  [
+   "'SELECT evaluates the output expressions and defines aliases (total). Earlier clauses ran before the alias existed. DISTINCT also applies here.'",
+   "'SELECT 计算输出表达式并定义别名（total）。更早的子句执行时别名还不存在。DISTINCT 也在这一步生效。'"
+  ],
+  [
+   "'SELECT: only now are the output columns computed, and the name \"total\" is created. That is why WHERE, which ran earlier, cannot use it.'",
+   "'SELECT：直到这时才计算输出列，名字“total”也是这时才创建的。所以更早执行的 WHERE 用不了它。'"
+  ],
+  [
+   "'Same result as before for normal input.'",
+   "'对普通输入，结果和之前一样。'"
+  ],
+  [
+   "'Same tables, but now a LEFT JOIN (customers on the left). What happens to that customer?'",
+   "'还是这两张表，但改用 LEFT JOIN（customers 在左边）。那位顾客会怎样？'"
+  ],
+  [
+   "'Some rows had NULL in that column. NULL is not equal or unequal to anything, so those rows were dropped.'",
+   "'有些行在这一列上是 NULL。NULL 既不等于也不“不等于”任何值，所以这些行被丢掉了。'"
+  ],
+  [
+   "'Step through the logical processing order. The circles show the run order for each clause.'",
+   "'逐步走完逻辑处理顺序。圆圈显示每个子句的执行顺序。'"
+  ],
+  [
+   "'Syntax error: the quote in the input ended the string early. Innocent names like O\\'Brien break the query, and an attacker can probe it.'",
+   "'语法错误：输入里的引号提前结束了字符串。像 O’Brien 这样无辜的名字会让查询出错，攻击者也能借此试探。'"
+  ],
+  [
+   "'That is the written order. Unit 4 showed that the database runs them in a different order, starting with FROM.'",
+   "'这是书写顺序。第 4 单元演示过，数据库执行它们的顺序不同，是从 FROM 开始的。'"
+  ],
+  [
+   "'The 3 cheapest products'",
+   "'最便宜的 3 件商品'"
+  ],
+  [
+   "'The 3 most expensive products'",
+   "'最贵的 3 件商品'"
+  ],
+  [
+   "'The cities in alphabetical order only'",
+   "'只是按字母顺序排列的城市'"
+  ],
+  [
+   "'The injected OR is valid SQL, but this comparison happens to be false, so only exact name matches come back. An attacker just picks a comparison that is always true.'",
+   "'注入的 OR 是合法的 SQL，但这个比较恰好为假，所以只返回名字完全匹配的行。攻击者只要换一个永远为真的比较就行了。'"
+  ],
+  [
+   "'The input closed the string and added an OR comparison that is TRUE for every row. Every customer leaks. The same trick can bypass a login check.'",
+   "'输入闭合了字符串，并加上了一个对每一行都为 TRUE 的 OR 比较。所有客户的数据都泄露了。同样的手法可以绕过登录检查。'"
+  ],
+  [
+   "'The numbered circles will show the order the database actually runs each line in. Press Next step.'",
+   "'带编号的圆圈会显示数据库实际执行每一行的顺序。点“下一步”。'"
+  ],
+  [
+   "'The query fails'",
+   "'查询失败'"
+  ],
+  [
+   "'The query is rejected'",
+   "'查询被拒绝'"
+  ],
+  [
+   "'The quote closed the string and -- turned the rest of the query into a comment. Any check that came after the name, such as AND password = …, is silently skipped. That is how logins get bypassed.'",
+   "'引号闭合了字符串，-- 把查询的其余部分变成了注释。名字后面的任何检查（例如 AND password = …）都被悄悄跳过了。登录验证就是这样被绕过的。'"
+  ],
+  [
+   "'The quote closes the string, the semicolon ends the statement, and DROP TABLE runs as a second statement. The customers table would be deleted. The -- turns the rest into a comment.'",
+   "'引号结束了字符串，分号结束了语句，DROP TABLE 作为第二条语句执行。customers 表会被删除。-- 把后面的内容变成了注释。'"
+  ],
+  [
+   "'The total number of customers'",
+   "'顾客总人数'"
+  ],
+  [
+   "'The whole input is compared as one plain value. Quotes and keywords have no special meaning, so nothing leaks and nothing breaks. 0 rows, because no customer has that name.'",
+   "'整个输入被当作一个普通的值来比较。引号和关键字没有任何特殊含义，所以既不会泄露也不会出错。结果是 0 行，因为没有顾客叫这个名字。'"
+  ],
+  [
+   "'They appear once with empty order columns'",
+   "'出现一次，订单列为空'"
+  ],
+  [
+   "'They appear once, with NULL in the order columns'",
+   "'出现一次，订单列为 NULL'"
+  ],
+  [
+   "'They appear twice'",
+   "'出现两次'"
+  ],
+  [
+   "'They appear with NULL order columns'",
+   "'出现，订单列为 NULL'"
+  ],
+  [
+   "'They appear with amount 0'",
+   "'出现，金额为 0'"
+  ],
+  [
+   "'They appear with an order of $0'",
+   "'出现，并带一笔 $0 的订单'"
+  ],
+  [
+   "'They are left out'",
+   "'不会出现'"
+  ],
+  [
+   "'They are removed, so it behaves like an INNER JOIN'",
+   "'被移除，所以效果和 INNER JOIN 一样'"
+  ],
+  [
+   "'They get a fake order'",
+   "'得到一笔假订单'"
+  ],
+  [
+   "'This order explains alias visibility: only ORDER BY comes after SELECT.'",
+   "'这个顺序解释了别名的可见性：只有 ORDER BY 在 SELECT 之后。'"
+  ],
+  [
+   "'This query gives an error. Why?'",
+   "'这条查询会报错。为什么？'"
+  ],
+  [
+   "'Try an option with dashed borders to see an edge case.'",
+   "'试试虚线边框的选项，看看边界情形。'"
+  ],
+  [
+   "'WHERE is evaluated per row, before any grouping, so it cannot use aggregates or SELECT aliases. 9 rows remain.'",
+   "'WHERE 在任何分组之前逐行求值，所以不能使用聚合函数或 SELECT 中的别名。还剩 9 行。'"
+  ],
+  [
+   "'WHERE only works with text columns'",
+   "'WHERE 只能用于文本列'"
+  ],
+  [
+   "'WHERE removed rows before grouping, and HAVING removed whole buckets after.'",
+   "'WHERE 在分组前移除了行，HAVING 在分组后移除了整个桶。'"
+  ],
+  [
+   "'WHERE runs before SELECT, so the name sale_price does not exist yet'",
+   "'WHERE 在 SELECT 之前执行，所以这时名字 sale_price 还不存在'"
+  ],
+  [
+   "'WHERE runs before SELECT. Repeat the calculation instead: WHERE amount * 0.9 > 50. ORDER BY sale_price would work, because ORDER BY runs after SELECT.'",
+   "'WHERE 在 SELECT 之前执行。改为重复写一遍计算：WHERE amount * 0.9 > 50。ORDER BY sale_price 则可以，因为 ORDER BY 在 SELECT 之后执行。'"
+  ],
+  [
+   "'WHERE tests each row and keeps the ones where the condition is true. SELECT picks columns, not rows.'",
+   "'WHERE 会检查每一行，保留条件为真的行。SELECT 挑的是列，不是行。'"
+  ],
+  [
+   "'WHERE: each row is checked on its own. The 2 refunded orders are thrown away, 9 rows remain.'",
+   "'WHERE：逐行单独检查。2 笔已退款的订单被丢掉，还剩 9 行。'"
+  ],
+  [
+   "'What does ORDER BY price DESC LIMIT 3 give you?'",
+   "'ORDER BY price DESC LIMIT 3 会给你什么？'"
+  ],
+  [
+   "'What does SELECT city, COUNT(*) FROM customers GROUP BY city return?'",
+   "'SELECT city, COUNT(*) FROM customers GROUP BY city 返回什么？'"
+  ],
+  [
+   "'What does WHERE city = NULL return?'",
+   "'WHERE city = NULL 返回什么？'"
+  ],
+  [
+   "'What is the reliable defence against SQL injection?'",
+   "'防御 SQL 注入的可靠方法是什么？'"
+  ],
+  [
+   "'Which part of a query keeps only some of the rows?'",
+   "'查询中的哪一部分只保留其中一部分行？'"
+  ],
+  [
+   "'Window functions compute over a set of rows without collapsing them.'",
+   "'窗口函数在一组行上计算，但不会把它们压缩成一行。'"
+  ],
+  [
+   "'Works for normal input. The danger is that the input becomes part of the SQL text.'",
+   "'普通输入可以正常工作。危险在于输入变成了 SQL 文本的一部分。'"
+  ],
+  [
+   "'You cannot multiply in SQL'",
+   "'SQL 里不能做乘法'"
+  ],
+  [
+   "'You join customers to orders with an INNER JOIN. What happens to a customer with no orders?'",
+   "'用 INNER JOIN 把 customers 和 orders 连接起来。没有订单的顾客会怎样？'"
+  ],
+  [
+   "'You want only cities with more than 2 customers. Where does COUNT(*) > 2 go?'",
+   "'你只想要顾客多于 2 人的城市。COUNT(*) > 2 应该写在哪里？'"
+  ],
+  [
+   "'Zero rows, although Gus and Hana have no orders. The guest order puts a NULL in the list, so id NOT IN (…, NULL) is never TRUE.'",
+   "'0 行，尽管 Gus 和 Hana 并没有订单。访客订单在列表里放进了一个 NULL，所以 id NOT IN (…, NULL) 永远不会是 TRUE。'"
+  ],
+  [
+   "'Zero rows, always. city = NULL is NULL for every row, never TRUE. Many databases do not even warn you.'",
+   "'永远是 0 行。对每一行来说 city = NULL 都是 NULL，从来不是 TRUE。很多数据库甚至都不会提醒你。'"
+  ],
+  [
+   "'buckets'",
+   "'个桶'"
+  ],
+  [
+   "'customers LEFT JOIN orders ON o.customer_id = c.id WHERE o.amount > 50. What happens to customers without orders?'",
+   "'customers LEFT JOIN orders ON o.customer_id = c.id WHERE o.amount > 50。没有订单的顾客会怎样？'"
+  ],
+  [
+   "'groups'",
+   "'组'"
+  ],
+  [
+   "'no filter'",
+   "'不过滤'"
+  ],
+  [
+   "'none'",
+   "'无'"
+  ],
+  [
+   "'orders has 11 rows and 4 of them have rating NULL. What do COUNT(*) and COUNT(rating) return?'",
+   "'orders 有 11 行，其中 4 行的 rating 是 NULL。COUNT(*) 和 COUNT(rating) 分别返回什么？'"
+  ],
+  [
+   "'orders.customer_id contains a NULL. What does WHERE id NOT IN (SELECT customer_id FROM orders) return?'",
+   "'orders.customer_id 中有一个 NULL。WHERE id NOT IN (SELECT customer_id FROM orders) 返回什么？'"
+  ],
+  [
+   "'parameterized'",
+   "'参数化'"
+  ],
+  [
+   "'rows in group'",
+   "'组内的行'"
+  ],
+  [
+   "'rows'",
+   "'行'"
+  ],
+  [
+   "'sale_price is spelled wrong'",
+   "'sale_price 拼错了'"
+  ],
+  [
+   "'string concatenation'",
+   "'拼接字符串'"
+  ],
+  [
+   "'x NOT IN (…, NULL) is never TRUE. Use NOT EXISTS, or filter the NULLs out of the subquery.'",
+   "'x NOT IN (…, NULL) 永远不会是 TRUE。请用 NOT EXISTS，或者在子查询里把 NULL 过滤掉。'"
+  ],
+  [
+   "`${gs.agg} is computed once per bucket.`",
+   "`${gs.agg} 对每个桶各算一次。`"
+  ],
+  [
+   "`${gs.agg} is evaluated per group.`",
+   "`${gs.agg} 按组分别求值。`"
+  ],
+  [
+   "`${kept.length} groups, ${kept.length} output rows.`",
+   "`${kept.length} 组，输出 ${kept.length} 行。`"
+  ],
+  [
+   "`${n} / 5 units`",
+   "`${n} / 5 单元`"
+  ],
+  [
+   "`${rows.length} input rows collapsed to ${kept.length} output rows.`",
+   "`${rows.length} 行输入被压缩成 ${kept.length} 行输出。`"
+  ],
+  [
+   "`${rows.length} orders went in, ${kept.length} rows came out: one per bucket.`",
+   "`进去 ${rows.length} 笔订单，出来 ${kept.length} 行：每个桶一行。`"
+  ],
+  [
+   "`${s}  (should be: ${item.items[i]})`",
+   "`${s}  （应为：${item.items[i]}）`"
+  ],
+  [
+   "`11 orders collapse into ${keys.length} rows. The individual order ids are gone: you cannot also SELECT id here.`",
+   "`11 笔订单被压缩成 ${keys.length} 行。单笔订单的 id 没有了：这里不能同时 SELECT id。`"
+  ],
+  [
+   "`<b>${final.length}</b> rows · <b>${nulls}</b> NULL-padded`",
+   "`<b>${final.length}</b> 行 · <b>${nulls}</b> 行用 NULL 补齐`"
+  ],
+  [
+   "`<b>${final.length}</b> rows, <b>${nulls}</b> of them filled with NULL (orange).`",
+   "`共 <b>${final.length}</b> 行，其中 <b>${nulls}</b> 行用 NULL 补齐（橙色）。`"
+  ],
+  [
+   "`<b>${i === A.a ? 'Correct.' : 'Not quite.'}</b> ${esc(A.why)}`",
+   "`<b>${i === A.a ? '答对了。' : '不太对。'}</b> ${esc(A.why)}`"
+  ],
+  [
+   "`<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${esc(why)}`",
+   "`<b>${ok ? '答对了。' : '不太对。'}</b> ${esc(why)}`"
+  ],
+  [
+   "`<b>${ok ? 'Correct.' : `Not quite: it is ${c.a}.`}</b> ${esc(c.why)}`",
+   "`<b>${ok ? '答对了。' : `不太对：结果是 ${c.a}。`}</b> ${esc(c.why)}`"
+  ],
+  [
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">Clear</button><button class=\"btn primary\" id=\"oCheck\" disabled>Check order</button></div>`",
+   "`<div class=\"chips\" id=\"chips\"></div><div class=\"slots\" id=\"slots\"></div>\n      <div class=\"controls\"><button class=\"btn\" id=\"oClear\">清空</button><button class=\"btn primary\" id=\"oCheck\" disabled>检查顺序</button></div>`"
+  ],
+  [
+   "`<div class=\"codeblock\"><div class=\"codeblock-head\"><span>SQL</span><button class=\"copy\">Copy</button></div><pre>${esc(A.sql)}</pre></div>\n      <div class=\"q\" style=\"margin-top:12px\">${esc(A.q)}</div><div class=\"opts\" id=\"aliasOpts\"></div><div class=\"feedback\" id=\"aliasFb\"></div>`",
+   "`<div class=\"codeblock\"><div class=\"codeblock-head\"><span>SQL</span><button class=\"copy\">复制</button></div><pre>${esc(A.sql)}</pre></div>\n      <div class=\"q\" style=\"margin-top:12px\">${esc(A.q)}</div><div class=\"opts\" id=\"aliasOpts\"></div><div class=\"feedback\" id=\"aliasFb\"></div>`"
+  ],
+  [
+   "`<div class=\"label\">${L('What the database is holding now', 'Intermediate result')}</div><div class=\"tbl-wrap\"><table class=\"data fit\">${s.t}</table></div>`",
+   "`<div class=\"label\">${L('数据库此刻手里的数据', '中间结果')}</div><div class=\"tbl-wrap\"><table class=\"data fit\">${s.t}</table></div>`"
+  ],
+  [
+   "`<div class=\"quiz-meta\"><span>Question ${qi + 1} of ${QUIZ.length}</span><span>Score ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? 'See results' : 'Next question →'}</button></div>`",
+   "`<div class=\"quiz-meta\"><span>第 ${qi + 1} 题，共 ${QUIZ.length} 题</span><span>得分 ${score}</span></div>\n      <div class=\"q\">${esc(item.q)}</div><div id=\"qBody\"></div>\n      <div class=\"feedback\" id=\"fb\"></div>\n      <div class=\"controls\"><button class=\"btn primary\" id=\"qNext\" style=\"display:none\">${qi === QUIZ.length - 1 ? '查看结果' : '下一题 →'}</button></div>`"
+  ],
+  [
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? 'Perfect. You can talk to databases now.' : pct >= 70 ? 'Nice work. Review the ones you missed and try again.' : 'Good start. Replay the units, then try again.'}</p>\n        <button class=\"btn primary\" id=\"retry\">Try again</button></div>`",
+   "`<div class=\"result\"><div class=\"score\">${score} / ${QUIZ.length}</div>\n        <p>${pct === 100 ? '满分！你已经能和数据库对话了。' : pct >= 70 ? '做得不错。回顾一下答错的题，再试一次。' : '开了个好头。重温各个单元，然后再试一次。'}</p>\n        <button class=\"btn primary\" id=\"retry\">再试一次</button></div>`"
+  ],
+  [
+   "`<tbody><tr class=\"cut\"><td style=\"font-family:inherit\">${esc('customers: table dropped')}</td></tr></tbody>`",
+   "`<tbody><tr class=\"cut\"><td style=\"font-family:inherit\">${esc('customers：表已被删除')}</td></tr></tbody>`"
+  ],
+  [
+   "`<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan=\"${cols.length}\" style=\"font-family:inherit;color:var(--muted)\">${L('No rows.', '(0 rows)')}</td></tr>`}</tbody>`",
+   "`<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan=\"${cols.length}\" style=\"font-family:inherit;color:var(--muted)\">${L('没有行。', '（0 行）')}</td></tr>`}</tbody>`"
+  ],
+  [
+   "`Different queries run: <b>${Math.min(queriesRun.size, 3)} / 3</b>`",
+   "`已运行的不同查询：<b>${Math.min(queriesRun.size, 3)} / 3</b>`"
+  ],
+  [
+   "`Distinct queries run: <b>${Math.min(queriesRun.size, 3)} / 3</b>`",
+   "`已运行的不同查询：<b>${Math.min(queriesRun.size, 3)} / 3</b>`"
+  ],
+  [
+   "`Done: ${kept.length} buckets became ${kept.length} result rows.`",
+   "`完成：${kept.length} 个桶变成了 ${kept.length} 行结果。`"
+  ],
+  [
+   "`Done: ${rows.length} rows came back.`",
+   "`完成：返回了 ${rows.length} 行。`"
+  ],
+  [
+   "`FROM ${qs.table}: ${t.rows.length} rows in the input.`",
+   "`FROM ${qs.table}：输入共 ${t.rows.length} 行。`"
+  ],
+  [
+   "`FROM ${qs.table}: the database starts with all ${t.rows.length} rows.`",
+   "`FROM ${qs.table}：数据库从全部 ${t.rows.length} 行开始。`"
+  ],
+  [
+   "`GROUP BY ${gs.by}: ${keys.length} groups${keys.includes(null) ? ', and all NULL keys share one group' : ''}.`",
+   "`GROUP BY ${gs.by}：共 ${keys.length} 组${keys.includes(null) ? '，所有 NULL 键归入同一组' : ''}。`"
+  ],
+  [
+   "`GROUP BY ${gs.by}: one bucket for each different value. ${keys.length} buckets.`",
+   "`GROUP BY ${gs.by}：每个不同的值一个桶，共 ${keys.length} 个桶。`"
+  ],
+  [
+   "`HAVING ${gs.having}: ${groups.length - kept.length} groups rejected.`",
+   "`HAVING ${gs.having}：淘汰了 ${groups.length - kept.length} 组。`"
+  ],
+  [
+   "`HAVING ${gs.having}: buckets that fail are thrown away. ${kept.length} of ${groups.length} remain.`",
+   "`HAVING ${gs.having}：不满足条件的桶被整个丢弃。${groups.length} 个桶中剩下 ${kept.length} 个。`"
+  ],
+  [
+   "`LIMIT ${qs.limit} OFFSET ${qs.offset}: skip ${qs.offset} rows, then keep the next ${qs.limit}.`",
+   "`LIMIT ${qs.limit} OFFSET ${qs.offset}：先跳过 ${qs.offset} 行，再保留接下来的 ${qs.limit} 行。`"
+  ],
+  [
+   "`LIMIT ${qs.limit}: only the first ${qs.limit} rows are kept. The rest are cut off.`",
+   "`LIMIT ${qs.limit}：只保留前 ${qs.limit} 行，其余的被截掉。`"
+  ],
+  [
+   "`LIMIT ${qs.limit}: the first ${qs.limit} rows survive; the rest are cut.`",
+   "`LIMIT ${qs.limit}：前 ${qs.limit} 行保留，其余截断。`"
+  ],
+  [
+   "`NULL is sorted ${qs.dir === 'ASC' ? 'last' : 'first'} here, as in PostgreSQL. MySQL and SQLite put NULL first in ASC. Add NULLS FIRST or NULLS LAST to be explicit.`",
+   "`这里 NULL 排在${qs.dir === 'ASC' ? '最后' : '最前'}，和 PostgreSQL 一致。MySQL 和 SQLite 在 ASC 中把 NULL 排在最前。加上 NULLS FIRST 或 NULLS LAST 可以写明意图。`"
+  ],
+  [
+   "`ORDER BY ${qs.order} ${qs.dir}: stable sort shown here; the database only guarantees order on the listed keys.`",
+   "`ORDER BY ${qs.order} ${qs.dir}：这里展示的是稳定排序；数据库只保证按列出的键排序。`"
+  ],
+  [
+   "`ORDER BY ${qs.order} ${qs.dir}: the rows are sorted, ${qs.dir === 'ASC' ? 'smallest first' : 'largest first'}.`",
+   "`ORDER BY ${qs.order} ${qs.dir}：行已排好序，${qs.dir === 'ASC' ? '从小到大' : '从大到小'}。`"
+  ],
+  [
+   "`Result: ${rows.length} rows.`",
+   "`结果：${rows.length} 行。`"
+  ],
+  [
+   "`Rows with NULL in ${qs.table === 'customers' ? 'city' : 'rating'} evaluate to NULL, not TRUE, so WHERE drops them. Use IS NULL or IS DISTINCT FROM to include them.`",
+   "`${qs.table === 'customers' ? 'city' : 'rating'} 为 NULL 的行求值结果是 NULL 而不是 TRUE，所以被 WHERE 丢弃。想包含它们，请用 IS NULL 或 IS DISTINCT FROM。`"
+  ],
+  [
+   "`SELECT * FROM customers WHERE name = $1;\\n-- parameter $1 = ${JSON.stringify(input)}`",
+   "`SELECT * FROM customers WHERE name = $1;\\n-- 参数 $1 = ${JSON.stringify(input)}`"
+  ],
+  [
+   "`SELECT keeps only the columns you asked for. The faded columns are dropped.`",
+   "`SELECT 只保留你要的列。变淡的列会被丢掉。`"
+  ],
+  [
+   "`SELECT projects ${[...qs.cols].length} of ${t.cols.length} columns. Faded columns are not in the output.`",
+   "`SELECT 投影出 ${t.cols.length} 列中的 ${[...qs.cols].length} 列。变淡的列不会出现在输出里。`"
+  ],
+  [
+   "`Tie at the cut: two rows share ${qs.order} = ${sorted[edge][qs.order] === null ? 'NULL' : sorted[edge][qs.order]} on either side of the LIMIT, so which one you get is not defined. Add a tie-breaker: ORDER BY ${qs.order} ${qs.dir}, id.`",
+   "`截断处有并列：LIMIT 边界两侧有两行的 ${qs.order} 都等于 ${sorted[edge][qs.order] === null ? 'NULL' : sorted[edge][qs.order]}，所以返回哪一行是未定义的。加一个决胜键：ORDER BY ${qs.order} ${qs.dir}, id。`"
+  ],
+  [
+   "`WHERE ${w.sql}: ${fails.length} rows are not TRUE and are discarded. ${rows.length} remain.`",
+   "`WHERE ${w.sql}：${fails.length} 行的结果不是 TRUE，被丢弃。还剩 ${rows.length} 行。`"
+  ],
+  [
+   "`WHERE ${w.sql}: ${fails.length} rows fail the test and are removed. ${rows.length} rows remain.`",
+   "`WHERE ${w.sql}：${fails.length} 行没通过检查，被移除。还剩 ${rows.length} 行。`"
+  ],
+  [
+   "`WHERE filters rows before grouping: ${fails.length} rows removed.`",
+   "`WHERE 在分组前过滤行：移除了 ${fails.length} 行。`"
+  ],
+  [
+   "`WHERE runs first: ${fails.length} refunded orders are removed before grouping.`",
+   "`WHERE 先执行：分组前先移除 ${fails.length} 笔已退款的订单。`"
+  ]
+ ]
+}
