@@ -14,6 +14,8 @@
 
 带 `.html` 的地址会 307 跳转到不带后缀的地址，页面里的相对链接不受影响。
 
+`demos/_headers` 给所有页面加安全响应头（CSP、`nosniff` 等）。课程不加载任何外部资源，所以 CSP 只允许本站来源；以后如果引入 CDN 脚本或字体，要同步修改这里。`_headers` 文件本身不会被公开访问。
+
 ## 首次配置（在 Cloudflare 控制台完成）
 
 1. **Workers & Pages > Create > Import a repository**，选择 `Izelzzz/interactive-tech-learning`。
@@ -24,7 +26,8 @@
    - Build command：留空
    - Deploy command：`npx wrangler deploy`
 3. 部署完成后，打开 **Settings > Builds > Set up Worker Previews**，确认 Preview command 为 `npx wrangler preview`，选择 **Switch to Worker Previews**。之后每个非生产分支的推送都会创建或更新该分支的 Preview URL，PR 中会出现 `Workers Builds` 检查和预览链接。
-4. **Settings > Domains & Routes > Add > Custom domain**，填写 `learn.izelzzz.com`。域名已经托管在 Cloudflare，DNS 记录和证书会自动创建。
+4. **Settings > Domains & Routes > Add > Custom domain**，填写 `learn.izelzzz.com`。不需要先去 DNS 页面手动添加子域名记录：域名已经托管在 Cloudflare，添加 Custom domain 时会自动创建 DNS 记录和证书。如果 DNS 里已经有同名记录，需要先删掉它。
+5. （推荐）在 GitHub 仓库 **Settings > Branches** 给 `main` 加保护规则，要求 CI 的 `checks` 和 `browser` 通过才能合并。Workers Builds 不等待 GitHub Actions，`main` 一有推送就会上线，所以测试要在合并前把关。
 
 内容是公开的，不需要配置 Cloudflare Access。
 
