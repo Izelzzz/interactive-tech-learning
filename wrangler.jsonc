@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "interactive-tech-learning",
+  "compatibility_date": "2026-10-06",
+  // The lessons are plain static files: publish the demos/ folder as the site root.
+  "assets": {
+    "directory": "./demos"
+  },
+  // Same as the blog: a workers.dev Preview URL for every non-production branch.
+  "preview_urls": true,
+  "previews": {}
+}

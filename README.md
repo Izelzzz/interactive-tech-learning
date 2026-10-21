@@ -27,3 +27,7 @@ npm test                        # 翻译同步检查 + 静态检查 + 浏览器�
 - 修改英文页面后运行 `python3 tools/i18n.py build`。如果某条英文字符串改了或删了，构建会列出过期的翻译；`python3 tools/i18n.py missing <课程>` 会列出尚未翻译的新字符串。翻译不能引入英文模板中没有的代码。
 - `tests/static.mjs` 检查每个页面的脚本能否解析、相对链接是否有效；`tests/smoke.mjs` 在 1200px 和 390px 两种宽度、小白 / 进阶两种模式下加载每个页面，检查无报错、无横向滚动，并包含针对已修复 bug 的回归测试。
 - CI（`.github/workflows/ci.yml`）在每个 PR 和 main 分支上运行上述检查。
+
+## 部署
+
+站点部署在 Cloudflare Workers（`learn.izelzzz.com`）：`main` 自动上线，其他分支自动生成预览地址。`npm run dev` 在本地按线上规则预览。配置步骤见 [`DEPLOY.md`](DEPLOY.md)。
