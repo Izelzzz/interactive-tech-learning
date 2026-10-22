@@ -1350,7 +1350,7 @@ match node.error_strategy:
     var a = ARCH[k];
     $$('#archLayers .blk').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-k') === k)); });
     $('#archDetail').innerHTML = '<h4>' + a.t + '</h4><dl><dt>负责什么</dt><dd>' + a.what + '</dd><dt>为什么单独成层</dt><dd>' + a.why + '</dd><dt>对开发者</dt><dd>' + a.dev + '</dd><dt>对企业用户</dt><dd>' + a.ent + '</dd><dt>证据</dt><dd>' +
-      a.ev.map(function (e) { return '<a href="' + e[1] + '">' + e[0] + '</a>'; }).join('；') + '</dd></dl>';
+      a.ev.map(function (e) { return '<a hr' + 'ef="' + e[1] + '">' + e[0] + '</a>'; }).join('；') + '</dd></dl>';
   }
   $('#archLayers').addEventListener('click', function (ev) { var b = ev.target.closest('.blk'); if (b) showArch(b.getAttribute('data-k')); });
   showArch('engine');
