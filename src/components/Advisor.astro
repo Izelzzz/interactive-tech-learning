@@ -1,0 +1,46 @@
+---
+// A short questionnaire that adds up points and recommends one tier, e.g.
+// "should this be an agent?" → plain code / fixed workflow / single LLM call / agent.
+// questions: [{ q, options: [{ label, score }] }]; tiers: [{ min, title, body }] (highest `min` reached wins).
+interface Option { label: string; score: number }
+interface Props { title: string; hint?: string; questions: { q: string; options: Option[] }[]; tiers: { min: number; title: string; body: string }[] }
+const { title, hint = '每题选一个最接近的描述，答完会给出推荐。', questions, tiers } = Astro.props;
+---
+<section class="card adv" data-adv={JSON.stringify({ questions, tiers })}>
+  <p class="widget-title">{title}</p>
+  <p class="widget-hint">{hint}</p>
+  <ol class="aq">
+    {questions.map((q, i) => <li><p class="q">{q.q}</p><div class="row">{q.options.map((o, j) => <button class="btn" type="button" data-q={i} data-o={j}>{o.label}</button>)}</div></li>)}
+  </ol>
+  <div class="result" aria-live="polite"></div>
+</section>
+
+<style>
+  .aq { padding-left: 1.3em; margin: 0; }
+  .aq li { margin-bottom: 12px; }
+  .q { margin: 0 0 6px; font-weight: 600; }
+  .result { border-radius: 10px; background: var(--surface-2); padding: 10px 14px; min-height: 2.6em; }
+  .result :global(strong) { display: block; font-size: 1.05rem; margin-bottom: 2px; }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>('[data-adv]')) {
+    const { questions, tiers } = JSON.parse(box.dataset.adv!);
+    const picks: (number | undefined)[] = [];
+    const out = box.querySelector('.result')!;
+    const show = () => {
+      const done = picks.filter((p) => p !== undefined).length;
+      if (done < questions.length) { out.textContent = `还差 ${questions.length - done} 题。`; return; }
+      const total = picks.reduce((s, p, i) => s + questions[i].options[p!].score, 0);
+      const tier = [...tiers].sort((a: any, b: any) => b.min - a.min).find((t: any) => total >= t.min) ?? tiers[0];
+      out.replaceChildren(Object.assign(document.createElement('strong'), { textContent: `推荐：${tier.title}（${total} 分）` }), tier.body);
+    };
+    box.querySelectorAll<HTMLElement>('button[data-q]').forEach((b) => b.addEventListener('click', () => {
+      const q = Number(b.dataset.q);
+      picks[q] = Number(b.dataset.o);
+      box.querySelectorAll<HTMLElement>(`button[data-q="${q}"]`).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      show();
+    }));
+    show();
+  }
+</script>

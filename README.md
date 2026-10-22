@@ -17,10 +17,13 @@
 
 ## 开发
 
+站点用 [Astro](https://astro.build) 构建：`demos/` 里手写的课程原样复制到 `dist/`，新页面写成 `src/pages/` 下的 MDX，交互来自 `src/components/` 的通用组件。写新页面先看 [`docs/AUTHORING.md`](docs/AUTHORING.md)。
+
 ```bash
 npm install                     # 安装 Playwright（仅用于测试）
 npx playwright install chromium
-npm test                        # 翻译同步检查 + 静态检查 + 浏览器冒烟测试
+npm run dev                     # 本地预览（Astro 开发服务器）
+npm test                        # 翻译同步检查 + 构建 + 静态检查 + 浏览器冒烟测试
 ```
 
 - **英文页面是唯一的源头。** 中文页面 `index.zh-CN.html` 由 `tools/i18n.py` 生成：它读取 `i18n/zh-CN/<课程>.body.html`（`<body>` 与 `<script>` 之间的页面结构）和 `i18n/zh-CN/<课程>.strings.json`（英文字符串 → 中文字符串），只替换文案，交互代码与英文版完全相同。

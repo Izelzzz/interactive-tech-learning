@@ -1,0 +1,26 @@
+---
+// A titled block of text (a spec file, a prompt, a config) with a copy button.
+interface Props { title: string; text: string }
+const { title, text } = Astro.props;
+---
+<section class="card cpy">
+  <div class="row head"><p class="widget-title">{title}</p><button class="btn" type="button">复制</button></div>
+  <pre><code>{text}</code></pre>
+</section>
+
+<style>
+  .head { justify-content: space-between; margin-bottom: 6px; }
+  .head .widget-title { margin: 0; }
+  pre { margin: 0; max-height: 480px; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>('.cpy')) {
+    const btn = box.querySelector('button')!;
+    btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(box.querySelector('code')!.textContent!); btn.textContent = '已复制'; }
+      catch { btn.textContent = '复制失败'; }
+      setTimeout(() => { btn.textContent = '复制'; }, 1600);
+    });
+  }
+</script>

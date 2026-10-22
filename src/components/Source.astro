@@ -1,0 +1,11 @@
+---
+// A small evidence link next to a claim: a permalink into the analysed repo, an issue, or the original post.
+interface Props { href: string; label?: string }
+const { href, label = '源码' } = Astro.props;
+---
+<a class="src" href={href} target="_blank" rel="noopener">{label} ↗</a>
+
+<style>
+  .src { font-size: .78rem; text-decoration: none; border: 1px solid var(--border); border-radius: 6px; padding: 0 6px; margin: 0 2px; white-space: nowrap; background: var(--surface); }
+  .src:hover { border-color: var(--accent); }
+</style>

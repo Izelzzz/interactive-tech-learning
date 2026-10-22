@@ -1,0 +1,70 @@
+---
+// A clickable layered architecture diagram. Each layer is a row of blocks; clicking a block
+// shows its detail below. A block: { label, tag?, detail: string | string[], links?: [{ label, href }] }.
+// Layers stack top to bottom; `side` adds a column that spans every layer (e.g. tracing, memory).
+interface Block { label: string; tag?: string; detail: string | string[]; links?: { label: string; href: string }[] }
+interface Layer { title: string; blocks: Block[] }
+interface Props { title: string; hint?: string; layers: Layer[]; side?: Layer[] }
+const { title, hint = '点任意一块，看它负责什么、为什么单独成层。', layers, side = [] } = Astro.props;
+let n = 0;
+const ids = (blocks: Block[]) => blocks.map((b) => ({ ...b, id: n++ }));
+const L = layers.map((l) => ({ ...l, blocks: ids(l.blocks) }));
+const S = side.map((l) => ({ ...l, blocks: ids(l.blocks) }));
+const all = [...L, ...S].flatMap((l) => l.blocks);
+---
+<section class="card dia" data-dia={JSON.stringify(all)}>
+  <p class="widget-title">{title}</p>
+  <p class="widget-hint">{hint}</p>
+  <div class={S.length ? 'grid with-side' : 'grid'}>
+    <div class="layers">
+      {L.map((l, i) => <>
+        {i > 0 && <div class="arrow" aria-hidden="true">↓</div>}
+        <div class="layer">
+          <p class="lt">{l.title}</p>
+          <div class="blocks">{l.blocks.map((b) => <button class="blk" type="button" data-id={b.id}>{b.label}{b.tag && <span class="tag accent">{b.tag}</span>}</button>)}</div>
+        </div>
+      </>)}
+    </div>
+    {S.length > 0 && <div class="side">
+      {S.map((l) => <div class="layer"><p class="lt">{l.title}</p><div class="blocks col">{l.blocks.map((b) => <button class="blk" type="button" data-id={b.id}>{b.label}</button>)}</div></div>)}
+    </div>}
+  </div>
+  <div class="detail" aria-live="polite"><p class="muted">还没选。</p></div>
+</section>
+
+<style>
+  .grid.with-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 200px); gap: 12px; }
+  .layer { border: 1px dashed var(--line); border-radius: 12px; padding: 8px 10px; background: var(--bg); }
+  .side .layer { height: 100%; }
+  .lt { margin: 0 0 6px; font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .blocks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .blocks.col { flex-direction: column; }
+  .blk { font: inherit; font-size: .92rem; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 9px; padding: 6px 10px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .blk:hover, .blk[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .arrow { text-align: center; color: var(--muted); line-height: 1.2; }
+  .detail { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .detail :global(h4) { margin: 0 0 4px; }
+  .detail :global(p) { margin: 4px 0; }
+  .muted { color: var(--muted); }
+  @media (max-width: 600px) { .grid.with-side { grid-template-columns: 1fr; } }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>('[data-dia]')) {
+    const blocks = JSON.parse(box.dataset.dia!);
+    const detail = box.querySelector('.detail')!;
+    const btns = [...box.querySelectorAll<HTMLElement>('.blk')];
+    btns.forEach((btn) => btn.addEventListener('click', () => {
+      const b = blocks[Number(btn.dataset.id)];
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === btn)));
+      const h = Object.assign(document.createElement('h4'), { textContent: b.label });
+      const ps = [b.detail].flat().map((t: string) => Object.assign(document.createElement('p'), { textContent: t }));
+      const links = document.createElement('p');
+      for (const l of b.links ?? []) {
+        const a = Object.assign(document.createElement('a'), { href: l.href, textContent: l.label + ' ↗', target: '_blank', rel: 'noopener' });
+        links.append(a, ' ');
+      }
+      detail.replaceChildren(h, ...ps, ...(b.links?.length ? [links] : []));
+    }));
+  }
+</script>

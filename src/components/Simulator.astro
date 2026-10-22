@@ -1,0 +1,230 @@
+---
+// Step-by-step player for any "process" an article explains: a workflow run, an agent loop,
+// an experiment loop, a compile pipeline. Everything is data:
+//   nodes      boxes drawn in a diagram (optional; omit for a pure state/files player)
+//   edges      [from, to] arrows between nodes; an edge lights up when a step moves along it
+//   scenarios  named step lists, e.g. the happy path and each edge case
+// A step: { at?: nodeId, status?: 'run'|'ok'|'fail'|'skip'|'wait', say: string,
+//           log?: string, set?: { key: value|null }, files?: { path: content|null } }
+// `set` updates the state panel and `files` the file panel; null removes an entry.
+// On narrow screens the diagram turns into a list of nodes so labels stay readable.
+interface Node { id: string; label: string; x: number; y: number; w?: number }
+interface Step { at?: string; status?: string; say: string; log?: string; set?: Record<string, unknown>; files?: Record<string, string | null> }
+interface Scenario { id: string; label: string; steps: Step[] }
+interface Props {
+  title: string; hint?: string;
+  nodes?: Node[]; edges?: [string, string][]; width?: number; height?: number;
+  scenarios: Scenario[]; stateTitle?: string; filesTitle?: string;
+}
+const { title, hint = '', nodes = [], edges = [], width = 900, height = 260, scenarios, stateTitle = '状态', filesTitle = '文件' } = Astro.props;
+const data = { nodes, edges, width, height, scenarios };
+---
+<section class="card sim" data-sim={JSON.stringify(data)}>
+  <p class="widget-title">{title}</p>
+  {hint && <p class="widget-hint">{hint}</p>}
+  {scenarios.length > 1 && <div class="row scen" role="group" aria-label="场景"></div>}
+  {nodes.length > 0 && <>
+    <svg class="graph" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}></svg>
+    <ol class="nodelist"></ol>
+  </>}
+  <div class="say" aria-live="polite"></div>
+  <div class="row ctl">
+    <button class="btn primary play" type="button">▶ 播放</button>
+    <button class="btn prev" type="button">上一步</button>
+    <button class="btn next" type="button">下一步</button>
+    <button class="btn reset" type="button">重来</button>
+    <span class="count tag"></span>
+  </div>
+  <div class="panels">
+    <div class="panel state-p"><p class="panel-h">{stateTitle}</p><dl class="state"></dl></div>
+    <div class="panel files-p"><p class="panel-h">{filesTitle}</p><ul class="tree"></ul><pre class="file"></pre></div>
+    <div class="panel log-p"><p class="panel-h">日志</p><ol class="log"></ol></div>
+  </div>
+</section>
+
+<style>
+  .scen { margin-bottom: 10px; }
+  .graph { display: block; width: 100%; height: auto; margin: 4px 0 8px; }
+  .graph :global(.n rect) { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; rx: 9; transition: fill .25s, stroke .25s; }
+  .graph :global(.n text) { fill: var(--text); font-size: 15px; text-anchor: middle; dominant-baseline: central; }
+  .graph :global(.n.run rect) { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  .graph :global(.n.ok rect) { fill: var(--ok-soft); stroke: var(--ok); }
+  .graph :global(.n.fail rect) { fill: var(--bad-soft); stroke: var(--bad); stroke-width: 2.5; }
+  .graph :global(.n.wait rect) { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 2.5; }
+  .graph :global(.n.skip) { opacity: .45; }
+  .graph :global(.n.skip rect) { stroke-dasharray: 5 4; }
+  .graph :global(.e) { stroke: var(--line); stroke-width: 1.6; fill: none; transition: stroke .25s; }
+  .graph :global(.e.on) { stroke: var(--accent); stroke-width: 3; }
+  .graph :global(.head) { fill: var(--line); }
+  .nodelist { display: none; list-style: none; padding: 0; margin: 4px 0 8px; gap: 6px; flex-wrap: wrap; }
+  .nodelist :global(li) { font-size: .85rem; border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; background: var(--surface-2); }
+  .nodelist :global(li.run) { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .nodelist :global(li.ok) { border-color: var(--ok); background: var(--ok-soft); }
+  .nodelist :global(li.fail) { border-color: var(--bad); background: var(--bad-soft); }
+  .nodelist :global(li.wait) { border-color: var(--warn); background: var(--warn-soft); }
+  .nodelist :global(li.skip) { opacity: .45; border-style: dashed; }
+  .sim.narrow .graph { display: none; }
+  .sim.narrow .nodelist { display: flex; }
+  .say { min-height: 3.2em; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+  .ctl { margin-bottom: 10px; }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+  .panel { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; min-width: 0; background: var(--bg); }
+  .panel[hidden] { display: none; }
+  .panel-h { margin: 0 0 6px; font-size: .82rem; color: var(--muted); font-weight: 600; }
+  .state { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 10px; font-size: .88rem; }
+  .state :global(dt) { font-family: var(--mono); color: var(--muted); }
+  .state :global(dd) { margin: 0; overflow-wrap: anywhere; }
+  .state :global(.changed) { color: var(--accent); font-weight: 600; }
+  .tree { list-style: none; margin: 0 0 6px; padding: 0; font: 13px/1.6 var(--mono); }
+  .tree :global(button) { all: unset; cursor: pointer; overflow-wrap: anywhere; }
+  .tree :global(li.sel button) { color: var(--accent); font-weight: 600; }
+  .tree :global(li.new button)::after { content: ' ●'; color: var(--accent); }
+  .file { margin: 0; max-height: 260px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12.5px; }
+  .file:empty { display: none; }
+  .log { margin: 0; padding-left: 1.4em; font-size: .86rem; max-height: 220px; overflow-y: auto; }
+  .log :global(li.last) { color: var(--accent); }
+</style>
+
+<script>
+  const SVG = 'http://www.w3.org/2000/svg';
+  const textWidth = (s: string) => [...s].reduce((w, c) => w + (c.charCodeAt(0) > 255 ? 15.5 : 8.6), 0);
+
+  for (const box of document.querySelectorAll<HTMLElement>('[data-sim]')) {
+    const { nodes, edges, scenarios } = JSON.parse(box.dataset.sim!);
+    const $ = (s: string) => box.querySelector<HTMLElement>(s)!;
+    const svg = box.querySelector('svg');
+    let scen = scenarios[0], k = 0, timer: number | undefined;
+
+    // Diagram
+    const geo = new Map<string, any>();
+    const nodeEls = new Map<string, Element>(), edgeEls = new Map<string, Element>(), itemEls = new Map<string, Element>();
+    if (svg) {
+      const defs = document.createElementNS(SVG, 'defs');
+      defs.innerHTML = '<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path class="head" d="M0 0L10 5L0 10z"/></marker>';
+      svg.append(defs);
+      for (const n of nodes) geo.set(n.id, { ...n, w: n.w ?? Math.max(70, textWidth(n.label) + 26), h: 40 });
+      for (const [a, b] of edges) {
+        const p = geo.get(a), q = geo.get(b);
+        const clip = (from: any, to: any) => {
+          const dx = to.x - from.x, dy = to.y - from.y;
+          const t = Math.min(Math.abs(from.w / 2 / (dx || 1e-9)), Math.abs(from.h / 2 / (dy || 1e-9)));
+          return [from.x + dx * t, from.y + dy * t];
+        };
+        const [x1, y1] = clip(p, q), [x2, y2] = clip(q, p);
+        const line = document.createElementNS(SVG, 'line');
+        Object.entries({ x1, y1, x2, y2, class: 'e', 'marker-end': 'url(#ah)' }).forEach(([k, v]) => line.setAttribute(k, String(v)));
+        svg.append(line);
+        edgeEls.set(a + '>' + b, line);
+      }
+      const list = $('.nodelist');
+      for (const n of geo.values()) {
+        const g = document.createElementNS(SVG, 'g');
+        g.setAttribute('class', 'n');
+        g.innerHTML = `<rect x="${n.x - n.w / 2}" y="${n.y - n.h / 2}" width="${n.w}" height="${n.h}"/><text x="${n.x}" y="${n.y}"></text>`;
+        g.querySelector('text')!.textContent = n.label;
+        svg.append(g);
+        nodeEls.set(n.id, g);
+        const li = document.createElement('li');
+        li.textContent = n.label;
+        list.append(li);
+        itemEls.set(n.id, li);
+      }
+      new ResizeObserver(() => box.classList.toggle('narrow', box.clientWidth < 560)).observe(box);
+    }
+
+    // Scenario buttons
+    const scenBar = box.querySelector('.scen');
+    const scenBtns = scenarios.map((s: any) => {
+      const b = Object.assign(document.createElement('button'), { className: 'btn', type: 'button', textContent: s.label });
+      b.addEventListener('click', () => { scen = s; stop(); k = 0; render(); });
+      scenBar?.append(b);
+      return b;
+    });
+
+    // Replays steps [0, k) from scratch, so "previous" is as easy as "next".
+    function fold() {
+      const st = { status: new Map<string, string>(), taken: new Set<string>(), state: new Map<string, unknown>(), files: new Map<string, string>(), log: [] as string[], changed: new Set<string>(), lastFile: '' };
+      let prev = '';
+      scen.steps.slice(0, k).forEach((s: any, i: number) => {
+        const last = i === k - 1;
+        if (s.at) {
+          for (const [id, v] of st.status) if (v === 'run') st.status.set(id, 'ok');
+          if (s.status !== 'skip' && prev && edgeEls.has(prev + '>' + s.at)) st.taken.add(prev + '>' + s.at);
+          st.status.set(s.at, s.status ?? 'run');
+          if (s.status !== 'skip') prev = s.at;
+        }
+        if (last) st.changed.clear();
+        for (const [key, v] of Object.entries(s.set ?? {})) {
+          v === null ? st.state.delete(key) : st.state.set(key, v);
+          if (last) st.changed.add(key);
+        }
+        for (const [path, v] of Object.entries(s.files ?? {})) {
+          v === null ? st.files.delete(path) : st.files.set(path, v as string);
+          if (last) { st.changed.add(path); if (v !== null) st.lastFile = path; }
+        }
+        if (s.log) st.log.push(s.log);
+      });
+      return st;
+    }
+
+    let picked = '';
+    function render() {
+      const st = fold(), n = scen.steps.length;
+      scenBtns.forEach((b: HTMLElement, i: number) => b.setAttribute('aria-pressed', String(scenarios[i] === scen)));
+      for (const [id, el] of nodeEls) {
+        const cls = st.status.get(id) ?? '';
+        el.setAttribute('class', 'n ' + cls);
+        itemEls.get(id)!.className = cls;
+      }
+      for (const [id, el] of edgeEls) el.setAttribute('class', 'e' + (st.taken.has(id) ? ' on' : ''));
+      $('.say').textContent = k === 0 ? '点“播放”或“下一步”开始。' : scen.steps[k - 1].say;
+      $('.count').textContent = `${k} / ${n}`;
+      ($('.prev') as HTMLButtonElement).disabled = k === 0;
+      ($('.next') as HTMLButtonElement).disabled = k === n;
+
+      const dl = $('.state');
+      dl.replaceChildren();
+      for (const [key, v] of st.state) {
+        const dt = Object.assign(document.createElement('dt'), { textContent: key });
+        const dd = Object.assign(document.createElement('dd'), { textContent: typeof v === 'string' ? v : JSON.stringify(v) });
+        if (st.changed.has(key)) dd.className = 'changed';
+        dl.append(dt, dd);
+      }
+      $('.state-p').hidden = st.state.size === 0;
+
+      if (st.lastFile) picked = st.lastFile;
+      if (!st.files.has(picked)) picked = [...st.files.keys()][0] ?? '';
+      const tree = $('.tree');
+      tree.replaceChildren();
+      for (const path of [...st.files.keys()].sort()) {
+        const li = document.createElement('li');
+        li.className = (path === picked ? 'sel ' : '') + (st.changed.has(path) ? 'new' : '');
+        const b = Object.assign(document.createElement('button'), { textContent: path });
+        b.addEventListener('click', () => { picked = path; render(); });
+        li.append(b);
+        tree.append(li);
+      }
+      $('.file').textContent = st.files.get(picked) ?? '';
+      $('.files-p').hidden = st.files.size === 0;
+
+      const log = $('.log');
+      log.replaceChildren(...st.log.map((t, i) => Object.assign(document.createElement('li'), { textContent: t, className: i === st.log.length - 1 ? 'last' : '' })));
+      log.scrollTop = log.scrollHeight;
+      $('.log-p').hidden = st.log.length === 0;
+    }
+
+    function stop() { clearInterval(timer); timer = undefined; $('.play').textContent = '▶ 播放'; }
+    $('.play').addEventListener('click', () => {
+      if (timer) return stop();
+      if (k === scen.steps.length) k = 0;
+      $('.play').textContent = '❚❚ 暂停';
+      const tick = () => { if (k < scen.steps.length) { k++; render(); } if (k === scen.steps.length) stop(); };
+      tick();
+      timer = window.setInterval(tick, 1600);
+    });
+    $('.next').addEventListener('click', () => { stop(); if (k < scen.steps.length) k++; render(); });
+    $('.prev').addEventListener('click', () => { stop(); if (k > 0) k--; render(); });
+    $('.reset').addEventListener('click', () => { stop(); k = 0; render(); });
+    render();
+  }
+</script>

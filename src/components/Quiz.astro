@@ -1,0 +1,74 @@
+---
+// Multiple-choice questions with an explanation after each answer.
+// With `score` (the default) it is a quiz with a running score; without it, a scenario judge
+// ("固定流程还是 agent？") that only reveals the reference answer.
+interface Question { q: string; options: string[]; answer: number; explain: string }
+interface Props { questions: Question[]; title?: string; hint?: string; score?: boolean }
+const { questions, title = '检验一下你的理解', hint = '选一个答案，马上能看到解析。', score = true } = Astro.props;
+---
+<section class="card quiz" data-quiz={JSON.stringify({ questions, score })}>
+  <p class="widget-title">{title}</p>
+  <p class="widget-hint">{hint}</p>
+  <ol class="qs"></ol>
+  {score && <div class="row"><strong class="score"></strong><button class="btn again" type="button">重新作答</button></div>}
+</section>
+
+<style>
+  .qs { padding-left: 1.3em; margin: 0; }
+  .qs :global(li) { margin: 0 0 18px; }
+  .qs :global(.q) { font-weight: 600; margin: 0 0 8px; }
+  .qs :global(.opts) { display: grid; gap: 6px; }
+  .qs :global(.opt) { text-align: left; }
+  .qs :global(.opt.right) { border-color: var(--ok); background: var(--ok-soft); }
+  .qs :global(.opt.wrong) { border-color: var(--bad); background: var(--bad-soft); }
+  .qs :global(.why) { margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); font-size: .94rem; }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>('[data-quiz]')) {
+    const { questions, score } = JSON.parse(box.dataset.quiz!);
+    const list = box.querySelector('.qs')!;
+    const out = box.querySelector('.score');
+    let answered = 0, right = 0;
+
+    function render() {
+      answered = right = 0;
+      list.replaceChildren();
+      questions.forEach((item: any) => {
+        const li = document.createElement('li');
+        const q = Object.assign(document.createElement('p'), { className: 'q', textContent: item.q });
+        const opts = Object.assign(document.createElement('div'), { className: 'opts' });
+        const why = Object.assign(document.createElement('p'), { className: 'why', hidden: true });
+        item.options.forEach((label: string, i: number) => {
+          const b = Object.assign(document.createElement('button'), { className: 'btn opt', type: 'button', textContent: label });
+          b.addEventListener('click', () => {
+            if (li.dataset.done) return;
+            li.dataset.done = '1';
+            answered++;
+            if (i === item.answer) right++;
+            [...opts.children].forEach((o, j) => {
+              (o as HTMLButtonElement).disabled = true;
+              if (j === item.answer) o.classList.add('right');
+              else if (j === i) o.classList.add('wrong');
+            });
+            why.textContent = (i === item.answer ? (score ? '答对了。' : '和参考答案一致。') : (score ? '不对。' : '参考答案不同。')) + item.explain;
+            why.hidden = false;
+            update();
+          });
+          opts.append(b);
+        });
+        li.append(q, opts, why);
+        list.append(li);
+      });
+      update();
+    }
+    function update() {
+      if (!out) return;
+      out.textContent = answered < questions.length
+        ? `已答 ${answered} / ${questions.length}`
+        : `得分 ${right} / ${questions.length}` + (right === questions.length ? '，全对！' : '');
+    }
+    box.querySelector('.again')?.addEventListener('click', render);
+    render();
+  }
+</script>

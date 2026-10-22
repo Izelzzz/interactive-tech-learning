@@ -2,9 +2,13 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "interactive-tech-learning",
   "compatibility_date": "2026-10-06",
-  // The lessons are plain static files: publish the demos/ folder as the site root.
+  // Astro builds the site into dist/: the hand-written lessons from demos/ plus the MDX pages.
+  // wrangler deploy and wrangler preview run the build first.
+  "build": {
+    "command": "npm run build"
+  },
   "assets": {
-    "directory": "./demos"
+    "directory": "./dist"
   },
   // Same as the blog: a workers.dev Preview URL for every non-production branch.
   "preview_urls": true,

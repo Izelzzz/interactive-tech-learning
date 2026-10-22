@@ -2,7 +2,7 @@
 
 ## 当前方案：Cloudflare Workers 静态资源
 
-课程都是纯静态 HTML，`wrangler.jsonc` 把 `demos/` 目录作为站点根目录发布成一个只有静态资源的 Worker（`interactive-tech-learning`），不需要构建步骤，也没有服务端代码。
+站点由 Astro 构建成纯静态文件：`demos/` 里手写的课程原样复制，`src/pages/` 的 MDX 页面生成 HTML，产物在 `dist/`。`wrangler.jsonc` 把 `dist/` 发布成一个只有静态资源的 Worker（`interactive-tech-learning`），没有服务端代码。`wrangler.jsonc` 的 `build.command` 是 `npm run build`，`wrangler deploy` 和 `wrangler preview` 会先自动构建。
 
 部署方式和博客（`izelzzzzz`）一致：Workers Builds 连接 GitHub 仓库，`main` 分支部署生产环境，其他分支各自得到一个 Preview URL。
 
@@ -23,7 +23,7 @@
    - Project name：`interactive-tech-learning`（必须和 `wrangler.jsonc` 的 `name` 相同）
    - Production branch：`main`
    - Root directory：仓库根目录
-   - Build command：留空
+   - Build command：`npm run build`（若留空，`wrangler deploy` 也会通过 `build.command` 自己构建）
    - Deploy command：`npx wrangler deploy`
 3. 打开 **Settings > Build > Branch control**，确认勾选了 **Enable Preview Builds**，Preview command 为 `npx wrangler preview`。之后每次推送非生产分支都会创建或更新该分支的 Preview URL，PR 中会出现 `Workers Builds` 检查和预览链接。只有在连接仓库之后的推送才会触发构建。
    - 新建的 Worker 默认就使用 Worker Previews。只有在 Worker Previews 推出前就连接了 Builds 的老项目（比如博客）才会看到 **Set up Worker Previews** 横幅，需要在那里做一次不可撤销的 **Switch to Worker Previews**。
@@ -34,7 +34,7 @@
 
 > 注意：如果博客 Worker 使用了 `*.izelzzz.com/*` 这样的通配路由，它会抢先接管 `learn.izelzzz.com`。博客目前只绑定自定义域名时没有这个问题；以后给博客加路由时只写具体的主机名。
 
-Workers Builds 检测到 `package.json` 后会自动执行 `npm ci`，`wrangler` 版本由 `package-lock.json` 固定（`4.148.0`）。Playwright 只安装 npm 包，不会下载浏览器。
+Workers Builds 检测到 `package.json` 后会自动执行 `npm ci`，`wrangler` 和 `astro` 的版本由 `package-lock.json` 固定。Astro 需要 Node.js 22.12 以上，版本写在 `.node-version`。Playwright 只安装 npm 包，不会下载浏览器。
 
 ## 本地预览与手动部署
 
