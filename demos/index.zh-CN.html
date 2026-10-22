@@ -23,6 +23,7 @@
   .lesson p { margin: 0; color: var(--muted); }
   .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
   .lang-switch { font-size: 0.85rem; color: var(--muted); text-decoration: none; border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface); white-space: nowrap; }
+  h2.group { font-size: 1.35rem; margin: 44px 0 6px; }
   .lang-switch:hover { border-color: var(--accent); color: var(--text); }
 </style>
 </head>
@@ -58,6 +59,25 @@
         <div class="num">第 5 课</div>
         <h2>形式化验证</h2>
         <p>看看测试为什么会漏掉罕见的 bug，动手写规约，逐个状态地对加锁协议做模型检测，并用循环不变式证明循环正确。</p>
+      </a>
+    </div>
+    <h2 class="group">开源项目拆解</h2>
+    <p class="sub">从产品设计的角度读开源 AI 项目：为什么这样设计、做了哪些取舍、边界情况怎么处理。</p>
+    <div class="lessons">
+      <a class="lesson" href="repos/dify/index.html">
+        <div class="num">拆解 1</div>
+        <h2>Dify：AI 工作流如何真正落地</h2>
+        <p>画布为什么这么设计，哪些环节用固定流程、哪些交给 agent，知识库、模型、工具怎么分层，原型怎么走向生产，以及 issue 里的真实痛点。</p>
+      </a>
+      <a class="lesson" href="repos/openai-agents/index.html">
+        <div class="num">拆解 2</div>
+        <h2>OpenAI Agents SDK：agent 该怎么设计</h2>
+        <p>模型、指令、工具、交接、约束、观测为什么这样拆、怎么串起来，一张 agent 产品架构图，以及什么时候不该做成 agent。</p>
+      </a>
+      <a class="lesson" href="repos/autoresearch/index.html">
+        <div class="num">拆解 3</div>
+        <h2>autoresearch + nanochat：理解智能体式产品</h2>
+        <p>从“人操作工具”到“人定义目标和评价函数、agent 自己循环”：目标、权限、环境、反馈指标和人工介入点该怎么设计。</p>
       </a>
     </div>
   </main>
