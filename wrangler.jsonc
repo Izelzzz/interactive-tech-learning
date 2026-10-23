@@ -6,7 +6,34 @@
   "assets": {
     "directory": "./demos"
   },
+  // Workers Logs and traces, kept here so a deploy never turns off what the dashboard enabled.
+  // Traffic is small, so record every request.
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  },
   // Same as the blog: a workers.dev Preview URL for every non-production branch.
   "preview_urls": true,
-  "previews": {}
+  "previews": {
+    // Previews have their own observability settings, separate from production.
+    "observability": {
+      "enabled": true,
+      "logs": {
+        "enabled": true,
+        "invocation_logs": true
+      },
+      "traces": {
+        "enabled": true,
+        "head_sampling_rate": 1
+      }
+    }
+  }
 }
