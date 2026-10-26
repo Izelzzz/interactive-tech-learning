@@ -14,7 +14,7 @@
 
 带 `.html` 的地址会 307 跳转到不带后缀的地址，页面里的相对链接不受影响。
 
-`demos/_headers` 给所有页面加安全响应头（CSP、`nosniff` 等）。课程不加载任何外部资源，所以 CSP 只允许本站来源；以后如果引入 CDN 脚本或字体，要同步修改这里。`_headers` 文件本身不会被公开访问。
+`demos/_headers` 给所有页面加安全响应头（CSP、`nosniff` 等）。课程不加载任何外部资源，所以 CSP 只允许本站来源，唯一的例外是 `https://static.cloudflareinsights.com`：正式域名开启了 Cloudflare Web Analytics，Cloudflare 会自动往页面里注入它的统计脚本（统计数据发回本站的 `/cdn-cgi/rum`，`connect-src 'self'` 已覆盖）。`workers.dev` 预览地址不会注入这个脚本，所以改 CSP 后要在正式域名上再确认一次。以后如果引入 CDN 脚本或字体，要同步修改这里。`_headers` 文件本身不会被公开访问。
 
 ## 首次配置（在 Cloudflare 控制台完成）
 
