@@ -46,6 +46,12 @@ npm run deploy     # 手动部署到生产（需要先 npx wrangler login）
 
 日常不需要手动部署：推送到 `main` 即上线，推送到其他分支即得到预览。
 
+## 可观测性（日志与链路追踪）
+
+`wrangler.jsonc` 的 `observability` 开启了 Workers Logs（含调用日志）和链路追踪，采样率都是 `1`（全部记录），`previews.observability` 给预览环境单独开启同样的设置。写进配置文件是为了让每次部署都保持开启：控制台里的开关会被下一次 `wrangler deploy` 按配置文件覆盖。
+
+现在站点只有静态资源，没有 Worker 脚本。日志和追踪记录的是 Worker 脚本的调用，静态页面的请求不经过脚本，所以 Observability 里暂时基本看不到记录；访问量请看域名的 **Analytics** 和 Web Analytics。等加上 `main` 后端脚本，`/api/*` 的请求和 `console.log` 就会出现在 Observability 里。流量变大时，把 `head_sampling_rate` 调低（例如 `0.1`）控制用量。
+
 ## GitHub Actions 与 Cloudflare 检查
 
 `.github/workflows/ci.yml` 继续负责测试（翻译同步、静态检查、浏览器冒烟测试），不负责部署。Cloudflare 的 `Workers Builds: interactive-tech-learning` 是独立的外部检查。
