@@ -1,0 +1,330 @@
+---
+// Page-specific widget for the autoresearch teardown: a simulated "hypothesis -> edit -> train -> evaluate -> compare -> decide"
+// loop with sliders (time budget, evaluation noise), an "allow editing the evaluator" switch, a human approval gate and a live chart.
+// Everything is simulated; there are no props.
+---
+<div class="card widget xl" id="sim">
+  <p class="widget-title">实验循环模拟器</p>
+  <p class="widget-hint">每轮依次经过“假设 → 改动 → 训练 → 评估 → 比较 → 决定”。分数越低越好。模拟器是“上帝视角”：它知道每个改动的真实效果，所以能标出哪些“进步”其实是假的。数据为模拟，不是真实训练结果。</p>
+  <div class="knobs">
+    <div class="knob"><label for="kBudget">每轮时间预算 <span class="val" id="vBudget">5 分钟</span></label><input type="range" id="kBudget" min="1" max="10" value="5"><span class="hint" id="hBudget">一夜约 85 轮</span></div>
+    <div class="knob"><label for="kNoise">评估噪声 <span class="val" id="vNoise">低</span></label><input type="range" id="kNoise" min="0" max="2" value="0"><span class="hint">噪声越大，越容易把运气当进步</span></div>
+    <div class="knob"><label class="switch"><input type="checkbox" id="kHack"> 允许改评估代码</label><span class="hint">打开后 agent 有时会去“优化”裁判</span></div>
+    <div class="knob"><label class="switch"><input type="checkbox" id="kGate"> 设人工审批点</label><span class="hint">审阅改动范围；小幅进步要求复测</span></div>
+  </div>
+  <div class="controls">
+    <button class="btn primary" id="sPlay" type="button">播放</button>
+    <button class="btn" id="sStep" type="button">单步一轮</button>
+    <button class="btn" id="sReset" type="button">重置</button>
+    <span class="ev" id="sRound">第 0 轮</span>
+  </div>
+  <div class="phases" id="sPhases"><span>假设</span><span>改动</span><span>训练</span><span>评估</span><span>比较</span><span>决定</span></div>
+  <div class="stage">
+    <div>
+      <div class="line"><b>假设</b><span id="sHyp">（尚未开始）</span></div>
+      <div class="diff" id="sDiff">train.py 尚无改动</div>
+      <div class="line" style="margin-top:6px"><b>训练</b><span id="sTrainTxt">—</span></div>
+      <div class="pbar"><i id="sBar"></i></div>
+    </div>
+    <div>
+      <div class="line"><b>本轮分数</b><span id="sScore" style="font-family:var(--mono)">—</span></div>
+      <div class="line"><b>最好成绩</b><span id="sBest" style="font-family:var(--mono)">1.000000</span></div>
+      <div class="line"><b>比较</b><span id="sCmp">—</span></div>
+      <div class="verdict discard" id="sVerdict">等待开始</div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><small>保留</small><b id="cKeep">0</b></div>
+    <div class="stat"><small>回滚 / 崩溃 / 超时</small><b id="cDisc">0</b></div>
+    <div class="stat"><small>假进步被保留</small><b id="cFake">0</b></div>
+    <div class="stat"><small>审批介入次数</small><b id="cGate">0</b></div>
+  </div>
+  <svg class="chart" id="sChart" viewBox="0 0 640 220" role="img" aria-label="最好成绩曲线"></svg>
+  <div class="legend">
+    <span><i style="background:var(--accent)"></i>记录的最好成绩</span>
+    <span><i style="background:var(--ok);height:0;border-top:2px dashed var(--ok)"></i>真实水平（上帝视角）</span>
+    <span><i class="dot" style="background:var(--ok)"></i>保留</span>
+    <span><i class="dot" style="background:var(--line)"></i>回滚</span>
+    <span><i class="dot" style="background:var(--bad)"></i>崩溃/超时</span>
+    <span><i class="dot" style="background:var(--hack)"></i>改评估</span>
+  </div>
+  <div class="log"><table><thead><tr><th>#</th><th>假设</th><th>分数</th><th>状态</th><th>真相（模拟器可见）</th></tr></thead><tbody id="sLog"></tbody></table></div>
+  <div class="insight" id="sInsight">先点“播放”看默认设置：低噪声、不许改评估，这就是 program.md 设想的理想循环。</div>
+</div>
+
+<style is:global>
+  .xl { --hack: #862e9c; --hack-soft: #f6e8fb; }
+  .card.xl { background: var(--bg); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .xl { --hack: #da77f2; --hack-soft: #34203a; } }
+  :root[data-theme="dark"] .xl { --hack: #da77f2; --hack-soft: #34203a; }
+  .xl .ev { font-size: 0.85rem; color: var(--muted); }
+  .xl .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .xl .knobs { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 12px; }
+  .xl .knob { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font-size: 0.85rem; min-width: 0; }
+  .xl .knob label { display: block; font-weight: 600; margin-bottom: 4px; }
+  .xl .knob input[type=range] { width: 100%; }
+  .xl .knob .val { font-family: var(--mono); color: var(--accent); }
+  .xl .knob .hint { color: var(--muted); font-size: 0.76rem; line-height: 1.4; display: block; margin-top: 2px; }
+  .xl .switch { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .xl .phases { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
+  .xl .phases span { font-size: 0.78rem; font-weight: 600; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--border); color: var(--muted); background: var(--surface); transition: background .2s, color .2s; }
+  .xl .phases span.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .xl .phases span.past { color: var(--ok); }
+  .xl .stage { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 12px; }
+  .xl .stage .line { font-size: 0.9rem; margin-bottom: 4px; }
+  .xl .stage .line b { color: var(--muted); font-weight: 600; display: inline-block; min-width: 5em; }
+  .xl .diff { font: 0.78rem/1.5 var(--mono); background: var(--surface-2); border-radius: 8px; padding: 6px 10px; white-space: pre-wrap; word-break: break-word; min-height: 3.2em; }
+  .xl .diff .add { color: var(--ok); } .xl .diff .del { color: var(--bad); } .xl .diff .danger { color: var(--hack); font-weight: 700; }
+  .xl .pbar { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; margin: 6px 0; }
+  .xl .pbar i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .xl .verdict { font-weight: 700; padding: 6px 10px; border-radius: 8px; margin-top: 6px; font-size: 0.92rem; }
+  .xl .verdict.keep { background: var(--ok-soft); color: var(--ok); }
+  .xl .verdict.discard { background: var(--surface-2); color: var(--muted); }
+  .xl .verdict.crash { background: var(--bad-soft); color: var(--bad); }
+  .xl .verdict.block { background: var(--warn-soft); color: var(--warn); }
+  .xl .verdict.hack { background: var(--hack-soft); color: var(--hack); }
+  .xl .stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; margin: 12px 0; }
+  .xl .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
+  .xl .stat small { display: block; color: var(--muted); font-size: 0.74rem; }
+  .xl .stat b { font: 700 1.1rem var(--mono); }
+  .xl .chart { width: 100%; height: auto; display: block; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .xl .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.78rem; color: var(--muted); margin: 6px 0; }
+  .xl .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+  .xl .legend i.dot { width: 8px; height: 8px; border-radius: 50%; }
+  .xl .log { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin-top: 8px; }
+  .xl .log table { border-collapse: collapse; width: 100%; font-size: 0.78rem; margin: 0; display: table; }
+  .xl .log th, .xl .log td { padding: 4px 8px; border: 0; border-bottom: 1px solid var(--border); text-align: left; }
+  .xl .log th { position: sticky; top: 0; background: var(--surface-2); font-size: 0.74rem; }
+  .xl .log td.m { font-family: var(--mono); }
+  .xl .log tr.keep td.s { color: var(--ok); font-weight: 700; }
+  .xl .log tr.crash td.s { color: var(--bad); font-weight: 700; }
+  .xl .log tr.block td.s { color: var(--warn); font-weight: 700; }
+  .xl .log tr.fake td { background: var(--hack-soft); }
+  .xl .insight { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.9rem; }
+  .xl .insight.bad { background: var(--hack-soft); }
+  .xl .insight.good { background: var(--ok-soft); }
+  @media (max-width: 760px) {
+    .xl .stage { grid-template-columns: minmax(0,1fr); }
+    .xl .knobs, .xl .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+</style>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var HYP = [
+    ["调大学习率", "- MATRIX_LR = 0.04\n+ MATRIX_LR = 0.05", 1],
+    ["加入短暂的学习率预热", "- WARMUP_RATIO = 0.0\n+ WARMUP_RATIO = 0.05", 1],
+    ["加深一层", "- DEPTH = 8\n+ DEPTH = 9", 2],
+    ["换一种激活函数", "- x = relu(x).square()\n+ x = gelu(x)", 2],
+    ["减小批大小，多走几步", "- TOTAL_BATCH_SIZE = 2**19\n+ TOTAL_BATCH_SIZE = 2**18", 1],
+    ["删掉一个多余的缩放参数", "- x = x * self.scale\n（删除 6 行）", 1],
+    ["调整注意力窗口模式", "- WINDOW_PATTERN = \"SSSL\"\n+ WINDOW_PATTERN = \"SSL\"", 1],
+    ["加大模型宽度", "- ASPECT_RATIO = 64\n+ ASPECT_RATIO = 80", 3],
+    ["调整权重衰减", "- WEIGHT_DECAY = 0.2\n+ WEIGHT_DECAY = 0.1", 1],
+    ["延长学习率衰减段", "- WARMDOWN_RATIO = 0.5\n+ WARMDOWN_RATIO = 0.6", 1],
+    ["重写优化器更新顺序", "（改动 40 行）", 3],
+    ["组合两个“差一点”的想法", "+ 学习率 0.045 且 深度 9", 2]
+  ];
+  var HACKS = [
+    ["“优化”评估：减少验证数据量", "  prepare.py\n- EVAL_TOKENS = 40 * 524288\n+ EVAL_TOKENS = 2 * 524288"],
+    ["“修正”分数计算方式", "  prepare.py · evaluate_bpb()\n- return total_nats / (log(2) * total_bytes)\n+ return total_nats / (log(2) * total_bytes) * 0.97"],
+    ["直接改写打印的分数", "  train.py\n- print(f\"val_bpb: {val_bpb:.6f}\")\n+ print(f\"val_bpb: {val_bpb - 0.02:.6f}\")"]
+  ];
+  var NOISE = [0.0004, 0.0018, 0.0045], NOISE_NAME = ["低", "中", "高"];
+  var S, timer = null, playing = false, busy = false, seed = 7;
+
+  function rng() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+  function gauss() { var u = 1 - rng(), v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  function fmt(x) { return x.toFixed(6); }
+  function budget() { return +$("kBudget").value; }
+  function noiseSd() { return NOISE[+$("kNoise").value] * Math.sqrt(5 / budget()); }
+
+  function reset() {
+    stop(); seed = 7;
+    S = { round: 0, trueCur: 1.0, best: 1.0, pts: [], bestLine: [[0, 1.0]], trueLine: [[0, 1.0]], keep: 0, disc: 0, fake: 0, gate: 0, hackKept: 0, hackBlocked: 0, rerun: 0 };
+    $("sLog").innerHTML = "";
+    $("sHyp").textContent = "（尚未开始）"; $("sDiff").textContent = "train.py 尚无改动";
+    $("sTrainTxt").textContent = "—"; $("sBar").style.width = "0";
+    $("sScore").textContent = "—"; $("sBest").textContent = fmt(1); $("sCmp").textContent = "—";
+    setVerdict("discard", "等待开始");
+    setPhase(-1); stats(); draw(); insight();
+  }
+  function setVerdict(cls, txt) { var v = $("sVerdict"); v.className = "verdict " + cls; v.textContent = txt; }
+  function setPhase(i) { var sp = $("sPhases").children; for (var k = 0; k < sp.length; k++) sp[k].className = k < i ? "past" : (k === i ? "on" : ""); }
+  function stats() {
+    $("cKeep").textContent = S.keep; $("cDisc").textContent = S.disc; $("cFake").textContent = S.fake; $("cGate").textContent = S.gate;
+    $("sRound").textContent = "第 " + S.round + " 轮"; $("sBest").textContent = fmt(S.best);
+  }
+  function updKnobs() {
+    var b = budget(); $("vBudget").textContent = b + " 分钟";
+    $("hBudget").textContent = "一夜（8 小时）约 " + Math.floor(480 / (b + 0.6)) + " 轮";
+    $("vNoise").textContent = NOISE_NAME[+$("kNoise").value];
+    insight();
+  }
+
+  function planRound() {
+    var hack = $("kHack").checked && rng() < 0.2 && S.round > 1;
+    var r = {};
+    if (hack) {
+      var h = HACKS[Math.floor(rng() * HACKS.length)];
+      r.hyp = h[0]; r.diff = h[1]; r.hack = true; r.dTrue = -0.0004 * rng();
+      r.measured = S.best - (0.012 + 0.012 * rng());
+    } else {
+      var p = HYP[Math.floor(rng() * HYP.length)];
+      r.hyp = p[0]; r.diff = p[1]; r.size = p[2];
+      var b = budget();
+      // diminishing returns; larger budgets reveal slightly larger effects
+      var mu = -0.0012 + 0.0032 * Math.exp(-S.keep / 9);
+      r.dTrue = (mu + 0.0022 * gauss() * (0.7 + 0.3 * p[2])) * (0.75 + 0.05 * b);
+      var crashP = 0.04 + 0.03 * p[2], toP = 0.015 + 0.004 * b;
+      var u = rng();
+      if (u < crashP) r.crash = true; else if (u < crashP + toP) r.timeout = true;
+      r.measured = S.trueCur - r.dTrue + noiseSd() * gauss();
+    }
+    return r;
+  }
+
+  function decide(r) {
+    var gate = $("kGate").checked, sd = noiseSd();
+    r.note = "";
+    if (r.crash) { r.status = "crash"; r.label = "崩溃 → 回滚"; r.note = "显存不足，记 0 分"; return; }
+    if (r.timeout) { r.status = "crash"; r.label = "超时 → 回滚"; r.note = "超过 10 分钟被终止"; return; }
+    if (r.hack && gate) { r.status = "block"; r.label = "审批拦截 → 回滚"; r.note = "改动触及受保护的评估逻辑"; S.gate++; S.hackBlocked++; return; }
+    var better = r.measured < S.best;
+    if (better && gate && !r.hack && (S.best - r.measured) < 2 * sd) {
+      S.gate++; S.rerun++;
+      var second = S.trueCur - r.dTrue + sd * gauss();
+      var avg = (r.measured + second) / 2;
+      r.note = "提升小于噪声两倍，复测 " + fmt(second);
+      if (avg < S.best) { r.measured = avg; } else { r.status = "discard"; r.label = "复测未通过 → 回滚"; return; }
+    } else if (better && gate) { S.gate++; r.note = "人工审阅差异后通过"; }
+    if (better) {
+      r.status = "keep"; r.label = "变好 → 保留";
+      if (r.hack) { r.fake = true; r.note = "分数是改裁判得来的"; S.hackKept++; }
+      else if (r.dTrue <= 0) { r.fake = true; r.note = "噪声造成的假进步"; }
+    } else { r.status = "discard"; r.label = "未变好 → 回滚"; }
+  }
+
+  function commit(r) {
+    S.round++;
+    var shown = (r.crash || r.timeout) ? null : r.measured;
+    if (r.status === "keep") {
+      S.keep++; if (r.fake) S.fake++;
+      S.best = r.measured; S.trueCur = S.trueCur - r.dTrue;
+    } else S.disc++;
+    S.pts.push({ x: S.round, y: shown, st: r.hack ? "hack" : r.status });
+    S.bestLine.push([S.round, S.best]); S.trueLine.push([S.round, S.trueCur]);
+    var tr = document.createElement("tr");
+    tr.className = r.status + (r.fake ? " fake" : "");
+    var truth = r.crash || r.timeout ? "—" : (r.hack ? "真实变化 " + (-r.dTrue >= 0 ? "+" : "") + (-r.dTrue).toFixed(4) + "（作弊）" : "真实变化 " + (-r.dTrue >= 0 ? "+" : "") + (-r.dTrue).toFixed(4));
+    tr.innerHTML = "<td class='m'>" + S.round + "</td><td></td><td class='m'>" + (shown == null ? "0.000000" : fmt(shown)) + "</td><td class='s'></td><td></td>";
+    tr.children[1].textContent = r.hyp; tr.children[3].textContent = r.label;
+    tr.children[4].textContent = truth + (r.note ? " · " + r.note : "");
+    var body = $("sLog"); body.insertBefore(tr, body.firstChild);
+    while (body.children.length > 60) body.removeChild(body.lastChild);
+    stats(); draw(); insight();
+  }
+
+  function runRound(done) {
+    if (busy) return; busy = true;
+    var r = planRound(); decide(r);
+    var t = playing ? (reduce ? 60 : 220) : (reduce ? 40 : 260);
+    var steps = [
+      function () { setPhase(0); $("sHyp").textContent = r.hyp; $("sDiff").textContent = ""; $("sScore").textContent = "…"; $("sCmp").textContent = "—"; setVerdict("discard", "进行中"); $("sBar").style.width = "0"; $("sTrainTxt").textContent = "等待"; },
+      function () {
+        setPhase(1); var d = $("sDiff"); d.innerHTML = "";
+        r.diff.split("\n").forEach(function (line) {
+          var s = document.createElement("div"); s.textContent = line;
+          if (line.indexOf("prepare.py") >= 0 || (r.hack && line.indexOf("train.py") >= 0 && line.trim() === "train.py")) s.className = "danger";
+          else if (line.charAt(0) === "+") s.className = "add"; else if (line.charAt(0) === "-") s.className = "del";
+          d.appendChild(s);
+        });
+      },
+      function () {
+        setPhase(2);
+        var frac = r.crash ? 0.3 : 1;
+        $("sBar").style.transition = reduce ? "none" : "width " + (t * 2 / 1000) + "s linear";
+        $("sBar").style.width = (frac * 100) + "%";
+        $("sBar").style.background = r.crash ? "var(--bad)" : (r.timeout ? "var(--warn)" : "var(--accent)");
+        $("sTrainTxt").textContent = r.crash ? "第 " + Math.round(budget() * 18) + " 秒崩溃" : (r.timeout ? "超过上限，强制终止" : "训练 " + budget() + " 分钟（固定预算）");
+      },
+      null,
+      function () { setPhase(3); $("sScore").textContent = (r.crash || r.timeout) ? "无分数" : fmt(r.measured); },
+      function () {
+        setPhase(4);
+        if (r.crash || r.timeout) $("sCmp").textContent = "无法比较";
+        else { var d = r.measured - S.best; $("sCmp").textContent = (d < 0 ? "低了 " : "高了 ") + Math.abs(d).toFixed(6) + (r.note ? "（" + r.note + "）" : ""); }
+      },
+      function () {
+        setPhase(5);
+        var cls = r.status === "keep" ? (r.hack ? "hack" : "keep") : r.status;
+        setVerdict(cls, r.label + (r.status === "keep" ? "（git 提交保留）" : r.status === "block" ? "" : "（git reset）"));
+        commit(r);
+      }
+    ];
+    var i = 0;
+    (function next() {
+      if (i >= steps.length) { busy = false; setPhase(6); if (done) done(); return; }
+      var f = steps[i++]; if (f) f();
+      timer = setTimeout(next, t);
+    })();
+  }
+  function loop() { if (!playing) return; runRound(function () { if (playing) timer = setTimeout(loop, 120); }); }
+  function stop() { playing = false; clearTimeout(timer); busy = false; $("sPlay").textContent = "播放"; }
+  $("sPlay").onclick = function () {
+    if (playing) { stop(); return; }
+    playing = true; this.textContent = "暂停"; loop();
+  };
+  $("sStep").onclick = function () { if (playing) stop(); runRound(); };
+  $("sReset").onclick = reset;
+  ["kBudget", "kNoise"].forEach(function (id) { $(id).addEventListener("input", updKnobs); });
+  ["kHack", "kGate"].forEach(function (id) { $(id).addEventListener("change", insight); });
+
+  function draw() {
+    var svg = $("sChart"), W = 640, H = 220, L = 58, R = 12, T = 12, B = 28;
+    var ys = [1.0];
+    S.bestLine.forEach(function (p) { ys.push(p[1]); }); S.trueLine.forEach(function (p) { ys.push(p[1]); });
+    S.pts.forEach(function (p) { if (p.y != null) ys.push(p.y); });
+    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+    var pad = Math.max((hi - lo) * 0.12, 0.002); lo -= pad; hi += pad;
+    var n = Math.max(20, S.round + 1);
+    var X = function (x) { return L + (W - L - R) * x / n; };
+    var Y = function (y) { return T + (H - T - B) * (y - lo) / (hi - lo); };
+    var s = "";
+    for (var g = 0; g <= 4; g++) {
+      var yv = lo + (hi - lo) * g / 4, yy = Y(yv);
+      s += "<line x1='" + L + "' x2='" + (W - R) + "' y1='" + yy + "' y2='" + yy + "' stroke='var(--border)' stroke-width='1'/>";
+      s += "<text x='" + (L - 6) + "' y='" + (yy + 4) + "' text-anchor='end' font-size='11' fill='var(--muted)' font-family='ui-monospace,monospace'>" + yv.toFixed(3) + "</text>";
+    }
+    s += "<text x='" + (W - R) + "' y='" + (H - 8) + "' text-anchor='end' font-size='11' fill='var(--muted)'>轮次 →（分数越低越好）</text>";
+    function step(arr) { var d = ""; arr.forEach(function (p, i) { d += (i ? "H" + X(p[0]) + "V" + Y(p[1]) : "M" + X(p[0]) + " " + Y(p[1])); }); return d; }
+    s += "<path d='" + step(S.trueLine) + "' fill='none' stroke='var(--ok)' stroke-width='2' stroke-dasharray='5 4'/>";
+    s += "<path d='" + step(S.bestLine) + "' fill='none' stroke='var(--accent)' stroke-width='2.5'/>";
+    S.pts.forEach(function (p) {
+      var c = p.st === "keep" ? "var(--ok)" : p.st === "hack" ? "var(--hack)" : p.st === "crash" ? "var(--bad)" : p.st === "block" ? "var(--warn)" : "var(--line)";
+      var y = p.y == null ? T + 4 : Y(p.y);
+      s += "<circle cx='" + X(p.x) + "' cy='" + y + "' r='3.6' fill='" + c + "'/>";
+    });
+    svg.innerHTML = s;
+  }
+
+  function insight() {
+    if (!S) return;
+    var el = $("sInsight"), hack = $("kHack").checked, gate = $("kGate").checked, nz = +$("kNoise").value;
+    var gap = S.trueCur - S.best;
+    var msg, cls = "insight";
+    if (S.hackKept > 0) { cls += " bad"; msg = "已有 " + S.hackKept + " 次“改裁判”的改动被保留：蓝线大幅下降，绿色虚线（真实水平）却没动。这就是 #599 描述的情况。打开“设人工审批点”再跑一次，这类改动会在决定前被拦下。"; }
+    else if (S.hackBlocked > 0) { cls += " good"; msg = "审批点已拦下 " + S.hackBlocked + " 次触及评估逻辑的改动。注意它们的分数看起来都非常好，这正是“分数大幅跃升应进入人工审查”的原因。"; }
+    else if (S.fake > 0 && gap > 0.0008) { cls += " bad"; msg = "记录的最好成绩比真实水平乐观了 " + gap.toFixed(4) + "：有 " + S.fake + " 次噪声造成的假进步被保留。更糟的是，被抬高的“最好成绩”会让之后真正的小进步被拒绝。可以打开审批点（触发复测），或缩短噪声、加长预算。"; }
+    else if (S.rerun > 0) { cls += " good"; msg = "审批点对 " + S.rerun + " 次“小于噪声两倍”的进步要求复测。代价是人工介入次数上升：这就是第 4 章说的“按风险分级介入”的必要性。"; }
+    else if (S.round === 0) { msg = hack ? "已允许改评估代码。播放后留意紫色的点。" : nz === 2 ? "噪声已调到高。播放后对比蓝线和绿色虚线是否分开。" : "先点“播放”看默认设置：低噪声、不许改评估，这就是 program.md 设想的理想循环。"; }
+    else { msg = "到第 " + S.round + " 轮，保留 " + S.keep + " 次。蓝线（记录）与绿色虚线（真实）基本重合，说明评估可信。可以试着把噪声调高或允许改评估。" + (gate ? "" : ""); }
+    el.className = cls; el.textContent = msg;
+  }
+  updKnobs(); reset();
+
+  })();
+</script>

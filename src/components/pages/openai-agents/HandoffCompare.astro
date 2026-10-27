@@ -1,0 +1,124 @@
+---
+// Page-specific demo: who holds the conversation, and what each agent sees, for a handoff vs agent-as-tool.
+---
+<section class="card oa-demo oa-cmp" id="cmp">
+  <p class="widget-title">演示：谁持有对话，历史怎么流动 <small>（第 2、3 章共用）</small></p>
+  <p class="widget-hint">切换模式后点“下一步”，观察绿色边框（当前持有对话的一方）和每个 agent 实际“看到”的内容。</p>
+  <div class="controls">
+    <div class="chips" id="cmpMode">
+      <button class="chip" data-m="handoff" aria-pressed="true">交接</button>
+      <button class="chip" data-m="tool" aria-pressed="false">agent-as-tool</button>
+    </div>
+    <label style="font-size:.86rem;display:flex;gap:6px;align-items:center" id="cmpFilterLbl"><input type="checkbox" id="cmpFilter"> 交接时使用 remove_all_tools 过滤器</label>
+  </div>
+  <div class="cmp-stage">
+    <div class="lane" id="laneU"><div class="lh">用户 <span class="badge">—</span></div><div class="sees">用户看到的回复</div><div id="seeU"></div></div>
+    <div class="lane" id="laneA"><div class="lh"><span id="nameA">分诊 agent</span> <span class="badge">持有对话</span></div><div class="sees">它的模型输入里有什么</div><div id="seeA"></div></div>
+    <div class="lane" id="laneB"><div class="lh"><span id="nameB">退款 agent</span> <span class="badge">持有对话</span></div><div class="sees">它的模型输入里有什么</div><div id="seeB"></div></div>
+  </div>
+  <div class="cmp-log" id="cmpLog">点“下一步”开始。</div>
+  <div class="controls"><button class="btn" id="cmpReset" type="button">重置</button><button class="btn primary" id="cmpNext" type="button">下一步</button><span id="cmpCount" style="font-size:.85rem;color:var(--muted)"></span></div>
+</section>
+
+<style is:global>
+  .oa-cmp { --c-model: #7048e8; --c-model-soft: #efe9ff; --c-instr: #1971c2; --c-instr-soft: #e3f0fc; --c-tool: #2b8a3e; --c-tool-soft: #e3f5e6; --c-hand: #d9480f; --c-hand-soft: #fdeee6; --c-guard: #c92a2a; --c-guard-soft: #fde8e8; --c-trace: #5c5f66; --c-trace-soft: #eceef0; --c-human: #b35c00; --c-human-soft: #fff1e0; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .oa-cmp { --c-model: #a98bff; --c-model-soft: #2a2242; --c-instr: #4dabf7; --c-instr-soft: #1a2c3d; --c-tool: #5fcf75; --c-tool-soft: #1c3322; --c-hand: #f0703a; --c-hand-soft: #3a2418; --c-guard: #ff7b7b; --c-guard-soft: #3d1f1f; --c-trace: #b0b3ba; --c-trace-soft: #2a2b2e; --c-human: #ffa94d; --c-human-soft: #3a2a17; }
+  }
+  :root[data-theme="dark"] .oa-cmp { --c-model: #a98bff; --c-model-soft: #2a2242; --c-instr: #4dabf7; --c-instr-soft: #1a2c3d; --c-tool: #5fcf75; --c-tool-soft: #1c3322; --c-hand: #f0703a; --c-hand-soft: #3a2418; --c-guard: #ff7b7b; --c-guard-soft: #3d1f1f; --c-trace: #b0b3ba; --c-trace-soft: #2a2b2e; --c-human: #ffa94d; --c-human-soft: #3a2a17; }
+  .oa-demo .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .oa-demo .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .oa-demo .chip { font: inherit; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; border-radius: 999px; padding: 3px 12px; font-size: .83rem; }
+  .oa-demo .chip:hover { border-color: var(--accent); }
+  .oa-demo .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .oa-demo .btn:disabled { opacity: .45; cursor: default; }
+  .oa-demo .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 12px 14px; min-width: 0; }
+  @keyframes oa-pop { from { opacity: 0; transform: translateY(4px); } }
+  .oa-cmp small { font-weight: 400; color: var(--muted); }
+  .oa-cmp .cmp-stage { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 12px; }
+  .oa-cmp .lane { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: var(--surface); min-width: 0; transition: box-shadow .3s, border-color .3s; }
+  .oa-cmp .lane.owner { border-color: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  .oa-cmp .lane .lh { font-weight: 700; font-size: .9rem; display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+  .oa-cmp .lane .badge { font-size: .7rem; font-weight: 700; color: #fff; background: var(--ok); border-radius: 6px; padding: 0 6px; visibility: hidden; }
+  .oa-cmp .lane.owner .badge { visibility: visible; }
+  .oa-cmp .lane .sees { font-size: .7rem; color: var(--muted); margin: 4px 0; }
+  .oa-cmp .item { font-size: .8rem; border-radius: 7px; padding: 3px 7px; margin: 3px 0; background: var(--surface-2); animation: oa-pop .35s ease-out both; overflow-wrap: anywhere; }
+  .oa-cmp .item.user { background: var(--c-instr-soft); }
+  .oa-cmp .item.tool { background: var(--c-tool-soft); }
+  .oa-cmp .item.hand { background: var(--c-hand-soft); }
+  .oa-cmp .item.reply { background: var(--ok-soft); }
+  .oa-cmp .item.gen { background: var(--c-model-soft); }
+  .oa-cmp .item.cut { opacity: .45; text-decoration: line-through; }
+  .oa-cmp .cmp-log { margin-top: 10px; font-size: .9rem; min-height: 3.2em; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; background: var(--surface); padding: 10px 14px; }
+  @media (max-width: 720px) { .oa-cmp .cmp-stage { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var cmp = { mode: 'handoff', i: 0 };
+  function cmpSteps() {
+    var filt = $('#cmpFilter').checked;
+    if (cmp.mode === 'handoff') {
+      return [
+        { owner: 'A', log: '用户把问题发给入口的分诊 agent。此时分诊 agent 持有对话。',
+          add: { U: [], A: [['user', '用户：订单 A1029 重复扣款']], B: [] } },
+        { owner: 'B', log: '分诊模型调用 transfer_to_refund_agent。交接发生：退款 agent 成为“当前 agent”，' + (filt ? '过滤器 remove_all_tools 去掉了工具类条目（被划掉的那条），' : '默认把完整历史（包括分诊的交接调用）') + '交给它。分诊 agent 从此退场。',
+          add: { U: [], A: [['hand', '分诊：调用 transfer_to_refund_agent']], B: [['user', '用户：订单 A1029 重复扣款'], [filt ? 'hand cut' : 'hand', '分诊：交接调用及其输出']] } },
+        { owner: 'B', log: '退款 agent 用自己的工具查订单，结果回到它自己的上下文里。',
+          add: { U: [], A: [], B: [['tool', '工具 lookup_order → 可退 ¥399']] } },
+        { owner: 'B', log: '退款 agent 直接回复用户——用户看到的是专家的口吻。分诊 agent 不知道这句回复。',
+          add: { U: [['reply', '退款 agent：已为你提交 ¥399 退款']], A: [], B: [['reply', '退款：已为你提交 ¥399 退款']] } },
+        { owner: 'B', log: '用户追问。应用用 result.last_agent 作为下一回合起点，所以仍是退款 agent 回答；它若答不了，只能再交接（例如转回分诊）——控制权不会自动回去（issue #847）。',
+          add: { U: [], A: [], B: [['user', '用户：那运费也能退吗？']] } }
+      ];
+    }
+    return [
+      { owner: 'A', log: '用户把问题发给经理 agent。经理始终持有对话。',
+        add: { U: [], A: [['user', '用户：订单 A1029 重复扣款']], B: [] } },
+      { owner: 'A', log: '经理调用工具 refund_specialist，并为它写了一段输入。退款专家<b>只</b>看到这段输入——看不到用户原话和之前的历史。',
+        add: { U: [], A: [['gen', '经理：调用 refund_specialist(…)']], B: [['gen', '输入：核实 A1029 是否重复扣款并给出可退金额']] } },
+      { owner: 'A', log: '退款专家在自己的子运行里查订单。这些内部步骤对经理不可见（除非用 on_stream 订阅，issue #864）。',
+        add: { U: [], A: [], B: [['tool', '工具 lookup_order → 可退 ¥399'], ['reply', '子运行最终输出：可退 ¥399']] } },
+      { owner: 'A', log: '子运行的最终输出作为一次普通工具结果回到经理。经理决定怎么对用户说，并可以叠加经理层的约束和口吻。',
+        add: { U: [['reply', '经理 agent：已核实，为你退 ¥399']], A: [['tool', '工具结果：可退 ¥399'], ['reply', '经理：已核实，为你退 ¥399']], B: [] } },
+      { owner: 'A', log: '用户追问，仍由经理接住。下一次调用退款专家时，它又是从一段新输入开始——默认不记得上次（可为子 agent 单独配置会话）。',
+        add: { U: [], A: [['user', '用户：那运费也能退吗？']], B: [] } }
+    ];
+  }
+  function cmpRender() {
+    var steps = cmpSteps();
+    var lists = { U: [], A: [], B: [] }, owner = null, log = '点“下一步”开始。';
+    for (var k = 0; k < cmp.i; k++) {
+      ['U', 'A', 'B'].forEach(function (key) { lists[key] = lists[key].concat(steps[k].add[key]); });
+      owner = steps[k].owner; log = steps[k].log;
+    }
+    ['U', 'A', 'B'].forEach(function (key) {
+      $('#see' + key).innerHTML = lists[key].map(function (it) { return '<div class="item ' + it[0] + '">' + esc(it[1]) + '</div>'; }).join('') || '<div class="sees">（空）</div>';
+    });
+    $('#laneA').classList.toggle('owner', owner === 'A');
+    $('#laneB').classList.toggle('owner', owner === 'B');
+    $('#cmpLog').innerHTML = (cmp.i ? '<b>第 ' + cmp.i + ' 步：</b>' : '') + log;
+    $('#cmpCount').textContent = cmp.i + ' / ' + steps.length;
+    $('#cmpNext').disabled = cmp.i >= steps.length;
+    $('#nameA').textContent = cmp.mode === 'handoff' ? '分诊 agent' : '经理 agent';
+    $('#nameB').textContent = cmp.mode === 'handoff' ? '退款 agent（交接对象）' : '退款专家（被当作工具）';
+    $('#cmpFilterLbl').style.opacity = cmp.mode === 'handoff' ? '1' : '.4';
+    $('#cmpFilter').disabled = cmp.mode !== 'handoff';
+  }
+  $$('#cmpMode .chip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      cmp.mode = b.dataset.m; cmp.i = 0;
+      $$('#cmpMode .chip').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      cmpRender();
+    });
+  });
+  $('#cmpNext').addEventListener('click', function () { cmp.i++; cmpRender(); });
+  $('#cmpReset').addEventListener('click', function () { cmp.i = 0; cmpRender(); });
+  $('#cmpFilter').addEventListener('change', cmpRender);
+  cmpRender();
+})();
+</script>

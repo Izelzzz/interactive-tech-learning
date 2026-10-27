@@ -1,0 +1,131 @@
+---
+// Page-specific decision helper: answer eight questions (or pick a preset) and see which rung of the
+// "plain code -> single call -> fixed workflow -> single agent -> multi-agent" ladder fits.
+---
+<section class="card oa-demo oa-dec" id="decide">
+  <p class="widget-title">决策器：这件事该不该做成 agent？</p>
+  <p class="widget-hint">回答下面的问题，或先选一个预设。结果是基于上述维度的启发式建议<span class="tag warn">建议</span>，不是 SDK 的规则。</p>
+  <div class="chips presets" id="decPresets">
+    <button class="chip" data-p="invoice">发票字段抽取</button>
+    <button class="chip" data-p="refund">电商退款客服</button>
+    <button class="chip" data-p="report">固定格式周报</button>
+    <button class="chip" data-p="coding">修复代码 bug</button>
+    <button class="chip" data-p="center">多业务线客服中心</button>
+    <button class="chip" data-p="csv">CSV 转 JSON</button>
+  </div>
+  <div id="decQs"></div>
+  <div class="ladder" id="ladder"></div>
+  <div class="verdict" id="verdict"></div>
+</section>
+
+<style is:global>
+  .oa-demo .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .oa-demo .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .oa-demo .chip { font: inherit; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; border-radius: 999px; padding: 3px 12px; font-size: .83rem; }
+  .oa-demo .chip:hover { border-color: var(--accent); }
+  .oa-demo .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .oa-demo .btn:disabled { opacity: .45; cursor: default; }
+  .oa-demo .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 12px 14px; min-width: 0; }
+  @keyframes oa-pop { from { opacity: 0; transform: translateY(4px); } }
+  .oa-dec .presets { margin-bottom: 8px; }
+  .oa-dec .dq { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 6px 12px; align-items: center; margin: 8px 0; }
+  .oa-dec .dq .ql { font-size: .9rem; font-weight: 600; }
+  .oa-dec .dq .ql small { display: block; font-weight: 400; color: var(--muted); font-size: .75rem; }
+  .oa-dec .ladder { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
+  .oa-dec .rung { border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 6px; text-align: center; font-size: .82rem; background: var(--surface); transition: all .3s; position: relative; }
+  .oa-dec .rung b { display: block; font-size: .88rem; }
+  .oa-dec .rung .meter { height: 5px; border-radius: 3px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
+  .oa-dec .rung .meter i { display: block; height: 100%; background: var(--line); transition: width .4s; }
+  .oa-dec .rung.pick { border-color: var(--ok); background: var(--ok-soft); transform: translateY(-3px); }
+  .oa-dec .rung.pick .meter i { background: var(--ok); }
+  .oa-dec .verdict { margin-top: 12px; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; background: var(--surface); padding: 10px 14px; }
+  @media (max-width: 720px) {
+    .oa-dec .dq { grid-template-columns: minmax(0, 1fr); }
+    .oa-dec .ladder { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var QS = [
+    { k: 'nl', l: '输入是否是自然语言/非结构化', s: '表单字段 vs 自由描述', o: ['结构化', '部分', '非结构化'] },
+    { k: 'cert', l: '任务确定性', s: '同样输入是否应同样输出', o: ['高', '中', '低'] },
+    { k: 'enum', l: '步骤能否枚举', s: '能否事先画出流程图', o: ['能', '部分', '不能'] },
+    { k: 'explore', l: '是否需要多轮探索', s: '查—看—再决定', o: ['否', '有时', '是'] },
+    { k: 'domains', l: '业务域数量与差异', s: '规则、权限是否差异大', o: ['单一', '2–3 个', '很多且差异大'] },
+    { k: 'risk', l: '出错代价', s: '重来即可 vs 资金/数据损失', o: ['低', '中', '高'] },
+    { k: 'budget', l: '延迟/成本预算', s: '用户愿意等多久', o: ['紧', '中', '宽'] },
+    { k: 'evalx', l: '可评估性', s: '能否写出“什么算对”', o: ['容易', '一般', '困难'] }
+  ];
+  var PRESETS = {
+    invoice: { nl: 2, cert: 0, enum: 0, explore: 0, domains: 0, risk: 1, budget: 1, evalx: 0 },
+    refund: { nl: 2, cert: 1, enum: 1, explore: 2, domains: 0, risk: 2, budget: 1, evalx: 1 },
+    report: { nl: 1, cert: 1, enum: 0, explore: 0, domains: 0, risk: 0, budget: 2, evalx: 1 },
+    coding: { nl: 2, cert: 2, enum: 2, explore: 2, domains: 0, risk: 1, budget: 2, evalx: 0 },
+    center: { nl: 2, cert: 1, enum: 1, explore: 2, domains: 2, risk: 2, budget: 1, evalx: 1 },
+    csv: { nl: 0, cert: 0, enum: 0, explore: 0, domains: 0, risk: 1, budget: 0, evalx: 0 }
+  };
+  var RUNGS = [
+    { t: '普通代码', d: '规则明确、输入结构化：直接写代码，最快、最便宜、可完全测试。' },
+    { t: '单次 LLM 调用', d: '需要语言理解但一步可完成：一个无工具的 Agent + output_type，或直接调用模型。' },
+    { t: '固定工作流', d: '多步但可枚举：用代码串联几个 LLM 步骤，或结构化输出分类后由代码路由。' },
+    { t: '单 agent + 工具', d: '步骤取决于中途发现的信息：一个 Agent + 若干工具 + 约束，让模型决定下一步。' },
+    { t: '多 agent', d: '多个业务域规则差异大：分诊 + 交接，或经理 + agent-as-tool，每个专家单独评估。' }
+  ];
+  var dec = Object.assign({}, PRESETS.refund);
+  function decBuild() {
+    $('#decQs').innerHTML = QS.map(function (q) {
+      return '<div class="dq"><div class="ql">' + esc(q.l) + '<small>' + esc(q.s) + '</small></div><div class="chips" data-q="' + q.k + '">' +
+        q.o.map(function (o, i) { return '<button class="chip" data-v="' + i + '">' + esc(o) + '</button>'; }).join('') + '</div></div>';
+    }).join('');
+    $('#ladder').innerHTML = RUNGS.map(function (r, i) { return '<div class="rung" data-r="' + i + '"><b>' + esc(r.t) + '</b><div class="meter"><i></i></div></div>'; }).join('');
+    $$('#decQs .chips').forEach(function (g) {
+      $$('.chip', g).forEach(function (b) {
+        b.addEventListener('click', function () { dec[g.dataset.q] = Number(b.dataset.v); $$('#decPresets .chip').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); decRender(); });
+      });
+    });
+  }
+  function decRender() {
+    $$('#decQs .chips').forEach(function (g) {
+      $$('.chip', g).forEach(function (b) { b.setAttribute('aria-pressed', Number(b.dataset.v) === dec[g.dataset.q] ? 'true' : 'false'); });
+    });
+    var autonomy = dec.cert + dec.enum + dec.explore;            // 0..6
+    var brakes = (dec.budget === 0 ? 1 : 0) + (dec.evalx === 2 ? 1 : 0) + (dec.risk === 2 ? 1 : 0);
+    var eff = autonomy - brakes;
+    var pick, why = [];
+    if (dec.nl === 0 && autonomy <= 2) { pick = 0; why.push('输入是结构化的、规则基本确定——不需要语言模型。'); }
+    else if (eff <= 1) { pick = 1; why.push('确定性高、几乎不需要探索：一次调用加结构化输出就够了。'); }
+    else if (eff <= 3 || dec.explore === 0) { pick = 2; why.push('有多个步骤，但大体可以枚举，用代码把步骤串起来更稳更快。'); }
+    else if (dec.domains === 2 || (dec.domains === 1 && autonomy >= 5)) { pick = 4; why.push('需要边查边决定，而且多个业务域规则差异大，拆成专家能让每份指令更短、可单独评估。'); }
+    else { pick = 3; why.push('步骤取决于中途查到的信息，需要模型决定下一步；但一个 agent 就能装下全部规则。'); }
+    if (brakes && pick >= 2) why.push('“刹车”因素（' + [dec.budget === 0 ? '预算紧' : '', dec.evalx === 2 ? '难以评估' : '', dec.risk === 2 ? '出错代价高' : ''].filter(Boolean).join('、') + '）已把推荐往下压了一档以上。');
+    var extra = [];
+    if (dec.risk === 2) extra.push('出错代价高：无论哪一档，涉及资金/数据写入的工具都要设 needs_approval，回复加输出约束。');
+    if (dec.evalx === 2) extra.push('难以评估：先投入建立评估集，再考虑提高自主度；否则上线后无法判断变好还是变坏。');
+    if (dec.budget === 0 && pick >= 3) extra.push('预算紧：限制 max_turns，分诊用快模型，读操作并行。');
+    if (pick >= 3 && dec.enum >= 1) extra.push('上线后从追踪里找出反复出现的稳定路径，把它们固化成工作流。');
+    // meters: closeness score
+    $$('#ladder .rung').forEach(function (el, i) {
+      el.classList.toggle('pick', i === pick);
+      var w = Math.max(8, 100 - Math.abs(i - pick) * 30);
+      $('i', el).style.width = w + '%';
+    });
+    $('#verdict').innerHTML = '<b>建议：' + esc(RUNGS[pick].t) + '</b><p style="margin:4px 0">' + esc(RUNGS[pick].d) + '</p><ul>' +
+      why.concat(extra).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+  }
+  decBuild();
+  $$('#decPresets .chip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      dec = Object.assign({}, PRESETS[b.dataset.p]);
+      $$('#decPresets .chip').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      decRender();
+    });
+  });
+  $('#decPresets .chip[data-p="refund"]').setAttribute('aria-pressed', 'true');
+  decRender();
+})();
+</script>

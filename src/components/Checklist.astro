@@ -1,16 +1,16 @@
 ---
 // A tick-off checklist with a progress bar; `copy` adds a button that copies the list as Markdown.
-// items: [{ label, detail? }]
-interface Props { title: string; hint?: string; items: { label: string; detail?: string }[]; copy?: boolean }
+// items: [{ label, detail?, group? }]  — a new `group` value starts a bold sub-heading
+interface Props { title: string; hint?: string; items: { label: string; detail?: string; group?: string }[]; copy?: boolean }
 const { title, hint = '', items, copy = true } = Astro.props;
-const md = items.map((i) => `- [ ] ${i.label}${i.detail ? `：${i.detail}` : ''}`).join('\n');
+const md = items.map((i, n) => `${i.group && i.group !== items[n - 1]?.group ? `${n ? '\n' : ''}## ${i.group}\n` : ''}- [ ] ${i.label}${i.detail ? `：${i.detail}` : ''}`).join('\n');
 ---
 <section class="card chk" data-md={md}>
   <p class="widget-title">{title}</p>
   {hint && <p class="widget-hint">{hint}</p>}
   <div class="bar"><span></span></div>
   <ul>
-    {items.map((i) => <li><label><input type="checkbox"> <strong>{i.label}</strong>{i.detail && <span class="d">{i.detail}</span>}</label></li>)}
+    {items.map((i, n) => <>{i.group && i.group !== items[n - 1]?.group && <li class="grp"><strong>{i.group}</strong></li>}<li><label><input type="checkbox"> <strong>{i.label}</strong>{i.detail && <span class="d">{i.detail}</span>}</label></li></>)}
   </ul>
   {copy && <button class="btn copy" type="button">复制为 Markdown</button>}
 </section>
@@ -20,6 +20,7 @@ const md = items.map((i) => `- [ ] ${i.label}${i.detail ? `：${i.detail}` : ''}
   .bar span { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s; }
   ul { list-style: none; padding: 0; margin: 0 0 10px; }
   li { padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .grp { border-bottom: 0; padding-bottom: 0; margin-top: 6px; }
   label { cursor: pointer; display: block; }
   .d { display: block; color: var(--muted); font-size: .92rem; margin-left: 1.6em; }
 </style>

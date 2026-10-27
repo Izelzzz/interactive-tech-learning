@@ -1,0 +1,124 @@
+---
+// Page-specific widget for the autoresearch teardown: pick a design option for each of the five design faces
+// (goal, permission, environment, metric, human checkpoint) for an imaginary product and get a risk read-out and advice.
+// The scoring is an illustrative model; data is inline in the script; no props.
+---
+<div class="card widget dpan" id="dp">
+  <p class="widget-title">五个设计面配置面板</p>
+  <p class="widget-hint">为一个虚构产品逐项选择设计方案，右侧（手机上在下方）给出风险评估与改进建议。评分规则是本页作者设定的示意模型（建议性质），不是行业标准。</p>
+  <div class="controls" id="dpProd" style="margin-bottom:10px">
+    <span class="ev">产品：</span>
+    <button class="pill" type="button" data-prod="ad" aria-pressed="true">自动优化广告文案</button>
+    <button class="pill" type="button" data-prod="bug">自动修 bug</button>
+  </div>
+  <div class="grid2">
+    <div id="dpRows"></div>
+    <div>
+      <div id="dpBars"></div>
+      <div class="overall" id="dpOverall"></div>
+      <ul class="advice" id="dpAdvice"></ul>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .card.dpan { background: var(--bg); }
+  .dpan .ev { font-size: 0.85rem; color: var(--muted); }
+  .dpan .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .dpan .pill { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 3px 12px; font-size: 0.84rem; cursor: pointer; text-align: left; }
+  .dpan .pill:hover { border-color: var(--accent); }
+  .dpan .pill[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .dpan .grid2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+  .dpan .dp-row { border-top: 1px solid var(--border); padding: 10px 0; }
+  .dpan .dp-row:first-of-type { border-top: 0; }
+  .dpan .dp-row .q { font-weight: 650; font-size: 0.92rem; margin-bottom: 6px; }
+  .dpan .dp-row .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dpan .risk { display: grid; grid-template-columns: 6em minmax(0,1fr) 3.5em; gap: 8px; align-items: center; font-size: 0.85rem; margin: 5px 0; }
+  .dpan .risk .tr { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+  .dpan .risk .tr i { display: block; height: 100%; transition: width .4s ease, background .4s; }
+  .dpan .overall { font-size: 1.05rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; margin: 10px 0; }
+  .dpan .advice li { font-size: 0.9rem; }
+  @media (max-width: 760px) { .dpan .grid2 { grid-template-columns: minmax(0,1fr); } }
+</style>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+var DIMS = [
+    { k: "goal", name: "目标", q: "1. 目标怎么写？", opts: [
+      ["模糊：“让它更好”", 85], ["单一指标", 45], ["主指标 + 约束 + 汇率 + 基线", 12] ] },
+    { k: "perm", name: "权限", q: "2. agent 能动什么？", opts: [
+      ["全部可写、可联网、可安装", 90], ["白名单，只写在说明里", 50], ["白名单 + 评估只读 + 沙箱强制", 12] ] },
+    { k: "env", name: "环境", q: "3. 在哪里试错？", opts: [
+      ["直接在生产/真实用户上", 85], ["共享测试环境，无固定预算", 50], ["隔离、可回滚、固定预算的缩小环境", 12] ] },
+    { k: "metric", name: "反馈指标", q: "4. 怎么判断变好？", opts: [
+      ["agent 自己报告的单一分数", 85], ["独立评估的单一分数", 45], ["独立评估 + 护栏指标 + 噪声复测", 12] ] },
+    { k: "human", name: "人工介入", q: "5. 人什么时候回来？", opts: [
+      ["从不", 80], ["每一步都审批", 55], ["按风险分级 + 事后批量审查", 15] ] }
+  ];
+  var ADV = {
+    ad: {
+      goal: ["只说“更吸引人”，agent 会自己定义吸引人，通常会滑向标题党。", "只看点击率，必然出现夸大和误导性文案；至少加上转化率与投诉率护栏，并写明“品牌合规优先于点击率”。", "好：例如“7 天转化率最高，投诉率不超过基线，禁止绝对化用语，越短越好”。"],
+      perm: ["能直接改投放预算和账户设置的 agent，一次错误就是真金白银。", "“请不要提价格”只是请求；需要系统级的敏感词过滤与预算接口隔离。", "好：只能提交文案草稿到试投池，预算与定向由人或独立系统控制。"],
+      env: ["在全量用户上试错，每次失败都在损害品牌。", "没有固定流量与时长，各版本的结果不可比。", "好：固定比例的小流量、固定观察窗口，类似 autoresearch 的固定 5 分钟。"],
+      metric: ["agent 自己汇报“效果很好”，等于选手当裁判。", "单一点击率的噪声很大，小流量下赢家常常是运气；需要复测或更长窗口。", "好：独立统计、留出人群复测、护栏指标同时满足才算赢。"],
+      human: ["无人看管的广告系统，是最容易上新闻的那种。", "每条文案都要人审，系统就只剩“写草稿”的价值。", "好：低风险自动试投，涉及价格、医疗、竞品等高风险文案进入审批；每周批量审查。"]
+    },
+    bug: {
+      goal: ["“修好它”会被理解成“让报错消失”，可能直接吞掉异常。", "只看“复现测试转绿”，agent 可能改测试本身。", "好：复现用例转绿 + 全部回归通过 + 改动行数上限 + 不新增依赖。"],
+      perm: ["能改任何文件、能推主分支，坏修复会直接上线。", "“不要改测试”只写在说明里不够；需要在提交前检查改动路径。", "好：只能改指定目录，测试目录只读，只能开合并请求不能合并。"],
+      env: ["在生产服务器上调试，一次尝试就可能引发事故。", "共享测试环境里多个尝试互相干扰。", "好：每次尝试一个干净容器，固定超时，失败自动销毁。"],
+      metric: ["agent 说“已修复”就算修复，最常见的失败来源。", "只跑相关测试，可能悄悄破坏别处。", "好：独立 CI 跑全量回归，并对不稳定测试做重复运行。"],
+      human: ["自动合并的修复，出问题时没人知道发生了什么。", "每次尝试都打扰值班工程师，人很快会无差别地点同意。", "好：自动尝试，人只审查最终合并请求；触及鉴权、支付、数据迁移的改动强制人工。"]
+    }
+  };
+  var dpProd = "ad", dpSel = { goal: 1, perm: 1, env: 1, metric: 1, human: 1 };
+  function renderDP() {
+    var rows = $("dpRows"); rows.innerHTML = "";
+    DIMS.forEach(function (d) {
+      var r = document.createElement("div"); r.className = "dp-row";
+      var q = document.createElement("div"); q.className = "q"; q.textContent = d.q; r.appendChild(q);
+      var o = document.createElement("div"); o.className = "opts";
+      d.opts.forEach(function (op, i) {
+        var b = document.createElement("button"); b.className = "pill"; b.textContent = op[0];
+        b.setAttribute("aria-pressed", dpSel[d.k] === i);
+        b.onclick = function () { dpSel[d.k] = i; renderDP(); };
+        o.appendChild(b);
+      });
+      r.appendChild(o); rows.appendChild(r);
+    });
+    var bars = $("dpBars"); bars.innerHTML = "<div class='label' style='font-weight:700;margin-bottom:4px'>各设计面风险</div>";
+    var scores = {}, total = 0;
+    DIMS.forEach(function (d) { scores[d.k] = d.opts[dpSel[d.k]][1]; });
+    // interactions
+    var notes = [];
+    if (dpSel.perm === 0 && dpSel.human === 0) { scores.perm = Math.min(100, scores.perm + 10); scores.human = Math.min(100, scores.human + 15); notes.push("权限最宽且无人介入：这是最危险的组合，越界没有任何人能及时发现。"); }
+    if (dpSel.metric === 0 && dpSel.perm !== 2) { scores.metric = Math.min(100, scores.metric + 10); notes.push("分数由 agent 自己报告、评估代码又没有被强制保护：选手兼任裁判（参考 #599）。"); }
+    if (dpSel.env === 0 && dpSel.human === 0) { scores.env = Math.min(100, scores.env + 10); notes.push("在真实环境中无人看管地试错，每次失败都有真实代价。"); }
+    if (dpSel.human === 1 && dpSel.perm === 2 && dpSel.env === 2) notes.push("权限和环境已经很安全，每步审批的收益很小，反而让循环失去速度，可以降为按风险分级。");
+    if (dpSel.goal === 2 && dpSel.perm === 2 && dpSel.env === 2 && dpSel.metric === 2 && dpSel.human === 2) notes.push("五个面都选了最稳妥的方案，与 autoresearch 的设计思路一致，并补上了它缺少的硬约束和噪声复测。");
+    DIMS.forEach(function (d) {
+      var v = scores[d.k]; total += v;
+      var c = v >= 70 ? "var(--bad)" : v >= 40 ? "var(--warn)" : "var(--ok)";
+      var row = document.createElement("div"); row.className = "risk";
+      row.innerHTML = "<span></span><span class='tr'><i style='width:" + v + "%;background:" + c + "'></i></span><span style='font-family:var(--mono)'>" + v + "</span>";
+      row.firstChild.textContent = d.name; bars.appendChild(row);
+    });
+    var avg = Math.round(total / 5), ov = $("dpOverall");
+    var lvl = avg >= 60 ? ["高风险", "var(--bad-soft)", "var(--bad)"] : avg >= 35 ? ["中等风险", "var(--warn-soft)", "var(--warn)"] : ["低风险", "var(--ok-soft)", "var(--ok)"];
+    ov.style.background = lvl[1]; ov.style.color = lvl[2];
+    ov.textContent = "综合评估：" + lvl[0] + "（" + avg + " / 100）";
+    var adv = $("dpAdvice"); adv.innerHTML = "";
+    notes.forEach(function (n) { var li = document.createElement("li"); li.innerHTML = "<b>组合风险：</b>"; li.appendChild(document.createTextNode(n)); adv.appendChild(li); });
+    DIMS.forEach(function (d) {
+      var li = document.createElement("li"); li.innerHTML = "<b></b>"; li.firstChild.textContent = d.name + "：";
+      li.appendChild(document.createTextNode(ADV[dpProd][d.k][dpSel[d.k]])); adv.appendChild(li);
+    });
+    Array.prototype.forEach.call($("dpProd").querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", b.dataset.prod === dpProd); });
+  }
+  $("dpProd").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { dpProd = b.dataset.prod; renderDP(); } });
+  renderDP();
+
+  })();
+</script>

@@ -1,0 +1,401 @@
+---
+// Page-specific workflow execution simulator for the Dify teardown: skip propagation, join waiting,
+// failure strategies (retry / default value / fail branch), user stop and global time limit.
+// Everything is self-contained; the buttons marked data-try in the article jump to a scenario here.
+---
+<section class="card dsim" id="simWidget">
+      <p class="widget-title">工作流执行模拟器</p>
+      <div class="chips" id="scenChips" role="group" aria-label="选择场景">
+        <button class="btn chip" data-sc="product" aria-pressed="true">正常：产品咨询</button>
+        <button class="btn chip" data-sc="after" aria-pressed="false">正常：售后办理（Agent）</button>
+        <button class="btn chip" data-sc="empty" aria-pressed="false">检索为空</button>
+        <button class="btn chip" data-sc="llmfail" aria-pressed="false">LLM 节点失败</button>
+        <button class="btn chip" data-sc="stop" aria-pressed="false">用户中途停止</button>
+        <button class="btn chip" data-sc="timeout" aria-pressed="false">超时</button>
+      </div>
+      <div class="chips" id="stratChips" role="group" aria-label="LLM 节点的失败策略" hidden>
+        <span class="note" style="align-self:center">LLM 节点的异常处理：</span>
+        <button class="btn chip" data-st="none" aria-pressed="true">无</button>
+        <button class="btn chip" data-st="retry" aria-pressed="false">重试</button>
+        <button class="btn chip" data-st="default" aria-pressed="false">默认值</button>
+        <button class="btn chip" data-st="branch" aria-pressed="false">失败分支</button>
+      </div>
+      <div class="scen-explain" id="scenExplain"></div>
+      <div class="sim">
+        <div class="canvas" id="canvas">
+          <svg class="edges" id="edgesSvg" aria-hidden="true">
+            <defs>
+              <marker id="arr-line" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--line)"/></marker>
+              <marker id="arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker>
+              <marker id="arr-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--bad)"/></marker>
+            </defs>
+            <g id="edgesG"></g>
+          </svg>
+          <div class="wn" id="n-start" style="grid-column:2;grid-row:1"><span class="st"></span><span class="ty">开始</span><b>用户提问</b></div>
+          <div class="wn" id="n-kr" style="grid-column:2;grid-row:2"><span class="st"></span><span class="ty">知识检索</span><b>产品手册库</b></div>
+          <div class="wn" id="n-ie" style="grid-column:2;grid-row:3"><span class="st"></span><span class="ty">条件分支</span><b>结果为空？</b></div>
+          <div class="wn" id="n-qc" style="grid-column:2;grid-row:4"><span class="st"></span><span class="ty">问题分类器</span><b>咨询/售后/其他</b></div>
+          <div class="wn" id="n-llm" style="grid-column:1;grid-row:5"><span class="st"></span><span class="ty">LLM</span><b>生成回答</b></div>
+          <div class="wn agent" id="n-agent" style="grid-column:2;grid-row:5"><span class="st"></span><span class="ty">Agent</span><b>查单并办理</b></div>
+          <div class="wn" id="n-fixed" style="grid-column:3;grid-row:5"><span class="st"></span><span class="ty">直接回复</span><b>固定话术/兜底</b></div>
+          <div class="wn" id="n-agg" style="grid-column:2;grid-row:6"><span class="st"></span><span class="ty">变量聚合器</span><b>合并答案</b></div>
+          <div class="wn" id="n-end" style="grid-column:2;grid-row:7"><span class="st"></span><span class="ty">结束</span><b>返回给用户</b></div>
+        </div>
+        <div class="simside">
+          <div class="panel">
+            <div class="statusbar"><span>运行状态</span><span class="pill" id="simStatus">未开始</span><span class="note" id="simClock">虚拟耗时 0s</span><span class="note" id="simSteps">步数 0</span></div>
+          </div>
+          <div class="panel"><h4>变量池（节点输出）</h4><div class="vars" id="simVars"></div></div>
+          <div class="panel"><h4>运行日志</h4><div class="log" id="simLog" aria-live="polite"></div></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="simPlay" type="button">▶ 播放</button>
+        <button class="btn" id="simStep" type="button">单步</button>
+        <button class="btn danger" id="simStopBtn" type="button">■ 停止运行</button>
+        <button class="btn" id="simReset" type="button">重置</button>
+        <label class="note">速度 <select id="simSpeed"><option value="1100">慢</option><option value="700" selected>中</option><option value="350">快</option></select></label>
+      </div>
+      <p class="note">提示：任何场景播放中都可以按“停止运行”，模拟用户点了停止按钮。模拟中的超时为了演示把时间放大了：真实默认上限是 3600 秒。</p>
+    </section>
+
+<style is:global>
+  .dsim .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .dsim .chips[hidden] { display: none; }
+  .dsim .chip { border-radius: 999px; padding: 4px 12px; font-size: .85rem; }
+  .dsim .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .dsim .btn.danger { border-color: var(--bad); color: var(--bad); }
+  .dsim .note { font-size: .88rem; color: var(--muted); }
+  .dsim .sim { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; margin-top: 14px; }
+  @media (max-width: 820px) { .dsim .sim { grid-template-columns: minmax(0, 1fr); } }
+  .dsim .canvas { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(52px, auto); row-gap: 30px; column-gap: 14px; padding: 12px 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+    background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 16px 16px; }
+  .dsim .canvas svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .dsim .wn { position: relative; z-index: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 6px 8px; font-size: .8rem; line-height: 1.3; transition: border-color .25s, background .25s, opacity .25s, box-shadow .25s; min-width: 0; }
+  .dsim .wn .ty { display: block; font-size: .68rem; color: var(--muted); }
+  .dsim .wn b { display: block; overflow-wrap: anywhere; }
+  .dsim .wn .st { position: absolute; top: -9px; right: 6px; font-size: .66rem; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); display: none; }
+  .dsim .wn.run { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); animation: dsim-pulse 1s ease-in-out infinite; }
+  .dsim .wn.ok { border-color: var(--ok); background: var(--ok-soft); }
+  .dsim .wn.fail { border-color: var(--bad); background: var(--bad-soft); }
+  .dsim .wn.exc, .dsim .wn.retry { border-color: var(--warn); background: var(--warn-soft); }
+  .dsim .wn.skip { opacity: .38; border-style: dashed; }
+  .dsim .wn.stopped { border-color: var(--muted); background: var(--surface-2); }
+  .dsim .wn.ok .st, .dsim .wn.fail .st, .dsim .wn.exc .st, .dsim .wn.skip .st, .dsim .wn.run .st, .dsim .wn.retry .st, .dsim .wn.stopped .st { display: block; }
+  .dsim .wn.ok .st { background: var(--ok); color: #fff; }
+  .dsim .wn.fail .st { background: var(--bad); color: #fff; }
+  .dsim .wn.exc .st, .dsim .wn.retry .st { background: var(--warn); color: #fff; }
+  .dsim .wn.run .st { background: var(--accent); color: #fff; }
+  .dsim .wn.stopped .st { background: var(--muted); color: var(--bg); }
+  .dsim .wn.agent { border-left: 4px solid var(--accent); }
+  @keyframes dsim-pulse { 50% { box-shadow: 0 0 0 7px var(--accent-soft); } }
+  @media (prefers-reduced-motion: reduce) { .dsim .wn.run { animation: none; } }
+  .dsim .edge { fill: none; stroke: var(--line); stroke-width: 1.6; transition: stroke .3s, opacity .3s; }
+  .dsim .edge.taken { stroke: var(--accent); stroke-width: 2.6; }
+  .dsim .edge.skipped { stroke-dasharray: 4 4; opacity: .35; }
+  .dsim .edge.fail { stroke: var(--bad); stroke-width: 2.6; }
+  .dsim .edge.failpath { stroke-dasharray: 6 3; stroke: var(--bad); opacity: .6; }
+  .dsim .edge-label { font-size: 10px; fill: var(--muted); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+  .dsim .simside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .dsim .panel { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .dsim .panel h4 { margin: 0 0 6px; font-size: .82rem; color: var(--muted); font-weight: 650; }
+  .dsim .vars { font-family: var(--mono); font-size: .76rem; display: grid; gap: 3px; max-height: 200px; overflow-y: auto; }
+  .dsim .vars div { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 1fr); gap: 6px; padding: 2px 4px; border-radius: 4px; }
+  .dsim .vars div.fresh { background: var(--accent-soft); }
+  .dsim .vars span:first-child { color: var(--accent); overflow-wrap: anywhere; }
+  .dsim .vars span:last-child { overflow-wrap: anywhere; }
+  .dsim .log { font-size: .78rem; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+  .dsim .log div { padding: 3px 6px; border-radius: 5px; background: var(--surface-2); overflow-wrap: anywhere; }
+  .dsim .log div.b { background: var(--bad-soft); }
+  .dsim .log div.w { background: var(--warn-soft); }
+  .dsim .log div.g { background: var(--ok-soft); }
+  .dsim .statusbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .85rem; }
+  .dsim .pill { padding: 2px 10px; border-radius: 999px; background: var(--surface-2); font-weight: 650; font-size: .8rem; }
+  .dsim .pill.ok { background: var(--ok); color: #fff; } .dsim .pill.bad { background: var(--bad); color: #fff; } .dsim .pill.warn { background: var(--warn); color: #fff; } .dsim .pill.run { background: var(--accent); color: #fff; } .dsim .pill.stop { background: var(--muted); color: var(--bg); }
+  .dsim .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  .dsim .scen-explain { margin-top: 10px; font-size: .88rem; background: var(--bg); border: 1px dashed var(--border); border-radius: 10px; padding: 8px 12px; }
+  .dsim select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+</style>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  /* ================================================================ simulator */
+  var EDGES = [
+    { id: 'e1', f: 'start', t: 'kr' },
+    { id: 'e2', f: 'kr', t: 'ie' },
+    { id: 'e3', f: 'ie', t: 'qc', label: '非空' },
+    { id: 'e4', f: 'ie', t: 'fixed', label: '为空', side: 'right' },
+    { id: 'e5', f: 'qc', t: 'llm', label: '产品咨询' },
+    { id: 'e6', f: 'qc', t: 'agent', label: '售后办理' },
+    { id: 'e7', f: 'qc', t: 'fixed', label: '其他' },
+    { id: 'e8', f: 'llm', t: 'agg' },
+    { id: 'e9', f: 'agent', t: 'agg' },
+    { id: 'e10', f: 'fixed', t: 'agg' },
+    { id: 'e11', f: 'agg', t: 'end' },
+    { id: 'e12', f: 'llm', t: 'fixed', label: '失败分支', fail: true }
+  ];
+  var NODE_NAMES = { start: '开始', kr: '知识检索', ie: '条件分支', qc: '问题分类器', llm: 'LLM', agent: 'Agent', fixed: '直接回复', agg: '变量聚合器', end: '结束' };
+  var ST_TEXT = { run: '运行中', ok: '成功', fail: '失败', exc: '异常·已兜底', skip: '跳过', retry: '重试中', stopped: '已停止' };
+  var SC_EXPLAIN = {
+    product: '用户问“X100 支持快充吗？”。检索到资料，分类为“产品咨询”，由 LLM 生成回答。注意观察：分类后，Agent 和固定回复的所有入边都被跳过，所以它们也被跳过。',
+    after: '用户说“订单 8812 三天没发货，帮我催一下”。分类为“售后办理”，交给 Agent：它自己决定先查订单、再建工单，轮次受上限约束。',
+    empty: '用户问“你们支持火星配送吗？”。知识检索节点<b>成功</b>，但结果是空数组；条件分支把它导向固定回复，而不是让 LLM 在没有资料时硬答。',
+    llmfail: '同样是产品咨询，但模型供应商返回 429（请求过多）。切换下面的异常处理方式，看看四种结局：无兜底直接失败、重试后成功、用默认值继续、走失败分支到兜底话术。',
+    stop: '售后办理过程中，用户在 Agent 第 2 轮时点了停止。系统发送中止命令，已完成节点的结果保留，后续节点不再执行。',
+    timeout: '售后办理中 Agent 调用的外部 ERP 极慢。为演示把时间放大：执行上限检查发生在节点完成时，Agent 结束时已超过 3600 秒，于是运行被中止。'
+  };
+
+  var scen = 'product', strat = 'none';
+  var steps = [], idx = 0, timer = null, finished = false;
+  var state = {}, vars = {}, clock = 0, stepCount = 0, runningNode = null;
+
+  function build(sc, st) {
+    var S = [];
+    function run(n, log, t, cls) { S.push({ n: n, ph: 'run', log: log, t: t || 0, cls: cls }); }
+    function done(n, s, o) { o = o || {}; o.n = n; o.ph = 'done'; o.s = s; S.push(o); }
+    var hasFailEdge = (sc === 'llmfail' && st === 'branch');
+    var q = { product: 'X100 支持快充吗？', llmfail: 'X100 支持快充吗？', empty: '你们支持火星配送吗？', after: '订单 8812 三天没发货，帮我催一下', stop: '订单 8812 三天没发货，帮我催一下', timeout: '订单 8812 三天没发货，帮我催一下' }[sc];
+    run('start', '▶ 开始节点：接收用户输入');
+    done('start', 'ok', { e: { e1: 'taken' }, v: { 'sys.query': q }, t: 0.1, log: '写入系统变量 sys.query' });
+    run('kr', '▶ 知识检索：以 sys.query 检索“产品手册库”（混合检索 + 重排）');
+    var empty = sc === 'empty';
+    var krRes = empty ? '[]（0 个分段）' : (sc === 'product' || sc === 'llmfail' ? '[3 个分段] X100 最高 65W 快充…' : '[1 个分段] 售后政策：48 小时内发货…');
+    done('kr', 'ok', { e: { e2: 'taken' }, v: { '知识检索.result': krRes }, t: 0.8, log: empty ? '检索结果为空，但节点状态是“成功”——没找到不是系统错误' : '检索完成，结果写入变量池', cls: empty ? 'w' : '' });
+    run('ie', '▶ 条件分支：判断 知识检索.result 是否为空');
+    if (empty) {
+      done('ie', 'ok', { e: { e4: 'taken', e3: 'skipped', e5: 'skipped', e6: 'skipped', e7: 'skipped', e8: 'skipped', e9: 'skipped' }, sk: ['qc', 'llm', 'agent'], v: { '条件分支.命中': '为空' }, t: 0.01,
+        log: '走“为空”出边；“非空”出边被跳过，跳过沿下游传递：问题分类器、LLM、Agent 都被跳过' });
+      run('fixed', '▶ 直接回复：入边中“为空”已走、“其他”已跳过，没有未确定的入边 → 就绪');
+      done('fixed', 'ok', { e: { e10: 'taken' }, v: { '直接回复.text': '资料库里暂时没有这方面的信息，已为你转接人工客服。' }, t: 0.01, log: '输出固定话术，避免模型在没有资料时编造' });
+    } else {
+      done('ie', 'ok', { e: { e3: 'taken', e4: 'skipped' }, v: { '条件分支.命中': '非空' }, t: 0.01, log: '走“非空”出边；“为空”出边被标记为跳过' });
+      run('qc', '▶ 问题分类器：让模型在 3 个类别中选 1 个');
+      var isProduct = (sc === 'product' || sc === 'llmfail');
+      if (isProduct) {
+        var e = { e5: 'taken', e6: 'skipped', e7: 'skipped', e9: 'skipped' };
+        var sk = ['agent'];
+        var lg = 'class_name = 产品咨询。Agent 的唯一入边被跳过 → Agent 跳过。';
+        if (!hasFailEdge) { e.e10 = 'skipped'; sk.push('fixed'); lg += '直接回复的入边（为空、其他）都被跳过 → 它也跳过。'; }
+        else { lg += '直接回复还有一条“失败分支”入边未确定，所以它继续等待，不会被跳过。'; }
+        done('qc', 'ok', { e: e, sk: sk, v: { '问题分类器.class_name': '产品咨询' }, t: 0.6, log: lg });
+        run('llm', '▶ LLM：把检索结果放进上下文，流式生成回答');
+        if (sc === 'product') {
+          done('llm', 'ok', { e: { e8: 'taken' }, v: { 'LLM.text': '支持。X100 最高 65W 快充，约 35 分钟充满…' }, t: 2.4, log: '生成完成（约 180 token）' });
+        } else {
+          run('llm', '✗ 第 1 次调用失败：429 Too Many Requests', 1.2, 'b');
+          if (st === 'none') {
+            done('llm', 'fail', { t: 0, log: '未配置重试与失败策略 → 失败处理器返回“无后续” → 当前作用域失败，整次运行失败', cls: 'b', status: 'failed', v: { 'LLM.error': '429 Too Many Requests' } });
+            return S;
+          }
+          if (st === 'retry') {
+            run('llm', '↻ 等待重试间隔 1000ms，第 1 次重试（最多 3 次）', 1.0, 'w');
+            run('llm', '✗ 第 1 次重试仍然 429', 1.1, 'b');
+            run('llm', '↻ 第 2 次重试', 1.0, 'w');
+            done('llm', 'ok', { e: { e8: 'taken' }, v: { 'LLM.text': '支持。X100 最高 65W 快充…' }, t: 2.3, log: '第 2 次重试成功，流程照常继续；日志里会记录重试次数' });
+          } else if (st === 'default') {
+            done('llm', 'exc', { e: { e8: 'taken' }, v: { 'LLM.text': '抱歉，现在咨询的人有点多，请稍后再试。（默认值）', 'LLM.error_message': '429 Too Many Requests' }, t: 0, log: '按“默认值”策略：节点状态变为“异常”，输出预设的默认文本，并附上 error_message 供下游使用', cls: 'w', partial: true });
+          } else {
+            done('llm', 'exc', { e: { e12: 'fail', e8: 'skipped' }, v: { 'LLM.error_message': '429 Too Many Requests', 'LLM.error_type': 'RateLimitError' }, t: 0, log: '按“失败分支”策略：走 fail-branch 出边，成功出边被跳过；错误信息成为变量', cls: 'w', partial: true });
+            run('fixed', '▶ 直接回复：失败分支入边已走，其余入边已跳过 → 就绪');
+            done('fixed', 'ok', { e: { e10: 'taken' }, v: { '直接回复.text': '系统有点忙，已为你转接人工客服。' }, t: 0.01, log: '输出兜底话术' });
+          }
+        }
+      } else {
+        done('qc', 'ok', { e: { e6: 'taken', e5: 'skipped', e7: 'skipped', e8: 'skipped', e10: 'skipped' }, sk: ['llm', 'fixed'], v: { '问题分类器.class_name': '售后办理' }, t: 0.6, log: 'class_name = 售后办理。LLM 与直接回复的入边全部被跳过 → 它们被跳过' });
+        var slow = sc === 'timeout';
+        run('agent', '▶ Agent 第 1 轮：思考 → 需要先查订单状态（轮次上限 5）', 1.5);
+        run('agent', '🔧 调用工具 query_order(8812)' + (slow ? '（外部 ERP 响应极慢）' : '') + ' → 状态：仓库缺货', slow ? 1250 : 1.2);
+        if (sc === 'stop') {
+          run('agent', '▶ Agent 第 2 轮：思考 → 准备调用 create_ticket…', 1.0);
+          S.push({ ph: 'stop', auto: true });
+          return S;
+        }
+        run('agent', '▶ Agent 第 2 轮：调用工具 create_ticket(催发货)' + (slow ? '（再次等待外部系统）' : ''), slow ? 1300 : 1.4);
+        run('agent', '▶ Agent 第 3 轮：整理答复', slow ? 1200 : 1.1);
+        done('agent', 'ok', { e: { e9: 'taken' }, v: { 'Agent.text': '已为你创建催发货工单 T-2291，仓库预计明天发出。', 'Agent.轮次': '3 / 上限 5' }, t: 0.2, log: 'Agent 结束：共 3 轮、2 次工具调用' });
+        if (slow) {
+          S.push({ ph: 'limit' });
+          return S;
+        }
+      }
+    }
+    run('agg', '▶ 变量聚合器：所有入边都已确定（一条已走，其余已跳过）→ 就绪');
+    done('agg', 'ok', { e: { e11: 'taken' }, v: { '变量聚合器.output': '= 来自被执行分支的那个输出' }, t: 0.01, log: '只取实际执行的那条分支的输出' });
+    run('end', '▶ 结束：返回给用户');
+    done('end', 'ok', { t: 0.01, log: '运行结束', status: 'final' });
+    return S;
+  }
+
+  var canvas = $('#canvas'), edgesG = $('#edgesG');
+  function visibleEdges() { return EDGES.filter(function (e) { return !e.fail || (scen === 'llmfail' && strat === 'branch'); }); }
+  var edgeState = {};
+
+  function drawEdges() {
+    var cr = canvas.getBoundingClientRect();
+    var out = '';
+    visibleEdges().forEach(function (e) {
+      var a = $('#n-' + e.f).getBoundingClientRect(), b = $('#n-' + e.t).getBoundingClientRect();
+      var x1, y1, x2 = b.left + b.width / 2 - cr.left, y2 = b.top - cr.top, d;
+      if (e.side === 'right') {
+        x1 = a.right - cr.left; y1 = a.top + a.height / 2 - cr.top;
+        d = 'M' + x1 + ' ' + y1 + ' C' + (x2) + ' ' + y1 + ' ' + x2 + ' ' + y1 + ' ' + x2 + ' ' + (y2 - 2);
+      } else if (e.fail) {
+        x1 = a.left + a.width * 0.7 - cr.left; y1 = a.bottom - cr.top;
+        x2 = b.left + b.width * 0.3 - cr.left; y2 = b.bottom - cr.top;
+        var dip = y1 + 22;
+        d = 'M' + x1 + ' ' + y1 + ' C' + x1 + ' ' + dip + ' ' + x2 + ' ' + dip + ' ' + x2 + ' ' + (y2 + 2);
+      } else {
+        x1 = a.left + a.width / 2 - cr.left; y1 = a.bottom - cr.top;
+        var my = (y1 + y2) / 2;
+        d = 'M' + x1 + ' ' + y1 + ' C' + x1 + ' ' + my + ' ' + x2 + ' ' + my + ' ' + x2 + ' ' + (y2 - 2);
+      }
+      var s = edgeState[e.id] || '';
+      var cls = 'edge ' + (s === 'taken' ? 'taken' : s === 'skipped' ? 'skipped' : s === 'fail' ? 'fail' : (e.fail ? 'failpath' : ''));
+      var mk = (s === 'taken') ? 'arr-acc' : (s === 'fail' || e.fail) ? 'arr-bad' : 'arr-line';
+      out += '<path class="' + cls + '" d="' + d + '" marker-end="url(#' + mk + ')"/>';
+      if (e.label) {
+        var lx, ly;
+        if (e.side === 'right') { lx = (x1 + x2) / 2 + 4; ly = y1 - 4; }
+        else if (e.fail) { lx = (x1 + x2) / 2; ly = y1 + 26; }
+        else { lx = (x1 + x2) / 2; ly = (y1 + y2) / 2 + 3; }
+        out += '<text class="edge-label" x="' + lx + '" y="' + ly + '" text-anchor="middle">' + e.label + '</text>';
+      }
+    });
+    edgesG.innerHTML = out;
+  }
+
+  function setNode(n, s) {
+    state[n] = s;
+    var el = $('#n-' + n);
+    el.classList.remove('run', 'ok', 'fail', 'exc', 'skip', 'retry', 'stopped');
+    if (s) el.classList.add(s);
+    $('.st', el).textContent = s ? ST_TEXT[s] : '';
+  }
+  function addLog(msg, cls) {
+    var d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = msg;
+    var L = $('#simLog'); L.appendChild(d); L.scrollTop = L.scrollHeight;
+  }
+  function renderVars(fresh) {
+    var box = $('#simVars'); var keys = Object.keys(vars);
+    if (!keys.length) { box.innerHTML = '<div><span>（空）</span><span>运行后，节点输出会出现在这里</span></div>'; return; }
+    box.innerHTML = keys.map(function (k) {
+      return '<div class="' + (fresh && fresh.indexOf(k) >= 0 ? 'fresh' : '') + '"><span>' + k + '</span><span>' + String(vars[k]).replace(/</g, '&lt;') + '</span></div>';
+    }).join('');
+  }
+  function setStatus(text, cls) { var p = $('#simStatus'); p.textContent = text; p.className = 'pill ' + (cls || ''); }
+  function updateMeta() {
+    $('#simClock').textContent = '虚拟耗时 ' + (clock >= 100 ? Math.round(clock) : clock.toFixed(1)) + 's';
+    $('#simSteps').textContent = '步数 ' + stepCount;
+  }
+  var partial = false;
+
+  function reset() {
+    stopTimer();
+    steps = build(scen, strat); idx = 0; finished = false; partial = false;
+    state = {}; vars = {}; clock = 0; stepCount = 0; runningNode = null; edgeState = {};
+    Object.keys(NODE_NAMES).forEach(function (n) { setNode(n, null); });
+    $('#simLog').innerHTML = ''; renderVars();
+    setStatus('未开始'); updateMeta();
+    $('#scenExplain').innerHTML = SC_EXPLAIN[scen];
+    $('#stratChips').hidden = scen !== 'llmfail';
+    drawEdges(); syncButtons();
+  }
+  function syncButtons() {
+    $('#simPlay').disabled = finished; $('#simStep').disabled = finished || !!timer;
+    $('#simStopBtn').disabled = finished || idx === 0;
+    $('#simPlay').textContent = timer ? '❚❚ 暂停播放' : '▶ 播放';
+  }
+  function finish(text, cls) { finished = true; stopTimer(); setStatus(text, cls); syncButtons(); }
+
+  function abort(reason, byLimit) {
+    var target = runningNode;
+    if (target) { setNode(target, 'stopped'); }
+    addLog((byLimit ? '⏱ ' : '■ ') + '发送 AbortCommand(reason="' + reason + '")' + (target ? '；' + NODE_NAMES[target] + ' 节点在检查点停下' : ''), 'b');
+    addLog(byLimit ? 'Dify 把超限中止转换为“停止”事件，原因写入日志；已完成节点的输出保留' : '已完成节点的输出保留在日志里；未开始的节点不会执行', 'w');
+    runningNode = null;
+    finish(byLimit ? '已停止（超出最长执行时间）' : '已停止（用户手动）', 'stop');
+  }
+
+  function tick() {
+    if (finished) return;
+    var s = steps[idx++];
+    if (!s) return;
+    if (s.ph === 'stop') { abort('User requested stop', false); return; }
+    if (s.ph === 'limit') {
+      addLog('执行上限层在 Agent 完成时检查：已用 ' + Math.round(clock) + 's > 3600s', 'b');
+      abort('Maximum execution time exceeded: ' + Math.round(clock) + 's > 3600s', true);
+      return;
+    }
+    clock += s.t || 0;
+    if (s.ph === 'run') {
+      if (state[s.n] !== 'run' && state[s.n] !== 'retry') stepCount++;
+      runningNode = s.n;
+      setNode(s.n, s.cls === 'w' ? 'retry' : 'run');
+      if (s.cls === 'w' || s.cls === 'b') { setNode(s.n, s.cls === 'w' ? 'retry' : 'run'); }
+      addLog(s.log, s.cls);
+    } else {
+      runningNode = null;
+      setNode(s.n, s.s);
+      if (s.e) Object.keys(s.e).forEach(function (k) { edgeState[k] = s.e[k]; });
+      if (s.sk) s.sk.forEach(function (n) { setNode(n, 'skip'); });
+      var fresh = [];
+      if (s.v) Object.keys(s.v).forEach(function (k) { vars[k] = s.v[k]; fresh.push(k); });
+      renderVars(fresh);
+      if (s.log) addLog('✓ ' + NODE_NAMES[s.n] + '：' + s.log, s.cls || (s.s === 'ok' ? '' : ''));
+      if (s.partial) partial = true;
+      drawEdges();
+      if (s.status === 'failed') { updateMeta(); finish('失败', 'bad'); return; }
+      if (s.status === 'final') {
+        updateMeta();
+        if (partial) { addLog('有节点走了兜底 → 整次运行状态为“部分成功”（partial succeeded）', 'w'); finish('部分成功', 'warn'); }
+        else { addLog('全部节点按预期完成', 'g'); finish('成功', 'ok'); }
+        return;
+      }
+    }
+    if (!finished) setStatus('运行中', 'run');
+    updateMeta(); syncButtons();
+  }
+  function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+  function play() {
+    if (finished) return;
+    if (timer) { stopTimer(); syncButtons(); return; }
+    var sp = +$('#simSpeed').value;
+    tick();
+    timer = setInterval(function () { if (finished) { stopTimer(); syncButtons(); return; } tick(); }, sp);
+    syncButtons();
+  }
+  $('#simPlay').addEventListener('click', play);
+  $('#simStep').addEventListener('click', function () { tick(); syncButtons(); });
+  $('#simReset').addEventListener('click', reset);
+  $('#simStopBtn').addEventListener('click', function () { if (!finished && idx > 0) abort('User requested stop', false); });
+  $('#simSpeed').addEventListener('change', function () { if (timer) { stopTimer(); play(); } });
+  function pick(group, attr, val) { $$('button', group).forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute(attr) === val)); }); }
+  $('#scenChips').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-sc]'); if (!b) return;
+    scen = b.getAttribute('data-sc'); pick($('#scenChips'), 'data-sc', scen); reset();
+  });
+  $('#stratChips').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-st]'); if (!b) return;
+    strat = b.getAttribute('data-st'); pick($('#stratChips'), 'data-st', strat); reset();
+  });
+  $$('[data-try]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      scen = b.getAttribute('data-try'); pick($('#scenChips'), 'data-sc', scen);
+      if (b.getAttribute('data-strat')) { strat = b.getAttribute('data-strat'); pick($('#stratChips'), 'data-st', strat); }
+      reset();
+      $('#simWidget').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(play, 600);
+    });
+  });
+  if (window.ResizeObserver) new ResizeObserver(drawEdges).observe(canvas);
+  window.addEventListener('resize', drawEdges);
+  reset();
+
+})();
+</script>

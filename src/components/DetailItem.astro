@@ -1,0 +1,21 @@
+---
+// One collapsible entry inside <FilterDetails>. `tags` are small coloured labels after the title
+// (tone: ok / warn / bad / accent); `kinds` are the filter ids this entry belongs to.
+interface Props { title: string; kinds?: string[]; tags?: { label: string; tone?: 'ok' | 'warn' | 'bad' | 'accent' }[]; open?: boolean }
+const { title, kinds = [], tags = [], open = false } = Astro.props;
+---
+<details class="di" data-kinds={kinds.join(' ')} open={open}>
+  <summary>{title} {tags.map((t) => <span class={`tag ${t.tone ?? ''}`}>{t.label}</span>)}</summary>
+  <div class="body"><slot /></div>
+</details>
+
+<style>
+  .di { border: 1px solid var(--border); border-radius: 12px; margin: 10px 0; background: var(--surface); }
+  .di[hidden] { display: none; }
+  summary { padding: 12px 16px; cursor: pointer; font-weight: 650; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; font-family: var(--mono); color: var(--accent); width: 1em; }
+  .di[open] > summary::before { content: "−"; }
+  .body { padding: 0 16px 14px; }
+  .body :global(p) { margin: 8px 0; }
+</style>

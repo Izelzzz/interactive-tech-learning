@@ -1,0 +1,118 @@
+---
+// Page-specific "能用 → 敢用" readiness checklist for the Dify teardown: weighted items grouped in
+// four stages, a progress meter with a verdict line, a reveal of the matching Dify mechanism for each
+// ticked item, and a warning for unticked high-risk items. Ticks are remembered in localStorage.
+const stages = [
+  { t: '① 能跑通 → 能用：调试', items: [
+    ['step', '每个关键节点都单步运行过', '单步运行任意节点并查看“上次运行”结果，快速迭代提示词。', 1],
+    ['empty', '处理了“检索为空”的分支', '知识检索为空时节点是成功的，需要条件分支显式处理。', 2],
+    ['limit', '循环 / 迭代 / Agent 都设了上限', '循环必须设最大次数（≤100），Agent 轮次 ≤99，全局 500 步。', 2],
+  ] },
+  { t: '② 能用 → 可交付：版本与出口', items: [
+    ['publish', '通过“发布”上线，而不是直接改线上', '草稿与发布分离；发布时校验模型引用、凭据、图结构。', 2],
+    ['channel', '确定了交付渠道（API / WebApp / MCP）', '同一个已发布版本可同时提供 API、WebApp、MCP 服务。', 1],
+    ['errh', '外部依赖节点配置了重试与失败分支', 'LLM、工具、HTTP、代码、Agent 节点可设重试、默认值或失败分支。', 3],
+  ] },
+  { t: '③ 可交付 → 可运营：观测', items: [
+    ['logs', '有人定期看运行日志', '每次运行的节点输入输出、耗时、token、费用都会记录。', 1],
+    ['trace', '接入了追踪平台并确认节点级数据可见', '支持 10 个追踪平台；上线后要验证节点级追踪确实在上报（参见 #36099）。', 2],
+    ['annot', '高频问题用标注回复固化答案', '相似度超过阈值的问题直接返回标注答案，不再调用模型。', 1],
+  ] },
+  { t: '④ 可运营 → 敢用：防护', items: [
+    ['role', '按角色分配权限', '所有者 / 管理员 / 编辑 / 普通成员 / 知识库操作员。', 2],
+    ['rate', '设置了应用并发上限', '超出最大并发时返回 “Too many requests”，保护模型配额。', 3],
+    ['sandbox', '代码节点运行在沙箱里，出站走 SSRF 代理', '独立 sandbox 服务 + ssrf_proxy，带读写超时和输出校验。', 3],
+    ['load', '做过并发压测并调整了队列与连接数', '默认值未必适合你的负载（参见 #36023）。', 2],
+  ] },
+] as const;
+---
+<section class="card rc" id="checkWidget">
+  <p class="widget-title">你的工作流离“敢用”还差多少？</p>
+  <p class="widget-hint">勾选你已经做到的项目，进度条从“能用”走向“敢用”；勾选后会展开 Dify 中对应的机制。未勾选的高风险项会在下方提示。</p>
+  <div class="meter">
+    <div class="meter-bar"><i id="meterFill"></i></div>
+    <div class="meter-scale"><span>能跑通</span><span>能用</span><span>可运营</span><span>敢用</span></div>
+    <div class="meter-msg" id="meterMsg"></div>
+  </div>
+  <div class="stages" id="stages">
+    {stages.map((s) => (
+      <div class="stage">
+        <h4>{s.t}</h4>
+        {s.items.map((i) => (
+          <div class="ck" data-id={i[0]} data-w={i[3]} data-label={i[1]}>
+            <label><input type="checkbox" data-id={i[0]} />{i[1]}</label>
+            <div class="how">Dify 中的机制：{i[2]}</div>
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+  <div class="risk" id="riskBox"></div>
+</section>
+
+<style is:global>
+  .rc .meter { margin-top: 12px; }
+  .rc .meter-bar { position: relative; height: 14px; border-radius: 7px; background: var(--surface-2); overflow: hidden; }
+  .rc .meter-bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--warn), var(--ok)); transition: width .45s ease; }
+  .rc .meter-scale { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-top: 4px; }
+  .rc .meter-msg { margin-top: 8px; font-size: .9rem; font-weight: 600; }
+  .rc .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+  .rc .stage { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  .rc .stage h4 { margin: 0 0 6px; font-size: .9rem; }
+  .rc .ck { display: block; border-top: 1px solid var(--border); padding: 6px 0; font-size: .86rem; }
+  .rc .ck:first-of-type { border-top: 0; }
+  .rc .ck label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; font-weight: 600; }
+  .rc .ck input { margin-top: 5px; accent-color: var(--ok); }
+  .rc .ck .how { display: none; font-size: .82rem; color: var(--muted); margin: 4px 0 0 22px; }
+  .rc .ck.on .how { display: block; }
+  .rc .risk { margin-top: 10px; font-size: .86rem; background: var(--warn-soft); border-radius: 10px; padding: 8px 12px; }
+</style>
+
+<script>
+  const box = document.querySelector<HTMLElement>('#checkWidget');
+  if (box) {
+    const rows = [...box.querySelectorAll<HTMLElement>('.ck')];
+    const total = rows.reduce((n, r) => n + Number(r.dataset.w), 0);
+    let checked: Record<string, boolean> = {};
+    try { checked = JSON.parse(localStorage.getItem('dify-checklist') || '{}') || {}; } catch { checked = {}; }
+    const fill = box.querySelector<HTMLElement>('#meterFill')!;
+    const msgEl = box.querySelector<HTMLElement>('#meterMsg')!;
+    const riskEl = box.querySelector<HTMLElement>('#riskBox')!;
+    const render = () => {
+      let score = 0;
+      const risks: string[] = [];
+      for (const row of rows) {
+        const on = !!checked[row.dataset.id!];
+        row.classList.toggle('on', on);
+        row.querySelector<HTMLInputElement>('input')!.checked = on;
+        const w = Number(row.dataset.w);
+        if (on) score += w; else if (w >= 3) risks.push(row.dataset.label!);
+      }
+      const pct = Math.round(score / total * 100);
+      fill.style.width = pct + '%';
+      const msg = pct === 0 ? '还停留在“能跑通”：画布上演示没问题，但还不能给真实用户。' :
+        pct < 35 ? '接近“能用”：自己人试用可以，外部用户还会踩坑。' :
+        pct < 70 ? '进入“可运营”：能交付，接下来要让问题可被发现、可被修正。' :
+        pct < 100 ? '接近“敢用”：防护网基本到位，补齐剩余项就能放心放量。' : '“敢用”：调试、版本、交付、观测、防护五类机制都已就位。';
+      msgEl.textContent = pct + '% · ' + msg;
+      riskEl.replaceChildren();
+      const b = document.createElement('b');
+      if (risks.length) {
+        b.textContent = '高风险缺口：';
+        riskEl.append(b, risks.join('；') + '。这些项一旦出问题，影响的是所有用户或你的账单。');
+      } else {
+        b.textContent = '高风险项已全部覆盖。';
+        riskEl.append(b, '别忘了定期复查默认上限是否仍适合你的流量。');
+      }
+    };
+    box.addEventListener('change', (ev) => {
+      const t = ev.target as HTMLInputElement;
+      const id = t.dataset.id;
+      if (!id) return;
+      checked[id] = t.checked;
+      try { localStorage.setItem('dify-checklist', JSON.stringify(checked)); } catch { /* ignore */ }
+      render();
+    });
+    render();
+  }
+</script>
