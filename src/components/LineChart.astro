@@ -1,0 +1,62 @@
+---
+// Line chart with a slider that reveals the series point by point, for "watch the totals
+// diverge as X grows" comparisons. series: [{ label, points: number[] }]; all series share the x axis.
+interface Props { title: string; hint?: string; series: { label: string; points: number[] }[]; xLabel: string; yLabel: string; note?: string }
+const { title, hint = '', series, xLabel, yLabel, note = '' } = Astro.props;
+---
+<section class="card lc" data-lc={JSON.stringify({ series, note })}>
+  <p class="widget-title">{title}</p>
+  {hint && <p class="widget-hint">{hint}</p>}
+  <svg viewBox="0 0 600 260" role="img" aria-label={title}></svg>
+  <div class="row"><label>{xLabel}：<output></output></label><input type="range" min="1" value="1"></div>
+  <p class="readout" aria-live="polite"></p>
+  <p class="axis">纵轴：{yLabel}</p>
+</section>
+
+<style>
+  svg { width: 100%; height: auto; display: block; }
+  input[type=range] { flex: 1; min-width: 140px; }
+  .readout { margin: 6px 0 0; }
+  .axis { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
+  svg :global(.grid) { stroke: var(--border); }
+  svg :global(.s0) { stroke: var(--bad); }
+  svg :global(.s1) { stroke: var(--ok); }
+  svg :global(.s2) { stroke: var(--accent); }
+  svg :global(.s3) { stroke: var(--warn); }
+  svg :global(polyline) { fill: none; stroke-width: 3; }
+  svg :global(text) { fill: var(--muted); font-size: 13px; }
+</style>
+
+<script>
+  const SVG = 'http://www.w3.org/2000/svg';
+  for (const box of document.querySelectorAll<HTMLElement>('[data-lc]')) {
+    const { series, note } = JSON.parse(box.dataset.lc!);
+    const svg = box.querySelector('svg')!, range = box.querySelector('input')!, out = box.querySelector('output')!;
+    const n = series[0].points.length, max = Math.max(...series.flatMap((s: any) => s.points));
+    range.max = String(n);
+    const X = (i: number) => 40 + (i / Math.max(1, n - 1)) * 540, Y = (v: number) => 230 - (v / max) * 200;
+    svg.innerHTML = `<line class="grid" x1="40" y1="230" x2="580" y2="230"/><line class="grid" x1="40" y1="30" x2="40" y2="230"/>`;
+    const lines = series.map((s: any, i: number) => {
+      const p = document.createElementNS(SVG, 'polyline');
+      p.setAttribute('class', 's' + i);
+      svg.append(p);
+      const t = document.createElementNS(SVG, 'text');
+      t.textContent = s.label;
+      svg.append(t);
+      return { p, t, s };
+    });
+    const draw = () => {
+      const m = Number(range.value);
+      out.textContent = String(m);
+      for (const { p, t, s } of lines) {
+        const pts = s.points.slice(0, m).map((v: number, i: number) => `${X(i)},${Y(v)}`);
+        p.setAttribute('points', pts.join(' '));
+        t.setAttribute('x', String(Math.min(X(m - 1) + 6, 520)));
+        t.setAttribute('y', String(Y(s.points[m - 1]) - 6));
+      }
+      box.querySelector('.readout')!.textContent = series.map((s: any) => `${s.label}：${s.points[m - 1]}`).join('　') + (note ? '。' + note : '');
+    };
+    range.addEventListener('input', draw);
+    draw();
+  }
+</script>

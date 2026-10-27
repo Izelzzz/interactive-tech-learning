@@ -1,0 +1,22 @@
+---
+// A highlighted box. `type` picks the label and colour:
+// 结论 (one-line takeaway), 要点 (summary), 推测 (our inference), 建议 (our recommendation), 注意 (caveat).
+interface Props { type?: '结论' | '要点' | '推测' | '建议' | '注意'; title?: string }
+const { type = '要点', title } = Astro.props;
+const tone = { 结论: 'accent', 要点: 'ok', 推测: 'warn', 建议: 'warn', 注意: 'bad' }[type];
+---
+<aside class={`callout ${tone}`}>
+  <div class="callout-head"><span class={`tag ${tone}`}>{type}</span>{title && <strong>{title}</strong>}</div>
+  <div class="callout-body"><slot /></div>
+</aside>
+
+<style>
+  .callout { border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; background: var(--surface); padding: 10px 14px; margin: 16px 0; }
+  .callout.accent { border-left-color: var(--accent); }
+  .callout.ok { border-left-color: var(--ok); }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.bad { border-left-color: var(--bad); }
+  .callout-head { display: flex; gap: 8px; align-items: center; margin-bottom: 2px; }
+  .callout-body :global(p) { margin: 4px 0; }
+  .callout-body :global(ul) { margin: 4px 0; padding-left: 1.2em; }
+</style>

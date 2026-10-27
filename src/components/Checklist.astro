@@ -1,0 +1,40 @@
+---
+// A tick-off checklist with a progress bar; `copy` adds a button that copies the list as Markdown.
+// items: [{ label, detail? }]
+interface Props { title: string; hint?: string; items: { label: string; detail?: string }[]; copy?: boolean }
+const { title, hint = '', items, copy = true } = Astro.props;
+const md = items.map((i) => `- [ ] ${i.label}${i.detail ? `：${i.detail}` : ''}`).join('\n');
+---
+<section class="card chk" data-md={md}>
+  <p class="widget-title">{title}</p>
+  {hint && <p class="widget-hint">{hint}</p>}
+  <div class="bar"><span></span></div>
+  <ul>
+    {items.map((i) => <li><label><input type="checkbox"> <strong>{i.label}</strong>{i.detail && <span class="d">{i.detail}</span>}</label></li>)}
+  </ul>
+  {copy && <button class="btn copy" type="button">复制为 Markdown</button>}
+</section>
+
+<style>
+  .bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-bottom: 10px; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s; }
+  ul { list-style: none; padding: 0; margin: 0 0 10px; }
+  li { padding: 6px 0; border-bottom: 1px solid var(--border); }
+  label { cursor: pointer; display: block; }
+  .d { display: block; color: var(--muted); font-size: .92rem; margin-left: 1.6em; }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>('.chk')) {
+    const boxes = [...box.querySelectorAll<HTMLInputElement>('input')];
+    const bar = box.querySelector<HTMLElement>('.bar span')!;
+    const upd = () => { bar.style.width = (100 * boxes.filter((b) => b.checked).length / boxes.length) + '%'; };
+    boxes.forEach((b) => b.addEventListener('change', upd));
+    const btn = box.querySelector<HTMLButtonElement>('.copy');
+    btn?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(box.dataset.md!); btn.textContent = '已复制'; }
+      catch { btn.textContent = '复制失败，请手动选择文字'; }
+      setTimeout(() => { btn.textContent = '复制为 Markdown'; }, 1600);
+    });
+  }
+</script>

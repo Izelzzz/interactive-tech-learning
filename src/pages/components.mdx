@@ -1,0 +1,116 @@
+---
+layout: ../layouts/Article.astro
+title: 组件示例
+lede: 写新页面时可用的全部组件，每个都配一个最小例子。页面作者照着这里的写法填数据即可。
+---
+import Callout from '../components/Callout.astro';
+import Source from '../components/Source.astro';
+import Quiz from '../components/Quiz.astro';
+import Simulator from '../components/Simulator.astro';
+import Diagram from '../components/Diagram.astro';
+import Advisor from '../components/Advisor.astro';
+import Checklist from '../components/Checklist.astro';
+import CopyBlock from '../components/CopyBlock.astro';
+import LineChart from '../components/LineChart.astro';
+
+## 一、正文与标注
+
+正文直接写 Markdown：段落、**加粗**、`代码`、列表、表格都可以。论断旁边放证据链接 <Source href="https://github.com/langgenius/dify" />，或者 <Source href="https://github.com/langgenius/dify/issues" label="issue" />。
+
+<Callout type="结论">每章开头先给一句话结论。</Callout>
+<Callout type="推测">不是来自原文或源码的判断，用“推测”或“建议”标出来。</Callout>
+
+| 形态 | 人做什么 | 系统做什么 |
+| --- | --- | --- |
+| 界面 | 点按钮 | 执行一次 |
+| 工作流 | 画流程 | 按流程跑 |
+
+## 二、流程模拟器
+
+<Simulator
+  title="一次工作流运行"
+  hint="切换场景，看引擎在不同情况下怎么走。"
+  width={760} height={200}
+  nodes={[
+    { id: 'start', label: '开始', x: 60, y: 100 },
+    { id: 'kb', label: '知识检索', x: 210, y: 100 },
+    { id: 'cls', label: '问题分类', x: 370, y: 100 },
+    { id: 'llm', label: 'LLM 回答', x: 540, y: 50 },
+    { id: 'human', label: '转人工', x: 540, y: 150 },
+    { id: 'end', label: '结束', x: 700, y: 100 },
+  ]}
+  edges={[['start','kb'],['kb','cls'],['cls','llm'],['cls','human'],['llm','end'],['human','end']]}
+  scenarios={[
+    { id: 'ok', label: '正常', steps: [
+      { at: 'start', say: '用户提问。', set: { query: '怎么退款？' }, log: '开始' },
+      { at: 'kb', say: '检索到 3 段相关文档。', set: { docs: 3 }, log: '检索 3 条' },
+      { at: 'cls', say: '分类为“售后”。', set: { 类别: '售后' } },
+      { at: 'human', status: 'skip', say: '这条分支不走。' },
+      { at: 'llm', say: '基于文档生成回答。', set: { answer: '在订单页点“申请退款”…' } },
+      { at: 'end', status: 'ok', say: '完成。', log: '成功' },
+    ] },
+    { id: 'empty', label: '检索为空', steps: [
+      { at: 'start', say: '用户提问。', set: { query: '你们老板是谁？' } },
+      { at: 'kb', status: 'wait', say: '一条都没检索到。', set: { docs: 0 }, log: '检索为空' },
+      { at: 'cls', say: '分类为“其他”。', set: { 类别: '其他' } },
+      { at: 'human', say: '走兜底分支，转人工。' },
+      { at: 'end', status: 'ok', say: '完成（兜底）。' },
+    ] },
+  ]}
+/>
+
+不画图也能用：只用 `files` 和 `set` 演示“文件怎么一步步生成”。
+
+<Simulator
+  title="编译出一个维基页面"
+  scenarios={[{ id: 'a', label: '编译', steps: [
+    { say: '读入原料。', files: { 'raw/paper.md': '# 论文摘录\n注意力机制……' } },
+    { say: '生成概念页，并链接回来源。', files: { 'wiki/注意力.md': '# 注意力\n来源：[[raw/paper]]' }, log: '新建 wiki/注意力.md' },
+    { say: '更新索引。', files: { 'wiki/index.md': '- [[注意力]]' }, set: { 页面数: 2 } },
+  ] }]}
+/>
+
+## 三、架构图、判断器与决策器
+
+<Diagram
+  title="分层示例"
+  layers={[
+    { title: '应用层', blocks: [{ label: 'Chatflow', detail: '面向对话的应用。' }, { label: 'Workflow', tag: '核心', detail: ['面向批处理的应用。', '可以发布成 API。'], links: [{ label: '源码', href: 'https://github.com/langgenius/dify' }] }] },
+    { title: '能力层', blocks: [{ label: '知识库', detail: '检索增强。' }, { label: '模型', detail: '供应商抽象。' }, { label: '工具', detail: '内置与自定义。' }] },
+  ]}
+  side={[{ title: '贯穿各层', blocks: [{ label: '追踪', detail: '每一步都记录下来。' }] }]}
+/>
+
+<Quiz
+  title="固定流程还是 agent？"
+  hint="每个场景选一个，看参考答案。"
+  score={false}
+  questions={[{ q: '每月按固定模板生成报表', options: ['固定流程', 'agent'], answer: 0, explain: '步骤完全可枚举，用固定流程更稳、更便宜。' }]}
+/>
+
+<Advisor
+  title="该不该做成 agent？"
+  questions={[
+    { q: '步骤能提前列清楚吗？', options: [{ label: '能', score: 0 }, { label: '大部分能', score: 1 }, { label: '不能', score: 2 }] },
+    { q: '做错的代价？', options: [{ label: '很高', score: 0 }, { label: '可以撤回', score: 2 }] },
+  ]}
+  tiers={[
+    { min: 0, title: '普通代码或固定流程', body: '确定性优先。' },
+    { min: 3, title: '单个 agent + 工具', body: '需要探索，但要配好约束和审批。' },
+  ]}
+/>
+
+## 四、清单、可复制文本与图表
+
+<Checklist title="上线前检查" items={[{ label: '有评估指标', detail: '能用一个数字比较好坏' }, { label: '有人工介入点' }]} />
+
+<CopyBlock title="示例规范文件" text={`# AGENTS.md\n- 只改 wiki/ 下的文件\n- 每条结论都要链接来源`} />
+
+<LineChart
+  title="累计成本"
+  xLabel="提问次数" yLabel="累计 token（千）"
+  series={[{ label: '每次检索', points: [8, 16, 24, 32, 40, 48] }, { label: '先编译', points: [20, 22, 24, 26, 28, 30] }]}
+  note="提问越多，先编译越划算"
+/>
+
+<Quiz questions={[{ q: '新页面的正文写在哪？', options: ['手写 HTML', 'MDX 文件'], answer: 1, explain: '正文写在 src/pages 下的 MDX 文件里，交互用组件。' }]} />
