@@ -2,7 +2,7 @@
 
 新页面写成 `src/pages/` 下的 MDX 文件：正文是 Markdown，交互用 `src/components/` 里的组件，样式和导航由版式统一提供。不要再手写整页 HTML。
 
-所有组件的最小例子都在 [`src/pages/components.mdx`](../src/pages/components.mdx)（线上地址 `/components/`），照着填数据即可。
+所有组件的最小例子都在 [`src/pages/components.mdx`](../src/pages/components.mdx)（线上地址 `/components`），照着填数据即可。
 
 ## 文件骨架
 
@@ -28,7 +28,7 @@ import Simulator from '../../../components/Simulator.astro';
 
 - 每个 `##` 是一章，顶部的章节导航自动生成；`###` 是章内小标题。
 - 只 import 用到的组件。路径层级按文件位置调整（`src/pages/repos/x/index.mdx` 是三层 `../`）。
-- 课程目录（`demos/index.zh-CN.html`）里加一张卡片链接到新页面。
+- 在 `src/data/catalog.ts` 的 `teardowns`（或 `lessons`）里加一条，中英文课程目录会自动出现这张卡片；只写 `zh` 就只出现在中文目录。
 
 ## 组件一览
 

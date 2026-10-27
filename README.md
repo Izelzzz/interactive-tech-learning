@@ -6,7 +6,7 @@
 
 ## Demos
 
-所有课程入口：[`demos/index.html`](demos/index.html)（English）· [`demos/index.zh-CN.html`](demos/index.zh-CN.html)（简体中文）。直接用浏览器打开即可，无需安装依赖。每一课都有英文版 `index.html` 和简体中文版 `index.zh-CN.html`，并支持小白 / 进阶切换。
+所有课程入口：线上 [learn.izelzzz.com](https://learn.izelzzz.com)（English）· [简体中文](https://learn.izelzzz.com/index.zh-CN)。课程目录由 [`src/data/catalog.ts`](src/data/catalog.ts) 生成。每一课都在 `demos/<课程>/` 下，英文版 `index.html`、简体中文版 `index.zh-CN.html`，都支持小白 / 进阶切换；直接用浏览器打开即可。
 
 1. [`demos/http-basics/`](demos/http-basics/index.html)：HTTP 请求全过程与 HTTP 方法（动画讲解 + 交互练习 + 小测验）。
 2. [`demos/api-design/`](demos/api-design/index.html)：如何设计好的 API：URL 命名、状态码与错误格式、分页（offset vs cursor 动画演示）、兼容性变更判断。
