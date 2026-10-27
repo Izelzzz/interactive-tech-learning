@@ -7,5 +7,7 @@ export default defineConfig({
   publicDir: './demos',
   outDir: './dist',
   integrations: [mdx()],
-  build: { format: 'directory', inlineStylesheets: 'always' },
+  // 'preserve' keeps file names as written: index.zh-CN.astro becomes index.zh-CN.html,
+  // matching the links the hand-written lessons already use.
+  build: { format: 'preserve', inlineStylesheets: 'always' },
 });

@@ -152,7 +152,7 @@ await check('HTTP play: a quick pause and play runs only one loop', async () => 
 });
 
 await check('Components: simulator, diagram, quiz and advisor respond to clicks', async () => {
-  const { page, errors } = await open('components/', { width: 390, height: 844 });
+  const { page, errors } = await open('components.html', { width: 390, height: 844 });
   const sim = page.locator('.sim').first();
   await sim.locator('.scen button', { hasText: '检索为空' }).click();
   for (let i = 0; i < 5; i++) await sim.locator('.next').click();

@@ -1,0 +1,82 @@
+---
+// The course index, in either language, built from src/data/catalog.ts.
+import '../styles/global.css';
+import { lessons, teardowns } from '../data/catalog';
+
+interface Props { lang: 'en' | 'zh' }
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    htmlLang: 'en', title: 'Interactive tech lessons', pageTitle: 'Interactive Tech Lessons',
+    sub: 'Every lesson has Beginner and Advanced explanations, animations you can control, and a quiz at the end.',
+    other: { href: 'index.zh-CN.html', label: '中文', lang: 'zh-CN' },
+    lesson: (n: number) => `Lesson ${n}`, file: 'index.html',
+    teardowns: 'Open-source teardowns', teardownsSub: '', teardown: (n: number) => `Teardown ${n}`,
+  },
+  zh: {
+    htmlLang: 'zh-CN', title: '交互式技术课程', pageTitle: '交互式技术课程',
+    sub: '每一课都有小白和进阶两种讲解、可以亲手操作的动画，最后还有一个小测验。',
+    other: { href: 'index.html', label: 'English', lang: 'en' },
+    lesson: (n: number) => `第 ${n} 课`, file: 'index.zh-CN.html',
+    teardowns: '开源项目拆解', teardownsSub: '从产品设计的角度读开源 AI 项目：为什么这样设计、做了哪些取舍、边界情况怎么处理。', teardown: (n: number) => `拆解 ${n}`,
+  },
+}[lang];
+
+const shownTeardowns = teardowns.filter((d) => d[lang]);
+---
+<!doctype html>
+<html lang={t.htmlLang}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{t.pageTitle}</title>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <h1>{t.title}</h1>
+      <a class="lang-switch" href={t.other.href} lang={t.other.lang} hreflang={t.other.lang}>{t.other.label}</a>
+    </div>
+    <p class="sub">{t.sub}</p>
+    <div class="lessons">
+      {lessons.map((l, i) => (
+        <a class="lesson" href={`${l.slug}/${t.file}`}>
+          <div class="num">{t.lesson(i + 1)}</div>
+          <h2>{l[lang].title}</h2>
+          <p>{l[lang].blurb}</p>
+        </a>
+      ))}
+    </div>
+    {shownTeardowns.length > 0 && <>
+      <h2 class="group">{t.teardowns}</h2>
+      {t.teardownsSub && <p class="sub">{t.teardownsSub}</p>}
+      <div class="lessons">
+        {shownTeardowns.map((d, i) => (
+          <a class="lesson" href={d.href}>
+            <div class="num">{t.teardown(i + 1)}</div>
+            <h2>{d[lang]!.title}</h2>
+            <p>{d[lang]!.blurb}</p>
+          </a>
+        ))}
+      </div>
+    </>}
+  </main>
+</body>
+</html>
+
+<style>
+  .wrap { max-width: 860px; margin: 0 auto; padding: 56px 16px; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); letter-spacing: -0.02em; margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .lessons { display: grid; gap: 14px; }
+  a.lesson { display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
+  a.lesson:hover { border-color: var(--accent); }
+  .num { font-size: 0.8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+  .lesson h2 { margin: 2px 0 4px; font-size: 1.25rem; }
+  .lesson p { margin: 0; color: var(--muted); }
+  h2.group { font-size: 1.35rem; margin: 44px 0 6px; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .lang-switch { font-size: 0.85rem; color: var(--muted); text-decoration: none; border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface); white-space: nowrap; }
+  .lang-switch:hover { border-color: var(--accent); color: var(--text); }
+</style>
