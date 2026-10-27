@@ -23,7 +23,7 @@ export const IS = 'https://github.com/karpathy/autoresearch/issues/';
 分析基于 autoresearch 提交 `228791f`（2026-03-25）与 nanochat 提交 `92d63d4`；所有源码链接均为该提交的永久链接。标注“推测”“建议”的内容不是项目原文的结论。仓库：<Source href="https://github.com/karpathy/autoresearch" label="autoresearch" /> <Source href="https://github.com/karpathy/nanochat" label="nanochat" />
 </Callout>
 
-## 第 1 章 autoresearch 在做什么
+## 一、autoresearch 在做什么
 
 <Callout type="结论">
 一句话结论：autoresearch 是一个“改一处代码 → 跑固定 5 分钟 → 看一个分数 → 变好就保留、否则回滚”的无限循环；它能成立，靠的不是 agent 有多聪明，而是 nanochat 被裁剪成了一个小、快、分数明确的“可被优化的环境”。
@@ -103,7 +103,7 @@ nanochat 排行榜上第 5 和第 6 条记录的描述就是“autoresearch 第 
 
 </Callout>
 
-## 第 2 章 范式转变：从“人操作工具”到“人定义目标和评价函数”
+## 二、范式转变：从“人操作工具”到“人定义目标和评价函数”
 
 <Callout type="结论">
 一句话结论：在 autoresearch 里，人的工作从“做实验”变成了“设计做实验的组织”：写目标、划边界、定评价、事后审查。人做的事情少了，但每件事的杠杆变大了，出错的后果也被放大了。
@@ -156,7 +156,7 @@ program.md 的“准备”部分（<Source href={A + 'program.md?plain=1#L5-L19'
 
 </Callout>
 
-## 第 3 章 趋势：界面 → 工作流 → 智能体循环
+## 三、趋势：界面 → 工作流 → 智能体循环
 
 <Callout type="结论">
 一句话结论：同一个任务，在“界面”形态里人做所有决定，在“工作流”形态里人预先写死步骤，在“智能体循环”形态里人只写目标和裁判。每往前一步，人的操作次数下降一个量级，但失败模式也从“操作失误”变成“目标被曲解”。
@@ -193,7 +193,7 @@ program.md 的“准备”部分（<Source href={A + 'program.md?plain=1#L5-L19'
 
 </Callout>
 
-## 第 4 章 · 本页核心 未来产品设计的重点：目标、权限、环境、反馈指标、人工介入点
+## 四、未来产品设计的重点：目标、权限、环境、反馈指标、人工介入点
 
 <Callout type="结论">
 一句话结论：给 agent 加更多按钮没有意义，它不点按钮。智能体式产品真正的设计对象是五个面：它追求什么（目标）、能动什么（权限）、在哪里动（环境）、怎么知道动得对（反馈指标）、人什么时候回来（人工介入点）。autoresearch 用不到 120 行的 program.md 把这五个面都回答了一遍，也在每个面上留下了值得学习的缺口。
@@ -373,7 +373,7 @@ program.md 的“准备”部分（<Source href={A + 'program.md?plain=1#L5-L19'
 
 </Callout>
 
-## 第 5 章 理解智能体式产品
+## 五、理解智能体式产品
 
 <Callout type="结论">
 一句话结论：智能体式产品的界面不再是“一排按钮”，而是“目标 + 约束 + 指标 + 审查面板”四个区域；产品经理的核心交付物，从页面流程图变成一份 agent 能执行、人能审查的运行规范。
@@ -416,7 +416,7 @@ README 明说 program.md 由人迭代（第 129 行）。社区很快把这个�
 
 </Callout>
 
-## 第 6 章 边界场景的处理逻辑
+## 六、边界场景的处理逻辑
 
 <Callout type="结论">
 一句话结论：autoresearch 用“软规则 + git 回滚 + 结果表”处理了崩溃、超时和普通失败，但对作弊、噪声、复杂度膨胀、长期停滞、成本和并行冲突基本没有硬机制。这些正是把它产品化时最需要补上的部分。
@@ -532,7 +532,7 @@ README 明说 program.md 由人迭代（第 129 行）。社区很快把这个�
 
 </Callout>
 
-## 测验 检验一下
+## 检验一下你的理解
 
 <Quiz
   title="检验一下"
@@ -540,7 +540,7 @@ README 明说 program.md 由人迭代（第 129 行）。社区很快把这个�
   questions={[{"q": "在 autoresearch 中，人主要迭代的是哪个文件？", "options": ["train.py", "prepare.py", "program.md", "results.tsv"], "answer": 2, "explain": "README 明确写道：train.py 由 agent 迭代，program.md 由人迭代。人的工作从改代码变成改“研究组织的规范”。"}, {"q": "为什么固定 5 分钟训练预算是循环成立的关键之一？", "options": ["因为 GPU 只能连续工作 5 分钟", "让不同改动直接可比，并让一夜能跑约 100 次实验", "为了让 agent 少花调用费", "因为评估函数要求 5 分钟"], "answer": 1, "explain": "固定预算有两个作用：结果可比（不论改了模型大小还是批大小），以及反馈周期足够短。代价是不同硬件之间不可比（#35 讨论了改为固定计算量）。"}, {"q": "program.md 里“不能修改评估函数”这条规则是如何保证的？", "options": ["文件系统设为只读", "每轮提交前自动检查差异", "只写在说明里，靠 agent 遵守", "评估在远程服务器上运行"], "answer": 2, "explain": "仓库里没有技术强制，README 甚至建议关闭所有权限确认。#599 指出调用和打印分数的代码在可改的 train.py 中，伪造分数可以被保留。"}, {"q": "分数持平时，autoresearch 的规则是？", "options": ["保留，因为没有变差", "回滚", "重跑一次再决定", "交给人决定"], "answer": 1, "explain": "规则是“相等或更差就 git reset 回滚”，只接受严格进步。例外是简洁性标准：删代码而分数持平值得保留，这需要 agent 的判断。"}, {"q": "评估噪声很大且没有复测机制时，最可能出现什么问题？", "options": ["训练崩溃增多", "运气被当成进步保留，记录的最好成绩比真实水平乐观", "agent 停止工作", "显存占用上升"], "answer": 1, "explain": "可以在第 1 章模拟器里把噪声调到“高”观察：蓝线（记录）会跑到绿色虚线（真实）下方，之后真正的小进步反而会被拒绝。"}, {"q": "从界面到智能体循环，失败模式最本质的变化是？", "options": ["从“人操作失误”变成“系统完美地优化了错误目标”", "从软件错误变成硬件错误", "失败变得更容易被发现", "没有变化"], "answer": 0, "explain": "智能体循环里，分数可能一直在变好，但优化的是被曲解的目标，比如改裁判或刷点击率，比操作失误更隐蔽。"}, {"q": "关于人工介入点，autoresearch 的选择及其前提是？", "options": ["每一步审批，因为风险高", "开始前确认、中间不打扰、事后批量审查；前提是权限窄、环境可回滚、有完整记录", "完全没有人参与", "只在崩溃时找人"], "answer": 1, "explain": "它用“事后可追溯”换“过程中不打扰”。这个选择之所以可行，是因为其他四个设计面已经把风险压低；权限放宽时同样的选择就会变成高危。"}]}
 />
 
-## 资料 引用的原文与 Issue
+## 引用的原文与 Issue
 
 - autoresearch：<Source href={A + 'program.md'} label="program.md" /> · <Source href={A + 'README.md'} label="README.md" /> · <Source href={A + 'prepare.py'} label="prepare.py" /> · <Source href={A + 'train.py'} label="train.py" />
 - nanochat：<Source href={NC + 'README.md'} label="README.md" /> · <Source href={NC + 'dev/LEADERBOARD.md'} label="dev/LEADERBOARD.md" /> · <Source href={NC + 'dev/LOG.md'} label="dev/LOG.md" />

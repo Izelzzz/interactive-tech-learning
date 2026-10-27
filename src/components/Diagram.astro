@@ -35,7 +35,8 @@ const all = [...L, ...S].flatMap((l) => l.blocks);
 <style>
   .grid.with-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 200px); gap: 12px; }
   .layer { border: 1px dashed var(--line); border-radius: 12px; padding: 8px 10px; background: var(--bg); }
-  .side .layer { height: 100%; }
+  .side { display: flex; flex-direction: column; gap: 12px; }
+  .side .layer { flex: 1; }
   .lt { margin: 0 0 6px; font-size: .8rem; color: var(--muted); font-weight: 600; }
   .blocks { display: flex; flex-wrap: wrap; gap: 6px; }
   .blocks.col { flex-direction: column; }
