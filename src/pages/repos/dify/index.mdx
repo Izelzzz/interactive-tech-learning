@@ -253,7 +253,7 @@ MCP 是社区呼声最高的需求之一（[#11415](https://github.com/langgeniu
 ### 具体例子：可点击的分层架构图
 
 <Diagram
-  title="点击任意方块，查看它负责什么、为什么单独成层"
+  title="点击任意方块，查看它负责什么、为什么单独成一层"
   layers={[
     { title: "① 应用与交付层：给终端用户和业务系统", blocks: [
       { label: "Chatflow / Workflow / Agent 应用", detail: ["负责什么：面向使用者的“产品形态”：对话流、工作流、Agent 应用、知识流水线等。", "为什么单独成层：同一个引擎，按使用方式包装成不同应用类型，让用户从“我要做什么”而不是“引擎怎么用”出发。", "对开发者：选错类型会遇到节点集不同的困惑（#9741）。", "对企业用户：应用是权限、限流、日志的基本单位。"], links: [{ label: "AppMode 枚举", href: D + 'api/models/model.py#L389-L400' }] },
@@ -632,4 +632,4 @@ match node.error_strategy:
   ]}
 />
 
-资料来源：langgenius/dify@cc5b0b581ed02de04d708e5e50013b458c2684db、langgenius/graphon@4fa22141774dff80e90e4dfa98ea3e6fbf0421bb，以及 GitHub issue 页面（检索于 2026-10-22）。模拟器中的数据为虚构示例。
+资料来源：`langgenius/dify@cc5b0b581ed02de04d708e5e50013b458c2684db`、`langgenius/graphon@4fa22141774dff80e90e4dfa98ea3e6fbf0421bb`，以及 GitHub issue 页面（检索于 2026-10-22）。模拟器中的数据为虚构示例。
