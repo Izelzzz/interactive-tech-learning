@@ -12,6 +12,9 @@ import Advisor from '../components/Advisor.astro';
 import Checklist from '../components/Checklist.astro';
 import CopyBlock from '../components/CopyBlock.astro';
 import LineChart from '../components/LineChart.astro';
+import FilterDetails from '../components/FilterDetails.astro';
+import DetailItem from '../components/DetailItem.astro';
+import FilterCards from '../components/FilterCards.astro';
 
 ## 一、正文与标注
 
@@ -114,3 +117,21 @@ import LineChart from '../components/LineChart.astro';
 />
 
 <Quiz questions={[{ q: '新页面的正文写在哪？', options: ['手写 HTML', 'MDX 文件'], answer: 1, explain: '正文写在 src/pages 下的 MDX 文件里，交互用组件。' }]} />
+
+<FilterDetails filters={[{ id: 'have', label: '项目有处理' }, { id: 'sugg', label: '仅有建议' }]}>
+<DetailItem title="1. 示例场景" kinds={['have', 'sugg']} tags={[{ label: '部分已有', tone: 'ok' }, { label: '建议', tone: 'warn' }]}>
+
+条目正文写 Markdown，`kinds` 决定它在哪些筛选下显示。
+
+</DetailItem>
+</FilterDetails>
+
+<FilterCards
+  title="卡片筛选"
+  unit="张卡片"
+  filters={[{ id: 'a', label: '主题 A' }, { id: 'b', label: '主题 B' }]}
+  cards={[
+    { title: '第一张卡片', ref: '#1', href: 'https://github.com/langgenius/dify/issues', meta: '12 条评论 · 已关闭', tags: ['主题 A'], topics: ['a'], rows: [{ k: '遇到', v: '一句话说明现象。' }, { k: '原因', v: '一句话说明原因。' }] },
+    { title: '第二张卡片', tags: ['主题 A', '主题 B'], topics: ['a', 'b'], rows: [{ k: '遇到', v: '同时属于两个主题。' }] },
+  ]}
+/>

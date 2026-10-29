@@ -1,0 +1,763 @@
+---
+layout: ../../../layouts/Article.astro
+title: OpenAI Agents SDK：agent 应该怎么设计
+description: 从产品设计视角拆解 OpenAI Agents SDK：八个原语、多 agent 与沙箱语音 MCP、运行循环规则、参考架构、该不该做成 agent，以及边界场景的处理。
+lede: 这是 OpenAI 官方的 agent 开发框架（以 Python 版为主，必要时对照 JS/TS 版），由早期实验项目 Swarm 升级而来。本页不讲怎么写代码，而是看它替“做 agent 产品的人”做了哪些决定：一个 agent 由哪几块组成、一次运行按什么规则推进、什么时候必须停下来问人——以及更重要的一点：什么时候根本不该做成 agent。
+---
+import Callout from '../../../components/Callout.astro';
+import Source from '../../../components/Source.astro';
+import Simulator from '../../../components/Simulator.astro';
+import Diagram from '../../../components/Diagram.astro';
+import Quiz from '../../../components/Quiz.astro';
+import AgentLoop from '../../../components/pages/openai-agents/AgentLoop.astro';
+import HandoffCompare from '../../../components/pages/openai-agents/HandoffCompare.astro';
+import AgentDecider from '../../../components/pages/openai-agents/AgentDecider.astro';
+
+export const P = 'https://github.com/openai/openai-agents-python/blob/841dfdd938bfd4ca052475eb76d6245a356868e0/';
+export const J = 'https://github.com/openai/openai-agents-js/blob/be4f1f9aa4ad4f03cc5db5fdd57d0d0136923570/';
+export const C = 'https://github.com/openai/codex/blob/86e17e98c7f901277aeeb4649cf1b01462b082f2/';
+export const I = 'https://github.com/openai/openai-agents-python/issues/';
+
+分析版本：openai-agents-python `841dfdd`，openai-agents-js `be4f1f9`；补充案例 OpenAI Codex `86e17e9`。所有源码链接都指向这些提交的永久地址。标注“推测/建议”的内容为本页作者的判断，不来自仓库原文。
+
+## 一、八个原语，各管一件事
+
+<Callout type="结论" title="一句话结论">
+
+Agents SDK 把一个 agent 产品拆成“一份岗位说明书（Agent）+ 一个按规则跑循环的执行器（Runner）”，其余能力——工具、交接、约束、追踪、会话记忆、结构化输出——都挂在这两者上。<b>原语少</b>，是它最核心的产品决定。
+
+</Callout>
+
+### 问题背景：每个团队都在重复写同一个循环
+
+假如你直接调用模型接口做一个客服助手，要自己写这些事：把用户的话发给模型；模型说“我要查订单”，你得解析出它想调用的函数、执行、把结果塞回去再问一次；它说“这事该退款组处理”，你得换一套提示词接着聊；中途还要拦截恶意输入、检查回复有没有乱承诺、把每一步记下来方便排查。
+
+这些代码几乎每个团队都在重复写，而且最容易出错的恰恰是边界：工具报错了怎么办？模型反复调用工具停不下来怎么办？两个工具同时被调用怎么办？用户中途点了“停止”怎么办？SDK 的出发点，就是把这套“循环 + 规则”做成标准件。它的文档写了两条设计原则：
+
+<Callout type="要点" title="官方的两条设计原则">
+
+① 功能足够多，值得用；原语足够少，学得快。② 开箱即用，但每一步都能定制。另外它强调“以 Python 为先”：编排和串联 agent 用语言本身的能力（函数、循环、并发），而不是让你学一套新的流程描述语言。 <Source href={P + 'docs/index.md'} label="docs/index.md" />
+
+</Callout>
+
+### 产品洞察一：Agent 不是“一个智能体”，而是“一份岗位说明书”
+
+<b>Agent（智能体配置）</b>= 模型 + 指令（instructions，告诉它是谁、怎么做事）+ 工具 + 可以交接的同事 + 约束 + 期望的输出格式。它本身<b>不会运行</b>，只是一份静态配置。最贴切的类比是招聘时写的岗位说明书：你负责什么、能用哪些系统、遇到什么情况转给谁、交付物长什么样。
+
+为什么要把“角色”和“运行”分开？因为同一份岗位说明可以在不同场合复用：测试时换便宜模型、上线时开追踪、给某个大客户加一条额外约束，都不用改 Agent 本身，只改这次运行的配置（`RunConfig`）。多 agent 时，每个岗位也能单独迭代、单独评估。 <Source href={P + 'src/agents/agent.py#L373-L418'} label="agent.py" />
+
+与之配套的还有<b>运行上下文（context）</b>：你自己的对象（当前用户 ID、数据库连接、权限）可以传给工具和约束使用，但<b>不会发给模型</b>。这条边界很重要——“谁有权限退款”应该由代码判断，而不是写进提示词让模型自觉遵守。 <Source href={P + 'docs/context.md'} label="docs/context.md" />
+
+### 产品洞察二：真正“动”起来的是 Runner 的循环
+
+<b>Runner（运行器）</b>负责 agent loop（智能体循环）：调用当前 agent 的模型 → 看模型输出——是最终答案就结束；要交接就换一个 agent 再来；要调用工具就执行、把结果追加进对话再来；超过 `max_turns`（最大轮数，默认 10）就报错。 <Source href={P + 'docs/running_agents.md'} label="docs/running_agents.md" /> <Source href={P + 'src/agents/run_config.py#L45'} label="run_config.py#L45" />
+
+要特别注意一个对应关系：<b>一次 `Runner.run` 对应用户眼中的“一个回合”</b>，内部可能调用好几次模型、经过好几个 agent。用户问一句，系统可能“想了四轮”才回答。这直接影响延迟和成本预算。
+
+为什么循环要集中在 Runner？因为“循环的规则”就是“产品的行为规则”：什么时候算完成、什么时候必须停、什么时候换人。集中在一处，所有 agent 共享同一套语义，团队才能预测和排查 agent 的行为（第 3 章细讲）。
+
+### 产品洞察三：工具、交接、约束、追踪——四个挂件
+
+#### Tools（工具）：模型的手脚
+
+模型只会生成文字，工具让它能“查”和“做”。SDK 提供五类：函数工具（把一个 Python 函数变成工具，参数说明从函数签名和注释自动生成）、OpenAI 托管工具（网页搜索、文件检索、代码解释器、托管 MCP、图像生成）、本地运行时工具（Shell、改文件、操作电脑）、把 agent 当工具、实验性的 Codex 工具。 <Source href={P + 'docs/tools.md'} label="docs/tools.md" />
+
+产品要点：工具描述就是写给模型的使用手册；工具多了，模型选错的概率会上升<span class="tag warn">推测</span>。SDK 为此提供了“工具搜索 / 延迟加载”，让大量工具按需出现。
+
+#### Handoffs（交接）：把对话转给更合适的同事
+
+在模型看来，交接就是一个名叫 `transfer_to_退款_agent` 的工具。模型一调用它，Runner 就把“当前 agent”切换过去，新 agent 默认看到完整历史，并接着直接和用户说话。 <Source href={P + 'src/agents/handoffs/__init__.py#L213-L217'} label="handoffs/__init__.py" />
+
+为什么需要：当一个 agent 的指令写到几千字、塞了几十个工具时，不同业务的规则会互相干扰。拆成专家后，每份指令都短而专注。
+
+#### Guardrails（约束）：在主流程旁边站岗
+
+三种：输入约束（只在第一个 agent 上运行）、输出约束（只在产出最终答案的 agent 上运行）、工具约束（每次调用受保护的函数工具前后运行）。一旦触发“绊线”（tripwire），立刻抛出异常、中止运行。默认与模型<b>并行</b>以免拖慢响应，也可以设为<b>阻塞</b>（先检查再开工）。 <Source href={P + 'docs/guardrails.md'} label="docs/guardrails.md" />
+
+文档举的例子很“产品”：用一个便宜快速的模型判断用户是不是在让贵模型帮忙写数学作业，是就直接拒绝，省时间也省钱。
+
+#### Tracing（追踪）：每一步都留下可回放的记录
+
+默认开启。一次运行是一条 trace（轨迹），其中每个 agent、每次模型生成、每次工具调用、每次交接、每次约束检查都是一个 span（片段，有起止时间和父子关系）。 <Source href={P + 'docs/tracing.md'} label="docs/tracing.md" />
+
+为什么需要：agent 的行为是概率性的，读代码推断不出它这次做了什么。追踪是唯一的“黑匣子”，也是后续评估、微调的数据来源。
+
+### 产品洞察四：会话记忆与结构化输出——让 agent 接得上人和程序
+
+#### 会话记忆（Sessions）：让第二句话记得第一句
+
+Runner 每次只处理一个回合。要跨回合记住上下文，有四种做法：自己用 `result.to_input_list()` 拼接；交给 Session（会话存储：SQLite、Redis、SQLAlchemy、加密会话等）自动读写；或使用 OpenAI 服务器端的 `conversation_id` / `previous_response_id`。文档特别提醒：<b>一个对话只选一种</b>，混用会让上下文重复。 <Source href={P + 'src/agents/memory/session.py#L53-L80'} label="memory/session.py" />
+
+#### 结构化输出（output_type）：让结果能被程序接住
+
+给 Agent 设定 `output_type`（例如一个 Pydantic 数据模型），最终输出必须通过校验才算“完成”；校验不过就报 `ModelBehaviorError`，或交给 `invalid_final_output` 错误处理器给出兜底结果。 <Source href={P + 'src/agents/agent.py#L383'} label="agent.py#L383" />
+
+为什么需要：agent 的结果经常要交给下游程序（工单系统、前端卡片），自由文本无法可靠解析。它还直接改变了“这一轮结束了没有”的判定（见第 3 章）。
+
+<Callout type="要点" title="issue #887 · 短期与长期记忆">
+
+2025 年 6 月有用户问 SDK 是否内置短期/长期记忆。当时项目成员回复：“我不认为记忆会成为这个 SDK 的一等组件”，并指出当时连对话持久化都没有，issue 以“不计划”关闭。而在今天的版本里，Sessions 已经是 README 列出的核心概念之一——<b>短期对话历史</b>最终被认定为框架该管的事；<b>长期记忆</b>依然留给应用自己设计（后续评论还提醒：长期记忆会让提示词注入跨会话留存）。 <Source href={I + '887'} label="#887" />
+
+</Callout>
+
+### 具体例子：官方的航空客服示例
+
+仓库里的 `examples/customer_service` 用三个 agent 组成一个客服：分诊 agent 只负责转接，FAQ agent 用查询工具回答常见问题，选座 agent 负责改座位。两个专家都挂了一个 `transfer_to_triage_agent`，遇到不属于自己的问题就转回分诊。应用层每个回合结束后把 `result.last_agent` 记下来，下一回合直接从它开始——也就是“谁接手了，就继续由谁回答”。 <Source href={P + 'examples/customer_service/main.py#L94-L183'} label="customer_service/main.py" />
+
+| 概念 | 产品里的比喻 | SDK 名称 | 没有它时谁来做 |
+| --- | --- | --- | --- |
+| Agent | 岗位说明书 | `Agent` | 散落在各处的提示词字符串 |
+| Runner | 按流程办事的值班主管 | `Runner.run / run_streamed` | 每个团队手写 while 循环 |
+| 工具 | 办事系统的操作权限 | `@function_tool`、托管工具 | 手动解析模型输出里的函数名 |
+| 交接 | 转接电话 | `handoffs=[...]` | 代码里 if/else 换提示词 |
+| 约束 | 质检与安保 | `input/output_guardrails` | 写在提示词里“请不要……” |
+| 追踪 | 行车记录仪 | `trace / span` | 到处 print 日志 |
+| 会话记忆 | 客户档案里的通话记录 | `Session` | 自己存取聊天记录 |
+| 结构化输出 | 标准化的工单表格 | `output_type` | 正则表达式解析回复 |
+
+### 取舍与替代方案
+
+<b>它选择了：</b>少量原语 + 流程控制交给模型或普通 Python 代码。<b>它放弃了：</b>像“图编排”类框架那样，事先用节点和边把流程画清楚的能力（SDK 只有一个可选的可视化扩展，用来画 agent 之间的关系图，而不是执行图）。 <Source href={P + 'docs/visualization.md'} label="docs/visualization.md" />
+
+代价是：如果你的流程本身很确定、需要严格控制（例如审批流必须经过 A→B→C），你得自己用代码编排几个 agent；好处是上手快，简单场景几行就能跑，复杂场景也不用学一套新语言。对做产品的人来说，这意味着<b>流程的确定性需要你主动设计</b>，框架不会替你强制。
+
+<Callout type="要点" title="要点小结">
+
+- Agent 是静态的岗位说明书，Runner 才是让它动起来的循环；一次运行 = 用户的一个回合，内部可能有多轮模型调用。
+- 工具负责查和做，交接负责换人，约束负责拦，追踪负责记；会话记忆接住“人”，结构化输出接住“程序”。
+- 敏感的业务判断（权限、金额）放在运行上下文和代码里，不要放进提示词。
+
+</Callout>
+
+## 二、多 agent、沙箱、语音、MCP：各自解决什么场景
+
+<Callout type="结论" title="一句话结论">
+
+四块能力分别回答四个问题：多 agent 编排回答“怎么分工”，沙箱回答“在真实文件和命令里干活”，实时/语音回答“用嘴说话时如何低延迟”，MCP 回答“怎么接入别人已经做好的工具”。每一块都有明确的“不需要”场景，默认不该全都用上。
+
+</Callout>
+
+### 问题背景：功能越多，越要问“什么时候不用”
+
+一个 SDK 可以无限加功能，但看它把哪些东西做成一等公民，能看出 OpenAI 认为 agent 产品的主战场在哪。README 的核心概念清单里，除了基础原语，还专门列了沙箱 agent、实时 agent、语音 agent、人工介入、会话。下面逐个看它们解决什么场景、什么时候需要、什么时候不需要。 <Source href={P + 'README.md'} label="README.md" />
+
+### 2.1 多 agent 编排：交接 与 agent-as-tool 两种模式
+
+文档把多 agent 编排分成两大类：<b>让模型来决定</b>（交接、agent-as-tool）和<b>用代码来决定</b>（结构化输出分类后由代码选下一个 agent、链式串联、“生成—评审”循环、`asyncio.gather` 并行）。并直言代码编排“在速度、成本和效果上更确定、更可预测”。 <Source href={P + 'docs/multi_agent.md'} label="docs/multi_agent.md" />
+
+在“让模型决定”的方式里，两种模式的根本区别是<b>谁持有对话</b>：
+
+| 维度 | 交接（Handoff） | agent-as-tool（把 agent 当工具） |
+| --- | --- | --- |
+| 谁持有对话 | 专家接管，成为“当前 agent” | 经理始终持有，专家只是被调用一次 |
+| 专家看到什么 | 默认完整历史（可用过滤器裁剪） | 只看到经理为它生成的那段输入 |
+| 谁写最终回复 | 专家直接回复用户 | 经理整合结果后回复 |
+| 约束在哪生效 | 输入约束在第一个 agent，输出约束在最后一个 agent | 经理那一层的约束统一生效 |
+| 下一回合 | 通常从 `last_agent`（专家）继续 | 仍是经理 |
+| 适合 | 路由本身就是流程的一部分：客服分流、语言分流 | 有边界的子任务、需要综合多个专家：多语言翻译、报告各章节 |
+
+源码里 `as_tool` 的说明把区别写得很直白：“交接时新 agent 接收对话历史，而作为工具时新 agent 接收生成的输入；交接时新 agent 接管对话，而作为工具时对话由原 agent 继续。” <Source href={P + 'src/agents/agent.py#L630-L636'} label="agent.py#L630" /> 两种也可以混用：分诊交接给专家，专家再把更小的子 agent 当工具调用。
+
+<HandoffCompare />
+
+<Callout type="要点" title="issue #847 · “交接后永远拿不回控制权”">
+
+有用户请求增加 `back_handoff`：专家办完后自动把控制权还给编排者。他的原话是“一旦 agent 把控制权交给另一个 agent，就再也拿不回来了”。维护者曾表示在考虑，最终以“不修复”关闭。官方示例的做法是让专家也挂一个转回分诊的交接。产品启示：<b>交接是“转接电话”，不是“函数调用”</b>；如果你要的是“办完回来汇报”，就该选 agent-as-tool。 <Source href={I + '847'} label="#847" />
+
+</Callout>
+
+<Callout type="要点" title="issue #864 · agent-as-tool 隐藏了子 agent 的内部过程">
+
+用户反馈：把 agent 当工具后，父运行只能拿到子 agent 的最终字符串，看不到它内部调用了哪些工具，导致“并行跑多个子 agent 并实时显示进度”做不出来。后来 SDK 为 agent-as-tool 加了 `on_stream` 回调，维护者也说明这与原提案设计不同。产品启示：agent-as-tool 换来的是边界清晰，代价是<b>过程黑盒化</b>，用户等待体验需要额外设计。 <Source href={I + '864'} label="#864" />
+
+</Callout>
+
+<b>什么时候不需要多 agent：</b>一个 agent 的指令和工具还能写清楚、测得过来时，就不要拆。拆分会带来转错人、多一次模型调用的延迟、交接时上下文丢失或泄露等新问题<span class="tag warn">建议</span>。文档自己的建议也是“让专精的 agent 擅长一件事”，而不是一开始就设计一张大网。
+
+### 2.2 沙箱与代码执行：仓库里真实存在，而且是一等能力
+
+以当前仓库为准，SDK 有一整套 <b>Sandbox Agents（沙箱 agent）</b>（`src/agents/sandbox/`），JS 版也有对应实现（`packages/agents-core/src/sandbox`）。它要解决的问题是：很多有价值的任务需要在<b>真实文件系统</b>里干活——搜大量文档、改代码、跑测试、生成文件，并且能隔天接着干。 <Source href={P + 'src/agents/sandbox/sandbox_agent.py#L31'} label="sandbox_agent.py" /> <Source href={P + 'docs/sandbox/guide.md'} label="docs/sandbox/guide.md" />
+
+- <b>SandboxAgent 仍然是 Agent</b>：指令、工具、交接、约束、追踪都照旧，只是多了 `Manifest`（新工作区的初始内容：仓库、本地目录、云存储挂载）、能力包（文件系统工具、Shell、技能、记忆、历史压缩）和 `SandboxRunConfig`（这次用哪个沙箱后端）。
+- <b>沙箱后端可替换</b>：本机（UnixLocal）、Docker、托管提供方（仓库扩展目录里有 E2B、Modal、Daytona、Cloudflare、Vercel、Blaxel）。agent 定义不变，换的是运行配置。
+- <b>隔离强度如实说明</b>：文档警告，本机后端在 Linux 上“不加任何系统级隔离”，在 macOS 上只限制文件、不隔离网络；不可信的命令（包括受不可信输入影响的命令）应该用 Docker 或托管沙箱。 <Source href={P + 'docs/sandbox_agents.md'} label="docs/sandbox_agents.md" />
+- <b>责任分层</b>：“外层运行时仍然掌管审批、追踪、交接和恢复所需的状态；沙箱只管命令和文件变化。”这是一条很清晰的产品边界。
+
+此外还有更轻量的选择：托管的代码解释器（`CodeInterpreterTool`）、托管容器 Shell、本地 `ShellTool` / `ApplyPatchTool`（注意它们<b>默认不需要审批</b>，要自己打开），以及实验性的 `codex_tool`（把 Codex 命令行包成一个工具，带沙箱模式和审批策略参数）。 <Source href={P + 'docs/tools.md'} label="docs/tools.md" />
+
+<Callout type="要点" title="什么时候需要 / 不需要">
+
+需要：任务以工作区为中心（修 bug 并跑测试、处理一批文件生成表格、每个评审子 agent 各有独立工作区、分多次续作）。不需要：不访问文件、也不需要可变文件系统 → 普通 Agent；只是偶尔跑一条命令 → 托管 Shell 即可。文档原话：“如果工作区边界本身就是功能的一部分，才用沙箱 agent。”
+
+</Callout>
+
+<Callout type="要点" title="真实产品对照：Codex 如何把“沙箱”做成用户设置">
+
+OpenAI 的编码 agent 产品 Codex 把执行范围做成了三档：`read-only`（只读，默认）、`workspace-write`（只能写当前工作目录，出网默认关闭）、`danger-full-access`（完全访问，名字里就带着“危险”）。 <Source href={C + 'codex-rs/protocol/src/config_types.rs#L104-L114'} label="config_types.rs" /> <Source href={C + 'codex-rs/protocol/src/protocol.rs#L1206-L1230'} label="protocol.rs" /> 这正是 SDK 文档所说“隔离由后端决定”的产品化形态：默认最保守，放权需要用户显式选择，并且用命名提醒风险。
+
+</Callout>
+
+### 2.3 实时与语音对话
+
+SDK 提供两条路，取舍完全不同：
+
+#### 语音流水线（VoicePipeline）
+
+语音转文字 → 你的普通 agent 工作流 → 文字转语音。好处是能复用全部文本 agent 能力（结构化输出、所有工具、交接）；代价是三段串联，延迟更高，也不能自然地被打断<span class="tag warn">推测</span>。 <Source href={P + 'docs/voice/pipeline.md'} label="docs/voice/pipeline.md" />
+
+#### 实时 agent（RealtimeAgent）
+
+与实时接口保持长连接，增量处理音频、流式输出语音、可以被用户打断。它<b>刻意比普通 Agent 更窄</b>：模型在会话级别配置、不支持结构化输出、开口说话后不能再换声音；但指令、函数工具、交接、钩子和输出约束都保留。 <Source href={P + 'src/agents/realtime/agent.py#L28'} label="realtime/agent.py" /> <Source href={P + 'docs/realtime/guide.md'} label="docs/realtime/guide.md" />
+
+平台边界也值得注意：Python 版只做服务器端 WebSocket 和 SIP（电话线路），<b>不提供浏览器端 WebRTC</b>；浏览器里直接语音对话的能力在 JS 版里（`openaiRealtimeWebRtc.ts`）。这是一个很合理的分工：Python 适合服务器编排和电话接入，JS 适合前端。 <Source href={J + 'packages/agents-realtime/src/openaiRealtimeWebRtc.ts'} label="openaiRealtimeWebRtc.ts" />
+
+<Callout type="要点" title="什么时候需要 / 不需要">
+
+需要实时 agent：电话客服、车载/硬件语音助手、需要被打断和即时反馈的对话。用语音流水线就够：语音只是外壳、背后是严格的表单流程或需要结构化输出。完全不需要：文本就能完成的任务——语音会显著提高测试和评估难度。
+
+</Callout>
+
+### 2.4 MCP：接入别人已经做好的工具
+
+<b>MCP（模型上下文协议）</b>是让应用以标准方式向模型提供工具和上下文的开放协议。SDK 支持四种接入：托管 MCP（由 OpenAI 的 Responses 接口代为调用公网服务器）、Streamable HTTP、SSE、本地 stdio 进程；多个服务器用 `MCPServerManager` 统一管理。 <Source href={P + 'docs/mcp.md'} label="docs/mcp.md" />
+
+- <b>信任先于连接</b>：文档醒目警告“连接前先信任 MCP 服务器”——使用最小权限凭证、令牌放在请求头而非 URL 里、敏感操作要求审批。
+- <b>延迟与稳定</b>：每次运行都会向每个服务器拉取工具列表；工具定义稳定时可开 `cache_tools_list`。连不上的服务器默认被剔除，只把连上的暴露给 agent（第 6 章）。
+- <b>治理</b>：可静态或动态过滤暴露的工具；可以给本地 MCP 服务器统一挂工具约束和审批策略；多个服务器工具重名时可开启“工具名带服务器前缀”。
+
+<Callout type="要点" title="issue #23 · Add MCP support">
+
+SDK 发布当天（2025 年 3 月）就有人请求 MCP 支持，两周内落地。讨论中社区反对把另一个第三方 agent 框架整体并入，主张直接基于官方 MCP Python SDK——现在的实现正是依赖官方 `mcp` 包（兼容 v1 与 v2）。 <Source href={I + '23'} label="#23" />
+
+</Callout>
+
+<Callout type="要点" title="什么时候需要 / 不需要">
+
+需要：工具由别的团队或厂商维护、要在多个 agent 产品间复用、要接入现成生态（文件系统、代码托管、数据库连接器）。不需要：只是你自己的两三个内部函数——直接写函数工具更简单、更好测，少一个进程或一次网络往返<span class="tag warn">建议</span>。
+
+</Callout>
+
+### 取舍与替代方案
+
+这四块能力都遵循同一个思路：<b>不新建平行体系，而是在 Agent / Runner 上扩展</b>。沙箱 agent 是 Agent 的子类，实时 agent 保留交接和约束，MCP 工具和本地函数工具走同一条工具管道（因此能共享审批和约束）。代价是有些能力“打了折”（实时 agent 不支持结构化输出、托管工具不走工具约束管道），需要产品方清楚每条边界。
+
+<Callout type="要点" title="要点小结">
+
+- 交接 = 转接电话，专家接管；agent-as-tool = 请同事帮忙，经理负责到底。需要“办完回来汇报”就别用交接。
+- 沙箱 agent 是真实的一等能力，但隔离强度取决于后端：本机后端几乎没有隔离。
+- 实时 agent 低延迟但更窄；语音流水线能力全但更慢。MCP 适合复用外部工具，自家小函数直接写工具即可。
+
+</Callout>
+
+## 三、为什么是“模型 + 指令 + 工具 + 交接 + 约束 + 观测”这套系统
+
+<Callout type="结论" title="一句话结论">
+
+这六块不是功能清单，而是一条责任链：模型负责“想”，指令负责“定角色”，工具负责“做”，交接负责“换人”，约束负责“拦”，观测负责“记”。Runner 用一套<b>有固定优先级的规则</b>把它们串成循环——理解这套规则，才能预测 agent 的行为，也才知道该在哪一块上加固。
+
+</Callout>
+
+### 问题背景：提示词解决不了结构问题
+
+新手做 agent 最常见的失败，是把一切寄托在“更好的提示词”上。但提示词只能影响模型“想”什么，影响不了这些事：工具失败后系统怎么办、模型绕圈子时谁来叫停、谁对危险操作说不、出事之后怎么复盘、对话换人时历史给多少。这些都需要<b>系统结构</b>，而不是更长的提示词。
+
+### 第 3 章 a 部分 · 逐块讲：每块解决什么，缺了会怎样
+
+#### 模型（Model）
+
+理解自然语言、在开放情况下做决策。每个 agent 可以用不同模型（分诊用快而便宜的，专家用强的），运行配置可全局覆盖；支持 OpenAI 之外的 100 多种模型。
+
+<b>缺了它：</b>只能写死规则，用户换个说法就失效。
+
+#### 指令（Instructions）
+
+定义角色、做事步骤和边界。可以是固定文本，也可以是根据上下文动态生成的函数。交接场景推荐加官方前缀 `RECOMMENDED_PROMPT_PREFIX`，让模型明白“你可能是被转接过来的”。
+
+<b>缺了它：</b>模型按通用助手行事：答非所问、越权承诺、风格不一。
+
+#### 工具（Tools）
+
+取得真实数据、执行真实动作。工具同时也是<b>权限边界</b>：模型只能做你暴露给它的事，参数校验和鉴权在代码里完成。
+
+<b>缺了它：</b>模型只能凭记忆编答案（幻觉），说“已为您退款”但实际什么都没发生。
+
+#### 交接（Handoffs）
+
+把对话交给更合适的专家，并切换指令和工具集。让每个专家的提示词短而专注，可单独测试。
+
+<b>缺了它：</b>一个巨型提示词装下所有业务，规则互相干扰，改一处坏三处。
+
+#### 约束（Guardrails）
+
+在模型之外独立检查输入、输出和工具调用。可以用便宜模型或纯规则，提前拒绝明显不该做的请求。
+
+<b>缺了它：</b>安全全靠模型自觉；提示词注入、跑题滥用、违规承诺直接到达用户或业务系统。
+
+#### 观测（Tracing）
+
+记录每一步：谁、在第几轮、看到了什么、做了什么、花了多久。是排查、评估、回归测试和合规审计的共同基础。
+
+<b>缺了它：</b>出了问题只能猜；无法向审计说明“为什么退了这笔钱”。
+
+此外还有两个“粘合件”：<b>Runner</b> 负责把六块按规则串起来；<b>人工审批</b>（human-in-the-loop，人工介入）负责在高风险动作前把控制权交还给人。后者是在社区强烈要求下才加入的（见本章 c 部分规则六）。
+
+### 第 3 章 b 部分 · 各部分之间具体怎么交互
+
+以“用户申请退款”为例，一次 `Runner.run` 中各块按下面的顺序参与（与下方模拟器一一对应）：
+
+1. <span class="tag">观测</span><span class="tag">Runner</span>Runner 打开一条 trace（建议设置 `workflow_name`，并用 `group_id` 把同一会话的多条 trace 串起来），为当前 agent 打开 agent span。从会话中取出历史，与新输入合并（合并方式可用 `session_input_callback` 定制）；调用模型前，`call_model_input_filter` 还有最后一次机会修剪或脱敏输入。
+2. <span class="tag">约束</span>只在第 1 轮：Runner 把第一个 agent 的输入约束分成两组——<b>阻塞组先跑完</b>，<b>并行组与模型调用同时启动</b>。 <Source href={P + 'src/agents/run.py#L1776-L1840'} label="run.py#L1776" />
+3. <span class="tag">模型</span><span class="tag">指令</span>Runner 把“当前 agent 的指令 + 对话历史 + 工具清单（函数工具、交接工具、MCP 工具）+ 输出格式要求”发给模型，记为 generation span。注意：交接对象在模型眼里也只是工具清单中的一项。
+4. <span class="tag">Runner</span>把模型返回解析成几类东西：普通消息、函数工具调用、交接调用、MCP 审批请求、Shell/改文件/电脑操作等。
+5. <span class="tag">工具</span>同一轮的多个函数工具<b>默认全部同时启动</b>。每个工具依次经过：审批判定 → 工具输入约束 → 执行（function span）→ 工具输出约束。结果被追加为一条“函数调用输出”——<b>工具结果不直接给用户，而是成为下一轮模型输入的一部分</b>，由模型决定怎么用。出错时默认也转成一句模型能看懂的错误文本。
+6. <span class="tag">交接</span>若有交接调用：执行 `on_handoff` 回调（例如记录转接原因）→ 用 `input_filter` 决定新 agent 看到哪些历史 → 当前 agent 切换，<b>新 agent 的指令和工具集整体替换旧的</b> → 记为 handoff span。历史默认完整传递；你的运行上下文对象在整次运行中共享。注意：输入约束<b>不会</b>因为换了 agent 而重跑。
+7. <span class="tag">Runner</span>按优先级规则判定下一步：暂停等审批、换人再来、结束、还是再来一轮（见 c 部分）。每进入新一轮计数加一，超过 `max_turns` 立即停止。
+8. <span class="tag">约束</span><span class="tag">观测</span>得到最终输出候选后，运行<b>最后那个 agent</b> 的输出约束；通过则返回结果、写入会话、关闭 trace（后台批量导出）。触发则抛出异常，被拒的候选回复不写入会话。
+
+追踪把这些步骤串成一棵树：`trace → task span（一次运行）→ turn span（一轮）→ agent span → generation / function / handoff / guardrail span`。span 通过 Python 的上下文变量自动挂到“最近的当前 span”下面，所以开发者不用手动传父子关系。 <Source href={P + 'src/agents/tracing/create.py#L89-L340'} label="tracing/create.py" />
+
+<AgentLoop />
+
+### 第 3 章 c 部分 · 规则是怎么设计的、怎么串起来的
+
+### 规则一：“这一轮结束了没有”——一个有优先级的判定
+
+文档用一句话概括：<b>“模型产出了期望类型的文本输出、并且没有工具调用”，才算最终输出</b>。源码里每轮结束时的判定按固定顺序进行： <Source href={P + 'src/agents/run_internal/turn_resolution.py#L1126-L1327'} label="turn_resolution.py#L1126" /> <Source href={P + 'src/agents/run_internal/run_steps.py#L164-L190'} label="run_steps.py" />
+
+- ① <b>有待审批的工具调用 → 暂停</b>（NextStepInterruption）。不需要审批的同轮工具照常执行，结果保存，等人决定后再继续。<br /><small>产品逻辑：没有人点头之前，任何依赖它的后续都不能发生，所以审批排第一。</small>
+- ② <b>有交接 → 换人，再来一轮</b>（NextStepHandoff）。同一轮如果模型要求了多个交接，只执行第一个，其余回复“检测到多个交接，忽略此项”。 <Source href={P + 'src/agents/run_internal/turn_resolution.py#L578-L620'} label="#L578" /><br /><small>产品逻辑：交接意味着“换个负责人”，当前 agent 这一轮的结论不再作数<span class="tag warn">推测</span>；同时只能有一个负责人，避免对话分叉。</small>
+- ③ <b>工具结果按 `tool_use_behavior` 被认定为答案 → 结束</b>。<br /><small>产品逻辑：有些工具的输出本身就是交付物，不必再让模型复述一遍。</small>
+- ④ <b>没有待执行的工具、且有消息 → 校验后结束</b>。设了 `output_type` 就必须通过校验；模型拒答则走 `ModelRefusalError` 或兜底；纯文本直接作为最终输出。
+- ⑤ <b>其余情况（执行了工具）→ 再来一轮</b>（NextStepRunAgain），轮次加一；超过 `max_turns` 就停止。
+
+这套优先级的好处是<b>行为可预测</b>：同样的模型输出，永远走同样的分支。对产品方的启示是：如果你希望某件事“一定发生在回复之前”（比如记录工单），要么做成工具让模型调用，要么放在 Runner 之外的代码里，而不是寄希望于模型“记得”。
+
+### 规则二：工具使用策略——强制、停止与防死循环
+
+- <b>是否强制用工具</b>：`tool_choice` 可设为 `auto`（模型自己决定）、`required`（必须用某个工具）、`none`（不许用）或指定某个工具名。
+- <b>防死循环</b>：`reset_tool_choice` 默认为真——用过一次工具后自动恢复成 `auto`。否则会出现“被强制用工具 → 结果回到模型 → 又被强制用工具……”的无限循环。 <Source href={P + 'src/agents/agent.py#L396-L418'} label="agent.py#L396" />
+- <b>用完工具后是否停止</b>：`tool_use_behavior` 有四种——`run_llm_again`（默认，结果交回模型再组织回复）、`stop_on_first_tool`（第一个工具的结果就是最终答案）、`StopAtTools([...])`（调用了指定工具才停）、自定义函数（由你的代码判断）。 <Source href={P + 'docs/agents.md'} label="docs/agents.md" />
+- <b>两个并发旋钮</b>：`parallel_tool_calls` 控制模型能否一次发出多个调用；`max_function_tool_concurrency` 控制 SDK 实际同时执行几个（默认不限）。
+- <b>调用了不存在的工具</b>：默认直接报错（`ModelBehaviorError`）；可改为把错误告诉模型、让它重选（`return_error_to_model`）。 <Source href={P + 'src/agents/run_config.py#L498'} label="run_config.py#L498" />
+
+<b>背后的考虑：</b>“工具结果就是答案”能省一次模型调用、避免模型改错数字（例如报价），但也意味着输出约束看到的是工具的原始结果；文档专门写了这种情况下被拒的工具输出会被替换成“该输出已被输出约束拦截”的占位文本，原始内容不进入会话。默认值选择“再交回模型”，是因为大多数工具结果需要被翻译成人话。
+
+### 规则三：交接的过滤规则——新 agent 能看到多少
+
+- <b>默认全量</b>：交接时“就像新 agent 接管了对话，能看到之前的全部历史”。
+- <b>优先级</b>：单个交接上的 `input_filter` 优先于全局的 `RunConfig.handoff_input_filter`。 <Source href={P + 'src/agents/handoffs/__init__.py#L158'} label="handoffs#L158" /> <Source href={P + 'src/agents/run_config.py#L377-L385'} label="run_config.py#L377" />
+- <b>现成过滤器</b>：`remove_all_tools` 去掉历史里所有工具调用条目——但文档提醒，它<b>不会清除已经写进普通消息里的工具内容</b>。 <Source href={P + 'src/agents/extensions/handoff_filters.py#L33'} label="handoff_filters.py#L33" />
+- <b>压缩历史（测试版，默认关）</b>：`nest_handoff_history` 把可摘要的历史压成摘要段。文档强调：“它改变历史的表现形式，但不做脱敏”。
+- <b>动态开关与附带信息</b>：`is_enabled` 可按运行时条件开关某个交接（在模型回复前评估，因此不能用来校验交接参数，校验要放在 `on_handoff` 开头）；`input_type` 让模型交接时附带“原因、优先级”等小块元数据。
+- <b>不支持的组合</b>：使用服务器端会话（`conversation_id` 等）时，交接过滤器无效；如果接收方绝对不能继承历史，应另起一次运行。
+
+<b>背后的考虑：</b>默认全量是为了“转接后不用让用户再说一遍”；但历史越长，新 agent 越容易被前一个 agent 的风格和工具噪音干扰，也越可能看到不该看的数据。SDK 的态度是给出开关、写明边界，由产品方决定“转接时交代多少背景”。
+
+### 规则四：约束的并行/阻塞与触发时机
+
+- <b>谁的约束在什么时候跑</b>：输入约束只对第一个 agent、只在第 1 轮；输出约束只对产出最终输出的 agent；工具约束在每次受保护的函数工具调用前后。交接和托管工具<b>不走</b>工具约束管道。
+- <b>并行（默认）</b>：`run_in_parallel=True`，约束与模型同时开始，响应最快；但如果触发，主模型“可能已经消耗了 token、执行了工具”才被取消。 <Source href={P + 'src/agents/guardrail.py#L100'} label="guardrail.py#L100" />
+- <b>阻塞</b>：`run_in_parallel=False`，约束跑完才启动模型，触发时“agent 根本不会执行”，适合省钱和避免副作用。
+- <b>输出约束</b>总是在 agent 完成后运行，不支持并行。
+- <b>触发后</b>：立即抛出 `InputGuardrailTripwireTriggered` / `OutputGuardrailTripwireTriggered`，异常里带着是哪条约束、以及到目前为止所有约束的结果，方便应用层决定怎么回复用户。
+
+<b>背后的考虑：</b>这是“体验 vs 安全成本”的典型取舍。默认并行是因为绝大多数请求是正常的，不该为少数恶意请求让所有人多等一次检查；而“一旦启动就有副作用”的场景（比如首轮就可能调用写操作工具），应切换为阻塞，或者用工具约束和审批守住真正危险的那一步<span class="tag warn">建议</span>。
+
+### 规则五：上限与兜底
+
+- `max_turns` 默认 10（Python 与 JS 版一致），可设为不限。超过即抛出 `MaxTurnsExceeded`，并在追踪里给当前 span 标上“超过最大轮数”。 <Source href={P + 'src/agents/run.py#L1605-L1612'} label="run.py#L1605" /> <Source href={J + 'packages/agents-core/src/runner/constants.ts#L2'} label="JS constants.ts" />
+- `error_handlers` 支持三种错误的兜底：`max_turns`、`model_refusal`、`invalid_final_output`。处理器返回一个受控的最终输出，而不是让整个请求报错；`include_in_history` 决定这条兜底要不要写进会话。 <Source href={P + 'src/agents/run_error_handlers.py#L50'} label="run_error_handlers.py" />
+- 单个工具可设超时，默认把“超时了”作为结果告诉模型，也可以改成直接失败；agent-as-tool 的子运行有自己的 `max_turns`。
+
+<b>背后的考虑：</b>10 轮是一个“正常任务够用、失控时及时止损”的默认值。更重要的是兜底处理器的设计：它承认<b>“没能完成”也是一种需要设计的产品结果</b>，并刻意规定兜底不会重试模型、也不会重放工具副作用，避免“兜底时又退了一次款”。
+
+### 规则六：人工审批与中断
+
+- <b>声明</b>：工具上写 `needs_approval=True`，或给一个函数逐次判断（例如金额大于 500 才需要）。适用于函数工具、agent-as-tool、Shell、改文件，本地 MCP 服务器用 `require_approval`。 <Source href={P + 'src/agents/tool.py#L500'} label="tool.py#L500" />
+- <b>范围是整次运行</b>：交接后的 agent、嵌套在 agent-as-tool 里的工具，审批请求都会冒泡到最外层统一处理。
+- <b>暂停—保存—恢复</b>：`result.interruptions` 列出待审批项 → `result.to_state()` 得到可序列化的运行状态（可以存进数据库，隔天再处理）→ `state.approve(...)` / `state.reject(...)` → 用<b>最初的顶层 agent</b> 和这个状态再次 `Runner.run`，从断点继续。可以只处理一部分审批，剩下的会再次暂停。 <Source href={P + 'docs/human_in_the_loop.md'} label="docs/human_in_the_loop.md" />
+- <b>失败时关闭</b>：判断函数需要看参数；如果参数缺失、不是合法 JSON、不是对象等，判断函数<b>不会被调用</b>，直接要求人工审批。
+- <b>粘性决定</b>：`always_approve` / `always_reject` 对同一工具后续调用生效；但 Shell 和改文件工具的粘性决定<b>不区分 agent</b>，文档专门警告了跨 agent 被误放行的风险。
+- <b>中断</b>：流式运行可 `cancel()` 立即停止，或 `cancel(mode="after_turn")` 等当前轮结束再停。 <Source href={P + 'src/agents/result.py#L941'} label="result.py#L941" />
+
+<Callout type="要点" title="issue #636 · “人工介入架构应该最优先实现！”">
+
+2025 年 5 月提出，理由是医疗、法律、金融等场景必须有人监督，没有原生支持只能“在 Runner 外面写脆弱的自定义逻辑”。团队的做法很有代表性：<b>先在 JS 版实现（2025 年 6 月），根据易用性反馈打磨 API，再移植回 Python</b>（2026 年 1 月 PR #2230 合入）。相关的早期请求还有 [#109](https://github.com/openai/openai-agents-python/issues/109)。 <Source href={I + '636'} label="#636" />
+
+</Callout>
+
+<Callout type="要点" title="issue #329 · 运行中手动中断">
+
+用户希望在 agent“走上歧路”或成本失控时能中途叫停。该 issue 最终以“不修复”关闭，但如今流式结果已经提供了 `cancel()`，以及“停在本轮结束、带着新输入继续”（`state.add_input`）的能力——“随时停”可以做到，“暂停后人工修改再继续”则要借助运行状态来实现。 <Source href={I + '329'} label="#329" />
+
+</Callout>
+
+### 取舍与替代方案
+
+集中、固定优先级的规则让行为可预测，灵活性则通过钩子补回来：`call_model_input_filter`（改模型输入）、生命周期钩子（hooks）、自定义 `tool_use_behavior`、错误处理器。替代方案有两种：一是完全手写循环（最灵活，但每个团队都要重新踩一遍边界情况的坑）；二是图式工作流引擎（每一步显式定义，最可控，但开放式任务里要预先画出所有分支，写起来很重）。Agents SDK 站在中间：<b>默认让模型驱动，关键节点由规则和代码兜住</b>。
+
+<Callout type="要点" title="要点小结">
+
+- 判定顺序：审批 &gt; 交接 &gt; 工具结果即答案 &gt; 校验后的最终输出 &gt; 再来一轮；每轮计数，超过 `max_turns` 即停止。
+- 工具结果回到模型而不是用户；交接替换指令和工具集，历史默认全量传递；约束只在特定 agent、特定时机生效。
+- 并行约束换来低延迟，代价是触发前可能已产生开销；高风险动作用阻塞约束、工具约束或审批守住。
+- “没完成”也要设计：用错误处理器给出受控兜底，且兜底不重放副作用。
+
+</Callout>
+
+## 四、agent 产品参考架构图
+
+<Callout type="结论" title="一句话结论">
+
+一个能上线的 agent 产品里，“agent”只占中间一小块；它的前面是检查，后面是检查和审批，两侧是贯穿始终的会话记忆和观测。设计 agent 产品，主要是在设计这些“周边”。
+
+</Callout>
+
+### 问题背景：演示版和产品版差在哪里
+
+演示版通常只有“用户 → 一个 agent → 回复”。上线后马上会遇到：有人用它做别的事、有人试图套出系统提示词、agent 承诺了不该承诺的东西、一笔大额退款没人把关、出了问题找不到原因、用户第二天回来它什么都不记得。下面这张图把这些问题对应的模块都画出来，并标出每个模块对应的 SDK 原语。<span class="tag warn">架构为本页作者归纳，原语对应关系来自仓库</span>
+
+<Diagram
+  title="可点击的参考架构"
+  hint="点任一模块查看：职责 / SDK 原语 / 设计要点 / 常见坑"
+  layers={[
+    { title: '入口', blocks: [
+      { label: "用户入口", tag: "Runner.run", detail: ["职责：接收网页聊天、App、电话、工单等渠道的请求；完成身份鉴别；把用户、租户、权限等信息放进运行上下文。", "SDK 原语：Runner.run / run_streamed；实时语音用 RealtimeRunner，语音流水线用 VoicePipeline；context 参数（运行上下文，不发给模型）。", "设计要点：一次请求对应一个 Runner 回合；给 trace 设置 workflow_name，用会话 ID 作为 group_id，方便把同一会话的多次运行串起来看。", "常见坑：把“用户是 VIP、可以退 2000 元以内”写进提示词让模型自觉遵守；缺少限流和整体超时。"] },
+      { label: "输入约束", tag: "input_guardrails", detail: ["职责：在昂贵的主流程开始前，拦截跑题滥用、提示词注入、违规内容。", "SDK 原语：Agent.input_guardrails、RunConfig.input_guardrails；@input_guardrail(run_in_parallel=False) 设为阻塞；InputGuardrailTripwireTriggered。", "设计要点：用便宜快速的模型或规则；对首轮就可能触发写操作的场景改为阻塞执行；单独统计误伤率。", "常见坑：以为每次交接后都会对新 agent 重新检查——实际上输入约束只对第一个 agent、只在第 1 轮运行。"] },
+      { label: "分诊 agent", tag: "Agent(handoffs)", detail: ["职责：识别意图，决定交给哪位专家；自己尽量不回答业务问题。", "SDK 原语：Agent(handoffs=[...])；handoff_description 帮模型选对人；handoff(input_type=...) 让模型附带转接原因；is_enabled 按条件开关某个交接。", "设计要点：指令要短，只做分类与转接；可用快模型；意图种类少且明确时，用结构化输出分类 + 代码路由替代分诊 agent。", "常见坑：分诊 agent 开始自己回答问题；交接描述含糊导致转错人；同一轮请求多个交接（SDK 只执行第一个）。"] },
+    ] },
+    { title: '分诊之后：交接给专家；专家调用工具 / MCP / 知识检索', blocks: [
+      { label: "专家 agent", tag: "handoff → Agent", detail: ["职责：在单一业务域内把事办完：查询、决策、执行、回复。", "SDK 原语：Agent + instructions + tools + output_type；指令前加 RECOMMENDED_PROMPT_PREFIX；需要时挂一个交接回分诊；或作为 agent.as_tool() 被经理调用。", "设计要点：每个专家都能单独评估；用 output_type 让结果可被前端和工单系统接住；输出约束要挂在专家身上。", "常见坑：专家之间互相交接形成环，最终撞上 max_turns；交接时继承了过长或含敏感信息的历史。"] },
+      { label: "工具与 MCP", tag: "function_tool · MCPServer", detail: ["职责：读写业务系统、执行动作；工具就是 agent 的权限边界。", "SDK 原语：@function_tool（timeout、failure_error_function、needs_approval、工具约束）；托管工具；MCPServerStreamableHttp / Stdio / HostedMCPTool；MCPServerManager。", "设计要点：鉴权和参数校验写在工具代码里；写操作必须幂等；工具描述写清楚“什么时候用、什么时候别用”；只连接可信的 MCP 服务器。", "常见坑：给 agent 一个“万能 SQL”或“万能 HTTP”工具；把内部报错原文交给模型（SDK 默认错误文本刻意不暴露异常）。"] },
+      { label: "知识检索", tag: "FileSearchTool", detail: ["职责：查询政策、常见问题、产品文档，为回答提供依据。", "SDK 原语：托管 FileSearchTool（向量库检索）；或自定义检索函数工具；或通过 MCP 接入现有知识库。", "设计要点：检索是工具，不是记忆：按需查询、返回来源，便于在回复里引用和事后核查。", "常见坑：把整本手册塞进指令；检索结果里的文字被当作“指令”执行（检索内容同样可能携带注入）。"] },
+    ] },
+    { title: '出口', blocks: [
+      { label: "输出约束", tag: "output_guardrails", detail: ["职责：在回复到达用户之前检查：乱承诺、泄露隐私、格式不合规。", "SDK 原语：Agent.output_guardrails、RunConfig.output_guardrails；output_type 校验；invalid_final_output 错误处理器；output_guardrail_blocked_message 占位文本。", "设计要点：它只对产出最终输出的 agent 生效——每个可能“说最后一句话”的专家都要挂，或在运行配置里全局添加。", "常见坑：只在分诊 agent 上配置输出约束，交接后形同虚设。"] },
+      { label: "人工审批", tag: "needs_approval", detail: ["职责：在高风险动作真正执行前，把决定权交还给人。", "SDK 原语：needs_approval（布尔或判定函数）；result.interruptions；result.to_state()；state.approve / reject（可 always_approve）；用 RunState 恢复运行。注意：在 SDK 里审批挂在工具调用之前。", "设计要点：按金额、动作类型分级；状态序列化后存储，支持跨进程、跨天恢复；拒绝时给模型一个清晰的替代方案说明。", "常见坑：审批界面只显示原始 JSON；滥用“总是批准”，尤其 Shell/改文件的粘性决定不区分 agent。"] },
+      { label: "结果", tag: "RunResult", detail: ["职责：把结果交给用户和下游系统，并为下一回合做准备。", "SDK 原语：RunResult.final_output、last_agent、new_items、to_input_list()；流式事件 stream_events()（含 agent 切换事件）。", "设计要点：决定展示什么：只给最终答案，还是同时展示“已转接退款专员”“正在查询订单”等过程；下一回合从 last_agent 继续。", "常见坑：流式输出最后一个字出现就认为完成——此时 SDK 可能还在写会话、整理审批状态。"] },
+    ] },
+  ]}
+  side={[
+    { title: '贯穿每个回合 · Session', blocks: [{ label: "会话记忆层", detail: ["职责：跨回合保存对话，让第二句话记得第一句。", "SDK 原语：Session（SQLite、Redis、SQLAlchemy、加密会话等）；或 conversation_id / previous_response_id（OpenAI 服务器端）；session_input_callback 定制合并方式。", "设计要点：一个对话只选一种记忆策略；长对话配合裁剪或压缩；审批恢复时继续使用同一个会话。", "常见坑：客户端会话和服务器端会话混用导致上下文重复；把敏感内容无期限保存；把长期记忆当作可信来源（注入可能跨会话留存，见 issue #887 后续讨论）。"] }] },
+    { title: '每一步都是 span · trace · span', blocks: [{ label: "观测层", detail: ["职责：记录每个 agent、每次模型调用、工具、交接、约束的完整过程，供排查、评估和审计。", "SDK 原语：trace / span（agent、generation、function、handoff、guardrail、语音相关 span）；自定义追踪处理器；trace_include_sensitive_data；flush_traces()。", "设计要点：上线前就设好 workflow_name 和 group_id；接入自家监控平台（社区通过第三方处理器支持 OpenTelemetry，见 issue #18）；按中止类型做统计。", "常见坑：默认会记录模型与工具的输入输出（含隐私）；零数据保留组织无法使用；长驻进程里任务结束后追踪不一定立即导出。"] }] },
+  ]}
+/>
+
+<Simulator
+  title="走一遍请求路径"
+  hint="点播放，看一次退款请求依次经过哪些模块。"
+  width={800} height={260}
+  nodes={[{ id: "entry", label: "用户入口", x: 190, y: 40 }, { id: "inguard", label: "输入约束", x: 400, y: 40 }, { id: "triage", label: "分诊 agent", x: 610, y: 40 }, { id: "expert", label: "专家 agent", x: 190, y: 130 }, { id: "tools", label: "工具与 MCP", x: 400, y: 130 }, { id: "rag", label: "知识检索", x: 610, y: 130 }, { id: "outguard", label: "输出约束", x: 190, y: 220 }, { id: "human", label: "人工审批", x: 400, y: 220 }, { id: "result", label: "结果", x: 610, y: 220 }, { id: "memory", label: "会话记忆层", x: 45, y: 130 }, { id: "trace", label: "观测层", x: 755, y: 130 }]}
+  edges={[['entry','inguard'],['inguard','triage'],['triage','expert'],['outguard','human'],['human','result']]}
+  scenarios={[{ id: 'walk', label: '退款请求', steps: [
+    { at: "entry", say: "用户在 App 里发起退款请求" },
+    { at: "inguard", say: "输入约束（与主流程并行）确认这是正常售后请求" },
+    { at: "triage", say: "分诊 agent 识别意图，调用交接" },
+    { at: "expert", say: "退款专家接管对话" },
+    { at: "tools", say: "专家调用订单查询工具" },
+    { at: "rag", say: "专家检索退款政策" },
+    { at: "human", say: "大额退款：暂停等待主管批准（实际挂在退款工具调用之前）" },
+    { at: "outguard", say: "输出约束检查最终答复" },
+    { at: "result", say: "结果返回用户，last_agent 记为退款专家" },
+    { at: 'trace', status: 'ok', say: "走完了。两侧的记忆层和观测层在每一步都在读写。" },
+  ] }]}
+/>
+
+说明：图中“人工审批”画在输出约束之后，表示“对外生效前的最后一道关”；在 SDK 里它实际挂在<b>工具调用之前</b>（审批的是动作，不是回复），点开模块可看到细节。
+
+### 产品洞察一：约束放两头，审批放在动作上
+
+输入约束挡住“不该开始的事”，输出约束挡住“不该说出口的话”，人工审批挡住“不该自动执行的动作”。三者分别对应<b>成本、声誉、资产</b>三类风险。常见错误是只做了一种：只有输入过滤的产品，会把模型的乱承诺原样发给用户；只有输出检查的产品，会在检查之前就已经执行了写操作。
+
+### 产品洞察二：输出约束要挂在“每个可能说最后一句话的 agent”上
+
+因为 SDK 的输出约束只对产出最终输出的 agent 生效，交接架构下，<b>只给分诊 agent 配输出约束等于没配</b>——最后说话的是专家。更稳妥的做法是给所有专家挂同一组输出约束，或者通过运行配置（`RunConfig.output_guardrails`）全局添加。 <Source href={P + 'docs/running_agents.md'} label="docs/running_agents.md" />
+
+### 产品洞察三：记忆和观测是“层”，不是“步骤”
+
+它们不在某个箭头上，而是每一步都要读写：会话层决定下一回合模型能看到什么；观测层记录每一步发生了什么。把它们画成两侧贯穿的层，是在提醒：<b>换模型、加 agent、改流程时，这两层都不应该需要重做</b>。
+
+<Callout type="要点" title="issue #18 · 追踪支持 OpenTelemetry 格式">
+
+SDK 发布第二天就有人要求用业界通用的 OpenTelemetry 格式导出追踪，担心被锁定在单一平台。官方以“上面已经有很多建议”关闭，采用的是“可插拔的追踪处理器 + 第三方集成”路线，而非内置标准格式。产品启示：<b>观测层要能接到你自己的平台</b>，选框架时先确认这一点。 <Source href={I + '18'} label="#18" />
+
+</Callout>
+
+### 具体例子：真实产品 Codex 怎样落地这张图
+
+Codex 是 OpenAI 自己的编码 agent 产品。把它放到这张图上，可以看到 SDK 原语在真实产品里如何被包装成“用户可选的设置”：
+
+| 架构模块 | Codex 的产品化形态 | 证据 |
+| --- | --- | --- |
+| 指令 / 知识 | 项目根目录的 `AGENTS.md` 规范文件：团队把“怎么跑测试、代码风格、禁区”写给 agent 看，默认最多读取 32 KiB。Agents SDK 仓库自己也有一份 `AGENTS.md`。 | <Source href={C + 'codex-rs/config/src/config_toml.rs#L75'} label="config_toml.rs#L75" /> <Source href={P + 'AGENTS.md'} label="AGENTS.md" /> |
+| 工具执行环境 | 沙箱三档：只读 / 只写工作区（默认不出网）/ 完全访问 | <Source href={C + 'codex-rs/protocol/src/config_types.rs#L104-L114'} label="config_types.rs" /> |
+| 人工审批 | 审批策略四档：`untrusted`（未信任项目，命令默认要审批）、`on-request`（默认，由模型决定何时请求）、`granular`（按类别细调）、`never`（从不问人，失败直接返回给模型） | <Source href={C + 'codex-rs/protocol/src/protocol.rs#L1097-L1120'} label="protocol.rs#L1097" /> |
+| SDK 里的接口 | `codex_tool` 直接暴露 `sandbox_mode` 和 `approval_policy` 参数 | <Source href={P + 'docs/tools.md'} label="docs/tools.md" /> |
+
+<b>最值得借鉴的一点：</b>Codex 把“能做什么”（沙箱范围）和“什么时候问人”（审批频率）拆成两个<b>互相独立的旋钮</b>。用户可以选“只能动工作区，但别老问我”，也可以选“能力很大，但每步都要我确认”。这比一个笼统的“安全模式开/关”精细得多，也是 SDK 里 `needs_approval`（何时问）与沙箱后端（能做什么）分离设计的产品化结果。
+
+### 取舍与替代方案
+
+这张图模块越多，延迟和成本越高：每多一道模型驱动的约束，就多一次模型调用。实际做法是按风险分层：低风险问答只保留输入约束和观测；涉及钱和数据写入的路径才加满输出约束和审批<span class="tag warn">建议</span>。分诊 agent 也不是必需的——如果意图种类少且明确，用结构化输出分类后由代码路由，更快更稳。
+
+<Callout type="要点" title="要点小结">
+
+- 输入约束管成本，输出约束管声誉，审批管资产；三者缺一不可但可按风险分层。
+- 交接架构下，输出约束要挂在每个可能“说最后一句话”的专家上。
+- 记忆和观测是贯穿的层，选型时先确认能接到自己的存储和监控平台。
+
+</Callout>
+
+## 五、agent 应该怎么设计，而不是遇到什么都做成 agent
+
+<Callout type="结论" title="一句话结论">
+
+agent 是“把控制流交给模型”的那一档方案：它换来面对开放情况的灵活，付出的是确定性、延迟、成本和可评估性。设计时先问“能不能不用它”，从最低一档起步，用数据证明需要再升级。
+
+</Callout>
+
+### 问题背景：什么都做成 agent 的代价
+
+“agent 化”很诱人：写几句指令、挂几个工具，似乎什么都能做。但每把一个决定交给模型，就多一个不确定点：同样的输入可能走不同路径；每多一轮就多一次延迟和费用；结果难以写成断言测试；出了事也难以解释。Agents SDK 的文档本身就把“用代码编排”和“让模型编排”并列，并明确说前者“在速度、成本和效果上更确定、更可预测”。 <Source href={P + 'docs/multi_agent.md'} label="docs/multi_agent.md" /> 仓库的模式示例里，第一个就是“确定性流程”：把任务拆成固定步骤，每一步一个 agent，上一步的输出作为下一步的输入。 <Source href={P + 'examples/agent_patterns/README.md'} label="agent_patterns/README.md" />
+
+### 产品洞察一：六个判断维度
+
+#### ① 任务确定性
+
+同样的输入是否应该总有同样的输出？越确定越不需要 agent。“把订单状态翻译成文案”很确定；“帮我规划一次旅行”不确定。
+
+#### ② 步骤能否枚举
+
+能事先画出流程图吗？能画出来就用代码或固定工作流写死；画不出来（步骤取决于中途发现的信息）才需要模型决定下一步。
+
+#### ③ 出错代价
+
+错一次是“换个说法重来”还是“钱打错了账户”？代价越高，越要压低自主度，或给 agent 加审批与输出约束。
+
+#### ④ 是否需要多轮探索
+
+需要“查一下、看结果、再决定查什么”吗？这正是 agent 循环的价值所在；一步就能得到答案的任务，用单次调用即可。
+
+#### ⑤ 延迟与成本预算
+
+用户愿意等 2 秒还是 2 分钟？agent 每多一轮都是一次完整模型调用。实时交互、高并发场景，预算往往不允许多轮。
+
+#### ⑥ 可评估性
+
+能写出“什么算对”的检查吗？难以评估的任务做成 agent，等于上线后不知道它是变好还是变坏。文档也把“投资评估”列为让模型编排的关键前提。
+
+### 产品洞察二：五档方案阶梯
+
+| 档位 | 什么时候用 | 例子 | 在 SDK 里的样子 |
+| --- | --- | --- | --- |
+| 普通代码 | 输入结构化、规则明确 | CSV 转 JSON、按规则计算运费 | 不用 SDK |
+| 单次 LLM 调用 | 需要理解语言，但一步就能完成 | 工单分类、摘要、字段抽取 | 无工具的 Agent + `output_type`，或直接调模型接口 |
+| 固定工作流 | 多步但步骤可枚举，每步需要语言能力 | 大纲→正文→审校；分类后按类别走不同处理 | 代码串联多个 agent；结构化输出 + 代码路由 |
+| 单 agent + 工具 | 步骤不可枚举，需要边查边决定 | 客服处理一个具体问题、数据分析问答 | 一个 Agent + 若干工具 + 约束 |
+| 多 agent | 多个业务域规则差异大、需隔离指令与权限 | 大型客服中心、研究报告多专家协作 | 交接 / agent-as-tool / 混用 |
+
+<AgentDecider />
+
+### 产品洞察三：升级要有证据，降级要有勇气
+
+<b>升级路径</b>：先用最低可行档位上线，用追踪数据观察哪些请求处理失败、失败在哪一步，再决定是否升级。例如分类准确率不够，先改进单次调用的提示词和输出结构，而不是马上改成 agent<span class="tag warn">建议</span>。
+
+<b>降级路径</b>：agent 上线后，追踪里常会看到某些路径反复以同样方式出现（例如“查订单 → 判断是否重复扣款 → 退款”）。这类稳定路径应该被<b>固化成工作流</b>，只把真正开放的部分留给 agent。这样更快、更便宜、更好测<span class="tag warn">建议</span>。
+
+<b>中间形态</b>：SDK 里有很多“半自主”的旋钮可以组合使用：`tool_choice="required"` 强制先查数据再回答；`StopAtTools` 让某个工具一被调用就结束；`max_turns` 设小一点限制探索深度；`is_enabled` 按用户等级开关某些交接。不必在“全自动”和“全写死”之间二选一。
+
+### 具体例子
+
+- <b>发票字段抽取</b>：需要理解版式各异的文字，但一步完成、易于评估 → 单次 LLM 调用 + 结构化输出。做成 agent 只会更慢更贵。
+- <b>电商退款客服</b>：步骤取决于查到的订单情况，需要边查边决定，退款有资金风险 → 单 agent + 工具，退款工具按金额要求审批，回复加输出约束。
+- <b>多业务线客服中心</b>：机票、酒店、会员积分规则完全不同 → 分诊 + 交接的多 agent，每个专家单独评估。
+- <b>修复代码 bug</b>：需要多轮探索（读代码、跑测试、再改），可通过测试自动评估 → 单 agent + 沙箱工具，参考 Codex 的沙箱与审批档位。
+
+### 取舍与替代方案
+
+这个框架的风险是“过于保守”：有些任务看似步骤可枚举，实际长尾情况很多，写死的工作流会在长尾上频繁失败。折中方案是“工作流为主干，agent 处理异常分支”：主流程用代码写死，遇到工作流处理不了的情况，再交给一个 agent 兜底<span class="tag warn">建议</span>。
+
+<Callout type="要点" title="要点小结">
+
+- 六个维度：确定性、可枚举性、出错代价、探索需求、延迟成本预算、可评估性。
+- 五档阶梯：普通代码 → 单次调用 → 固定工作流 → 单 agent + 工具 → 多 agent，从低档起步。
+- 把 agent 里反复出现的稳定路径固化成工作流；高风险动作无论哪一档都要有审批。
+
+</Callout>
+
+## 六、边界场景的处理逻辑
+
+<Callout type="结论" title="一句话结论">
+
+SDK 对大多数边界情况的默认策略是“把错误变成模型能看懂的信息，让它自己恢复”；只有在恢复会带来更大风险时（越界、超限、约束触发）才中止。产品方要做的，是为每一种“中止”设计用户看得到的结局。
+
+</Callout>
+
+### 问题背景
+
+agent 产品的用户体验，很大程度上由失败时的表现决定。用户能接受“我暂时查不到库存，已为你转人工”，不能接受一个转圈半分钟后弹出的英文报错。下面十种场景，每条都说明 SDK 默认怎么做、用户应该看到什么、以及背后的产品考虑。点击展开。
+
+<details open>
+<summary><b>① 工具报错</b> <small>默认：把错误变成一句话交给模型</small></summary>
+
+<b>SDK 默认：</b>函数工具抛异常时，默认的错误处理函数返回固定文本“运行工具时发生错误，请重试”给模型——<b>刻意不把异常细节暴露给模型</b>（源码注释：如需返回细节，请提供应用认可的错误函数）。设为 `None` 则直接抛出，由你处理。超时默认也作为结果告诉模型（`timeout_behavior="error_as_result"`）。
+
+<b>用户体验：</b>模型通常会重试或换个说法告诉用户；用户不应看到堆栈或内部系统名。
+
+<b>产品策略：</b>读操作可以放心让模型重试；写操作（扣款、发信）必须<b>幂等</b>，否则“重试”可能变成“重复执行”<span class="tag warn">建议</span>。不暴露异常细节，是防止内部信息经由模型泄露给用户。
+
+<b>证据：</b><Source href={P + 'src/agents/tool.py#L1997-L2002'} label="tool.py#L1997" /> <Source href={P + 'docs/tools.md'} label="docs/tools.md" />
+
+</details>
+
+<details>
+<summary><b>② 输出不符合格式</b> <small>默认：报错；可用兜底处理器接住</small></summary>
+
+<b>SDK 默认：</b>设了 `output_type` 时，校验失败抛出 `ModelBehaviorError`。`invalid_final_output` 处理器可以返回一个应用定义的兜底结果（SDK 会按同样的类型再校验一次）；它<b>不会重试模型，也不会重放任何工具副作用</b>。
+
+<b>用户体验：</b>前端拿到一个合法但标记为“降级”的结果，展示“我没能整理出完整结果，已转人工”，而不是空白卡片。
+
+<b>产品策略：</b>在输出结构里预留“是否降级”的字段（文档示例里就是 `recovered_from_invalid_output`），让下游能区分正常结果和兜底结果。
+
+<b>证据：</b><Source href={P + 'src/agents/run_error_handlers.py#L50'} label="run_error_handlers.py" /> <Source href={P + 'docs/running_agents.md'} label="docs/running_agents.md" />
+
+</details>
+
+<details>
+<summary><b>③ 超过轮次上限</b> <small>默认：10 轮后抛出 MaxTurnsExceeded</small></summary>
+
+<b>SDK 默认：</b>轮数超过 `max_turns`（默认 10）即停止，并在追踪的当前 span 上记录“超过最大轮数”。`max_turns` 错误处理器可返回兜底文案；`include_in_history=False` 时兜底不写入会话。
+
+<b>用户体验：</b>“这个问题有点复杂，我需要你补充订单号”比“请求失败”好得多。
+
+<b>产品策略：</b>超限通常意味着工具返回的信息不足以让模型做决定（例如查到多个订单），应在追踪中统计超限的请求，改进工具而不是一味调高上限<span class="tag warn">建议</span>。兜底不写进历史，可以避免下一回合模型以为“已经回答过了”。
+
+<b>证据：</b><Source href={P + 'src/agents/run.py#L1605-L1612'} label="run.py#L1605" /> <Source href={P + 'src/agents/run_config.py#L45'} label="run_config.py#L45" />
+
+</details>
+
+<details>
+<summary><b>④ 约束触发中断</b> <small>默认：抛异常并停止，带着触发原因</small></summary>
+
+<b>SDK 默认：</b>抛出 `InputGuardrailTripwireTriggered` 或 `OutputGuardrailTripwireTriggered`，异常里有触发的约束及其附加信息。并行模式下，主模型任务会被取消，但可能已经消耗了 token。输出约束拒绝时，已完成的工具调用会写入会话，<b>被拒的候选回复不会</b>；若最终输出来自工具，原始工具结果会被替换为“该输出已被输出约束拦截”的占位文本。
+
+<b>用户体验：</b>给出礼貌、通用的拒绝或转人工，不要回显“触发了某某规则”的内部名称，以免被用来反复试探。
+
+<b>产品策略：</b>区分“绊线触发”（明确拒绝）和“约束本身出错”（结论未知）——SDK 对两者的会话写入行为也不同。约束的误伤率要单独监控。
+
+<b>证据：</b><Source href={P + 'docs/guardrails.md'} label="docs/guardrails.md" /> <Source href={P + 'src/agents/run_internal/guardrails.py#L116-L170'} label="run_internal/guardrails.py" />
+
+</details>
+
+<details>
+<summary><b>⑤ 交接时上下文过多或泄露</b> <small>默认：全量历史交给新 agent</small></summary>
+
+<b>SDK 默认：</b>新 agent 看到完整历史。可用 `input_filter`（如 `remove_all_tools`）裁剪，或开启 `nest_handoff_history` 压缩成摘要；但文档明确：压缩“不做脱敏”，过滤工具条目也不会清除写进普通消息里的工具内容。使用服务器端会话时过滤器不生效。另有 `call_model_input_filter` 可在每次调用模型前统一修剪或脱敏。
+
+<b>用户体验：</b>用户不必重复描述问题（全量的好处），但也不应出现“专家 agent 提到了它本不该知道的信息”。
+
+<b>产品策略：</b>把“接收方 agent 及其模型提供方”当作数据接收者来看待：跨部门、跨供应商的交接，应显式写过滤器，只传“问题摘要 + 必要字段”<span class="tag warn">建议</span>。
+
+<b>证据：</b><Source href={P + 'src/agents/extensions/handoff_filters.py#L33'} label="handoff_filters.py#L33" /> <Source href={P + 'docs/handoffs.md'} label="docs/handoffs.md" />
+
+</details>
+
+<details>
+<summary><b>⑥ 并行工具调用</b> <small>默认：同一轮的函数工具全部同时启动</small></summary>
+
+<b>SDK 默认：</b>模型一次发出多个函数调用时，SDK 默认全部同时执行；`max_function_tool_concurrency` 可设上限；`parallel_tool_calls` 控制模型能否一次发多个。审批可以只处理一部分，已批准的继续，未处理的再次暂停。同一轮多个交接只执行第一个。
+
+<b>用户体验：</b>并行查询让等待更短（同时查库存和物流）。
+
+<b>产品策略：</b>读操作适合并行；有先后依赖或会互相影响的写操作（先取消旧订单再下新单）不应依赖模型自觉排序，可以合并成一个工具，或关闭并行<span class="tag warn">建议</span>。对外部接口有限流时设置并发上限。
+
+<b>证据：</b><Source href={P + 'src/agents/run_internal/tool_execution.py#L1594-L1600'} label="tool_execution.py#L1594" /> <Source href={P + 'src/agents/run_config.py#L146'} label="run_config.py#L146" />
+
+</details>
+
+<details>
+<summary><b>⑦ 流式中断与取消</b> <small>默认：cancel() 立即停止</small></summary>
+
+<b>SDK 默认：</b>`result.cancel()` 立即停止；`cancel(mode="after_turn")` 让当前轮干净结束再停。文档提醒：流式运行在 `stream_events()` 结束前并没有真正完成，SDK 可能仍在写会话、整理审批状态。如果在输出约束运行时立即取消，正在运行的约束会被取消，也不会写入最后一轮的会话。用户在暂停期间补充的新输入可用 `state.add_input` 暂存，下次调用模型前加入。
+
+<b>用户体验：</b>“停止生成”按钮应立即生效；若当前轮正在执行写操作，提示“正在完成当前步骤后停止”更诚实。
+
+<b>产品策略：</b>立即取消适合纯生成，“本轮后停止”适合有工具副作用的运行，避免停在“钱扣了、记录没写”的中间态<span class="tag warn">建议</span>。参见 issue [#329](https://github.com/openai/openai-agents-python/issues/329)。
+
+<b>证据：</b><Source href={P + 'src/agents/result.py#L941'} label="result.py#L941" /> <Source href={P + 'docs/streaming.md'} label="docs/streaming.md" />
+
+</details>
+
+<details>
+<summary><b>⑧ MCP 服务断连</b> <small>默认：剔除失败的服务器，用剩下的继续</small></summary>
+
+<b>SDK 默认：</b>`MCPServerManager` 默认 `drop_failed_servers=True`：只把连上的服务器暴露给 agent，失败记录在 `failed_servers` 和 `errors`；`reconnect(failed_only=True)` 只重连失败的；`strict=True` 则首个失败就报错。连接和清理超时默认 10 秒。MCP 工具调用失败默认转成模型可见的错误文本。实时会话里，服务器正常关闭连接会产生“已断开”事件并正常结束，非预期故障才走异常。
+
+<b>用户体验：</b>部分能力降级（“暂时查不了库存”），而不是整个助手不可用。
+
+<b>产品策略：</b>对核心依赖用 `strict` 或启动检查，对锦上添花的服务允许降级；在指令里告诉模型“某些工具可能不可用时如何回复”<span class="tag warn">建议</span>。
+
+<b>证据：</b><Source href={P + 'src/agents/mcp/manager.py#L288-L320'} label="mcp/manager.py" /> <Source href={P + 'docs/mcp.md'} label="docs/mcp.md" />
+
+</details>
+
+<details>
+<summary><b>⑨ 敏感数据不进追踪</b> <small>注意：默认会记录模型与工具的输入输出</small></summary>
+
+<b>SDK 默认：</b>`trace_include_sensitive_data` <b>默认为真</b>：generation span 和 function span 会记录模型与工具的输入输出。可在运行配置里关闭，或用环境变量设置默认值；关闭后模型 span 不记录请求和响应内容，被拒绝的审批只记通用文本。语音 span 默认包含音频数据，有单独开关。使用零数据保留（ZDR）政策的组织无法使用追踪。需要脱敏导出时，应把“脱敏 + 发送”放在同一个自定义导出器里，脱敏失败就丢弃整批。
+
+<b>用户体验：</b>用户看不到，但这是信任问题：客服对话里的手机号、地址不应出现在调试平台上。
+
+<b>产品策略：</b>开发环境开、生产环境默认关，或只对抽样请求开；运行上下文（不发给模型的对象）是放用户身份信息的更好位置<span class="tag warn">建议</span>。默认开启的取舍是“调试优先”，产品上线前必须主动复查。
+
+<b>证据：</b><Source href={P + 'src/agents/run_config.py#L421'} label="run_config.py#L421" /> <Source href={P + 'docs/tracing.md'} label="docs/tracing.md" />
+
+</details>
+
+<details>
+<summary><b>⑩ 需要人工审批</b> <small>默认：暂停运行，状态可保存后恢复</small></summary>
+
+<b>SDK 默认：</b>需要审批时运行暂停，`interruptions` 列出待审批项（含 agent 名、工具名、参数）；状态可序列化后存储，人工处理后从断点恢复。参数无法解析时“失败即关闭”，直接要求人工审批。被拒绝时返回给模型的文本可全局或逐次定制（如“主管拒绝了该退款，请向用户说明并提供替代方案”）。
+
+<b>用户体验：</b>用户看到“已提交主管审核，预计 10 分钟内处理”，而不是一直转圈；审批人看到的应是清晰的参数（金额、订单号），而不是原始 JSON。
+
+<b>产品策略：</b>按金额/动作类型分级审批，避免审批疲劳；慎用“总是批准”，尤其是 Shell/改文件这类不区分 agent 的粘性决定。参考 Codex：把“能做什么”和“何时问人”拆成两个旋钮。
+
+<b>证据：</b><Source href={P + 'docs/human_in_the_loop.md'} label="docs/human_in_the_loop.md" /> <Source href={P + 'src/agents/run_internal/approvals.py'} label="run_internal/approvals.py" /> <Source href={C + 'codex-rs/protocol/src/protocol.rs#L1097-L1120'} label="Codex 审批策略" />
+
+</details>
+
+### 产品洞察：默认“可恢复”，例外“必中止”
+
+把十条放在一起看，SDK 的默认取向很清楚：工具报错、超时、找不到工具（可选）、MCP 部分失败，都转成模型能理解的信息，让循环继续——因为 agent 的价值就在于能自我修正。而越过安全边界（约束触发）、越过资源边界（超过轮数）、需要人的判断（审批），则一定中止或暂停，把决定权交回应用。<b>产品方的职责是给每个“中止”配一个用户看得懂的结局</b>，并用追踪统计各类中止的频率。
+
+### 取舍与替代方案
+
+“交给模型自行恢复”的代价是：错误可能被模型“圆过去”，用户拿到一个看似正常但缺了数据的回答。如果你的业务不能接受这种情况（例如财务报表），应把关键工具的错误处理设为直接抛出，让失败显性化<span class="tag warn">建议</span>。
+
+<Callout type="要点" title="要点小结">
+
+- 可恢复的错误默认交给模型；越界、超限、需要人判断时中止或暂停。
+- 追踪默认记录敏感数据，上线前必须复查；交接的压缩历史不等于脱敏。
+- 写操作要幂等；取消和审批都要考虑“停在中间态”的问题。
+
+</Callout>
+
+## 检验一下你的理解
+
+<Quiz
+  title="测验"
+  hint="每题选一次，立即显示解析；全部答完显示得分。"
+  questions={[
+    { q: "默认情况下，一次 Runner.run 的轮数超过多少会抛出 MaxTurnsExceeded？", options: ["5", "10", "25", "没有上限"], answer: 1, explain: "run_config.py 中 DEFAULT_MAX_TURNS = 10，JS 版同样是 10。可设为 None 关闭，但更好的做法是配合 max_turns 错误处理器给出兜底。" },
+    { q: "分诊 agent 交接给退款 agent 后，退款 agent 给出最终回复。分诊 agent 上配置的输出约束会怎样？", options: ["会检查这条回复", "不会运行——输出约束只对产出最终输出的 agent 生效", "会在交接时提前运行", "会在下一回合运行"], answer: 1, explain: "输出约束只对“最后那个 agent”运行。交接架构下应给每个可能说最后一句话的专家都挂上，或在 RunConfig 里全局添加。" },
+    { q: "你希望“专家办完把结果交回经理，由经理统一对用户回复”，应选择哪种模式？", options: ["交接（handoff）", "agent-as-tool", "两个独立的 Runner.run 互不相关", "提高 max_turns"], answer: 1, explain: "agent-as-tool 下经理始终持有对话，专家只收到经理生成的输入并返回结果。交接是“转接电话”，控制权不会自动回来（issue #847）。" },
+    { q: "输入约束默认 run_in_parallel=True，带来的主要风险是？", options: ["约束永远不会触发", "约束触发前，主模型可能已经消耗了 token、甚至执行了工具", "约束会对每个交接后的 agent 重复运行", "会让输出约束失效"], answer: 1, explain: "并行换来低延迟；但如果首轮就可能产生副作用或开销敏感，应设为阻塞（run_in_parallel=False），让约束跑完再启动模型。" },
+    { q: "同一轮里，模型既调用了一个需要审批的工具，又发起了交接。Runner 先怎么处理？", options: ["先执行交接", "先暂停等待审批", "两者都忽略，再来一轮", "直接把交接当作最终输出"], answer: 1, explain: "每轮判定的优先级是：审批 ＞ 交接 ＞ 工具结果即答案 ＞ 最终输出 ＞ 再来一轮。没有人点头前，依赖它的后续都不能发生。" },
+    { q: "为什么 reset_tool_choice 默认是 True？", options: ["为了节省 token", "防止 tool_choice=\"required\" 导致模型无限循环地调用工具", "为了让交接更快", "为了关闭并行工具调用"], answer: 1, explain: "如果一直强制用工具，工具结果回到模型后又会被强制调用工具，形成死循环。用过工具后自动恢复为 auto 可以避免这种情况。" },
+    { q: "下面哪件事最不适合做成 agent？", options: ["根据用户描述排查一个线上故障", "把固定格式的 CSV 转成 JSON", "多业务线客服分流", "修复一个有测试覆盖的代码 bug"], answer: 1, explain: "输入结构化、规则完全确定，用普通代码最快、最便宜、可完全测试。agent 适合步骤不可枚举、需要边查边决定的任务。" },
+    { q: "关于追踪中的敏感数据，下列说法正确的是？", options: ["默认不记录模型和工具的输入输出", "默认记录，需要通过 trace_include_sensitive_data=False 等方式主动关闭", "交接压缩历史会自动脱敏", "只要关闭会话就不会进入追踪"], answer: 1, explain: "trace_include_sensitive_data 默认为真（可用环境变量改变默认值）；文档也明确 nest_handoff_history 不做脱敏。上线前必须复查。" },
+  ]}
+/>
+
+资料来源：[openai-agents-python@841dfdd](https://github.com/openai/openai-agents-python/tree/841dfdd938bfd4ca052475eb76d6245a356868e0) · [openai-agents-js@be4f1f9](https://github.com/openai/openai-agents-js/tree/be4f1f9aa4ad4f03cc5db5fdd57d0d0136923570) · [codex@86e17e9](https://github.com/openai/codex/tree/86e17e98c7f901277aeeb4649cf1b01462b082f2)。 引用的 issue：[#636](https://github.com/openai/openai-agents-python/issues/636) [#109](https://github.com/openai/openai-agents-python/issues/109) [#329](https://github.com/openai/openai-agents-python/issues/329) [#847](https://github.com/openai/openai-agents-python/issues/847) [#864](https://github.com/openai/openai-agents-python/issues/864) [#887](https://github.com/openai/openai-agents-python/issues/887) [#23](https://github.com/openai/openai-agents-python/issues/23) [#18](https://github.com/openai/openai-agents-python/issues/18)。

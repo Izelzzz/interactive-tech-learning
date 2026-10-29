@@ -1,0 +1,110 @@
+---
+// Page-specific widget for the autoresearch teardown: compare how one task looks as a UI, a workflow and an agent loop
+// (who does what, value, failure mode, and relative meters). Data is inline in the script; no props.
+---
+<div class="card widget fcmp" id="modes">
+  <p class="widget-title">三种形态对比</p>
+  <p class="widget-hint">选一个任务，再切换形态，看人和系统各做什么。橙色是人的动作，蓝色是系统的动作。</p>
+  <div class="controls" id="mTask" style="margin-bottom:8px">
+    <span class="ev">任务：</span>
+    <button class="pill" type="button" data-task="train" aria-pressed="true">让小模型训练得更好</button>
+    <button class="pill" type="button" data-task="bug">修复一类线上报错</button>
+    <button class="pill" type="button" data-task="ad">优化广告文案</button>
+  </div>
+  <div class="tabs" id="mTabs">
+    <button class="btn" type="button" data-mode="ui">界面</button>
+    <button class="btn" type="button" data-mode="wf">工作流</button>
+    <button class="btn" type="button" data-mode="loop">智能体循环</button>
+  </div>
+  <div class="flow" id="mFlow"></div>
+  <div class="grid2">
+    <div class="box"><h4>人做什么</h4><p id="mHuman"></p></div>
+    <div class="box"><h4>系统做什么</h4><p id="mSys"></p></div>
+    <div class="box"><h4>价值在哪</h4><p id="mValue"></p></div>
+    <div class="box"><h4>失败模式</h4><p id="mFail"></p></div>
+  </div>
+  <div style="margin-top:12px">
+    <div class="meter"><span>人工操作次数</span><span class="tr"><i id="mm1"></i></span><span id="mv1"></span></div>
+    <div class="meter"><span>一夜实验量</span><span class="tr"><i id="mm2"></i></span><span id="mv2"></span></div>
+    <div class="meter"><span>失败难察觉度</span><span class="tr"><i id="mm3"></i></span><span id="mv3"></span></div>
+  </div>
+  <p class="ev" style="margin-top:8px">数值为示意的相对量级（推测），用于比较形态，不是测量数据。</p>
+</div>
+
+<style is:global>
+  .card.fcmp { background: var(--bg); }
+  .fcmp .ev { font-size: 0.85rem; color: var(--muted); }
+  .fcmp .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .fcmp .pill { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 3px 12px; font-size: 0.84rem; cursor: pointer; }
+  .fcmp .pill:hover { border-color: var(--accent); }
+  .fcmp .pill[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .fcmp .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .fcmp .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 14px; }
+  .fcmp .flow span { font-size: 0.8rem; padding: 4px 10px; border-radius: 8px; animation: fcmp-pop .35s ease-out both; }
+  .fcmp .flow span.h { background: var(--warn-soft); color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
+  .fcmp .flow span.s { background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+  .fcmp .flow em { color: var(--line); font-style: normal; }
+  .fcmp .grid2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+  .fcmp .box { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); min-width: 0; }
+  .fcmp .box h4 { margin-top: 0; }
+  .fcmp .box p:last-child { margin-bottom: 0; }
+  .fcmp .meter { display: grid; grid-template-columns: 7.5em minmax(0,1fr) 3em; gap: 8px; align-items: center; font-size: 0.82rem; margin: 4px 0; }
+  .fcmp .meter .tr { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+  .fcmp .meter .tr i { display: block; height: 100%; background: var(--accent); transition: width .5s ease; }
+  @keyframes fcmp-pop { from { opacity: 0; transform: scale(.9); } }
+  @media (max-width: 760px) { .fcmp .grid2 { grid-template-columns: minmax(0,1fr); } }
+</style>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+var MODES = {
+    train: {
+      ui: { flow: [["h","想点子"],["h","改代码"],["h","点“开始训练”"],["s","训练并画曲线"],["h","看曲线判断"],["h","决定下一步"]],
+        human: "所有决定：改哪里、跑多久、看什么、要不要保留。工具只负责执行和展示。", sys: "执行训练、记录指标、画图。实验跟踪平台和 IDE 让每一步更顺手。",
+        value: "降低单次操作的成本，图表让判断更快。", fail: "人的时间是瓶颈：一天只能做几次实验；结论受个人偏好和疲劳影响；夜里机器闲着。", m: [90, 8, 15], v: ["高", "约 5 次", "低"] },
+      wf: { flow: [["h","预先写好参数网格"],["s","按网格批量启动"],["s","收集结果"],["s","按规则选最优"],["h","查看报告"]],
+        human: "提前设计搜索空间（比如学习率试 5 个值），写成脚本或配置，然后看汇总报告。", sys: "按预定步骤批量跑、汇总、排序。不会尝试网格以外的东西。",
+        value: "消除重复劳动，可以一夜跑完一个网格。", fail: "只能探索人事先想到的空间；改结构这类“非参数”想法无法表达；现实变了脚本不变。", m: [35, 55, 35], v: ["中", "数十次", "中"] },
+      loop: { flow: [["h","写 program.md：目标、约束、规则"],["h","确认准备"],["s","提出假设并改代码"],["s","训练 5 分钟"],["s","读分数并记账"],["s","保留或回滚"],["s","下一轮…"],["h","早上审查结果"]],
+        human: "定义目标与评价函数、划定可改范围、早上批量审查、决定哪些改动迁移到真实场景，并迭代 program.md。", sys: "自己决定改什么、怎么改，运行、评估、记录、保留或回滚，循环不停。",
+        value: "在人不在场时探索人没想到的方向（nanochat 第 2 轮：让人工失败过的技巧变得有用）。", fail: "完美地优化错误目标：改裁判、把噪声当进步、改动膨胀难审查；而且表面上分数一直在变好，更难察觉。", m: [8, 100, 85], v: ["极低", "约 100 次", "高"] }
+    },
+    bug: {
+      ui: { flow: [["s","监控报警"],["h","打开日志定位"],["h","写修复"],["h","手动跑测试"],["h","提交审核"]],
+        human: "定位、修复、验证全部由工程师完成。", sys: "展示报错、日志和代码。", value: "可视化让定位更快。", fail: "依赖值班工程师的经验与精力；夜间响应慢。", m: [90, 10, 15], v: ["高", "1–2 个", "低"] },
+      wf: { flow: [["s","报错归类"],["s","套用修复模板"],["s","跑测试"],["h","人工审批合并"]],
+        human: "维护归类规则和修复模板，审批合并。", sys: "按规则匹配已知问题并套用模板。", value: "已知问题秒级处理。", fail: "新类型报错无法处理；模板过期后批量产生错误修复。", m: [40, 45, 35], v: ["中", "若干", "中"] },
+      loop: { flow: [["h","定义：哪些测试必须通过、可改哪些目录"],["s","复现报错"],["s","尝试修复"],["s","跑测试与回归"],["s","失败则回滚重试"],["h","审查差异后合并"]],
+        human: "定义“修好”的判据（复现用例转绿 + 全部回归通过）、可改范围、合并前审查。", sys: "自主复现、尝试多种修复、用测试打分、保留通过的版本。", value: "覆盖长尾的新问题，夜间也能推进。", fail: "改测试让它变绿（相当于改裁判）；修复只消除症状；改动范围逐渐扩大。", m: [12, 85, 80], v: ["低", "数十次尝试", "高"] }
+    },
+    ad: {
+      ui: { flow: [["h","写几版文案"],["h","在投放后台上线"],["s","统计点击"],["h","看报表挑赢家"]],
+        human: "构思、上线、看数、挑选。", sys: "投放与统计。", value: "后台集中管理，报表直观。", fail: "产出量受限于人；测试版本少，结论不稳定。", m: [85, 10, 20], v: ["高", "数版", "低"] },
+      wf: { flow: [["h","写模板与变量"],["s","批量生成组合"],["s","A/B 分流"],["s","按规则停掉差的"],["h","看周报"]],
+        human: "设计模板和停投规则。", sys: "组合生成、分流、按规则淘汰。", value: "版本数量上一个量级。", fail: "只在模板空间内变化；规则对季节和人群变化不敏感。", m: [40, 50, 40], v: ["中", "数十版", "中"] },
+      loop: { flow: [["h","定义：主指标、品牌禁区、预算"],["s","提出新文案假设"],["s","小流量试投"],["s","读指标"],["s","保留或撤下"],["h","定期审查与抽检"]],
+        human: "定义主指标与护栏（投诉率、品牌合规）、预算上限、抽检与审批高风险文案。", sys: "自主写文案、试投、评估、迭代。", value: "持续探索新的表达方式。", fail: "用标题党刷点击率（钻指标空子）；真实用户就是环境，试错有真实代价；噪声导致误判赢家。", m: [10, 90, 90], v: ["低", "上百版", "很高"] }
+    }
+  };
+  var mTask = "train", mMode = "loop";
+  function renderModes() {
+    var d = MODES[mTask][mMode];
+    var f = $("mFlow"); f.innerHTML = "";
+    d.flow.forEach(function (st, i) {
+      if (i) { var e = document.createElement("em"); e.textContent = "→"; f.appendChild(e); }
+      var sp = document.createElement("span"); sp.className = st[0]; sp.textContent = (st[0] === "h" ? "人：" : "系统：") + st[1];
+      sp.style.animationDelay = (i * 60) + "ms"; f.appendChild(sp);
+    });
+    $("mHuman").textContent = d.human; $("mSys").textContent = d.sys; $("mValue").textContent = d.value; $("mFail").textContent = d.fail;
+    for (var k = 0; k < 3; k++) { $("mm" + (k + 1)).style.width = d.m[k] + "%"; $("mv" + (k + 1)).textContent = d.v[k]; }
+    Array.prototype.forEach.call($("mTabs").children, function (b) { b.className = "btn" + (b.dataset.mode === mMode ? " primary" : ""); });
+    Array.prototype.forEach.call($("mTask").querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", b.dataset.task === mTask); });
+  }
+  $("mTabs").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { mMode = b.dataset.mode; renderModes(); } });
+  $("mTask").addEventListener("click", function (e) { var b = e.target.closest("button"); if (b) { mTask = b.dataset.task; renderModes(); } });
+  renderModes();
+
+  })();
+</script>

@@ -40,9 +40,11 @@ import Simulator from '../../../components/Simulator.astro';
 | `Diagram` | 可点击的分层架构图 | `layers`，可选 `side`（贯穿各层的一列） |
 | `Quiz` | 测验；`score={false}` 时是场景判断器 | `questions: [{ q, options, answer, explain }]` |
 | `Advisor` | 答几道题后给出推荐档位 | `questions`（选项带分数）、`tiers` |
-| `Checklist` | 可勾选清单，可复制为 Markdown | `items: [{ label, detail }]` |
+| `Checklist` | 可勾选清单，可复制为 Markdown | `items: [{ label, detail, group }]`（`group` 变化时插入小标题，可选） |
 | `CopyBlock` | 带复制按钮的文本（规范文件、提示词） | `title`、`text` |
 | `LineChart` | 拖动滑块看几条曲线怎么拉开差距 | `series: [{ label, points }]`、`xLabel`、`yLabel` |
+| `FilterDetails` + `DetailItem` | 可折叠条目，按筛选按钮显示（条目正文是 Markdown） | `filters: [{ id, label }]`；`DetailItem` 的 `title`、`kinds`（属于哪些筛选）、`tags: [{ label, tone }]` |
+| `FilterCards` | 一组卡片，可按主题筛选（如按主题归类的真实 issue） | `filters: [{ id, label }]`、`cards: [{ title, ref, href, meta, tags, topics, rows: [{ k, v }] }]`、`unit` |
 
 ### Simulator 的数据
 

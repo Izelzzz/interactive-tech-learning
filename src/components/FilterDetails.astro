@@ -1,0 +1,31 @@
+---
+// Collapsible entries (<DetailItem>) that can be filtered by chips. Entries hold rich Markdown, so they are slotted in.
+// filters: [{ id, label }]   chips; a leading "全部" chip is added automatically
+// Each <DetailItem kinds={[...]}> lists the filter ids it belongs to.
+interface Props { filters: { id: string; label: string }[]; allLabel?: string }
+const { filters, allLabel = '全部' } = Astro.props;
+---
+<div class="fd">
+  <div class="row chips" role="group" aria-label="筛选">
+    <button class="btn" type="button" data-f="all" aria-pressed="true">{allLabel}</button>
+    {filters.map((f) => <button class="btn" type="button" data-f={f.id} aria-pressed="false">{f.label}</button>)}
+  </div>
+  <slot />
+</div>
+
+<style>
+  .chips { margin: 8px 0; }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>('.fd')) {
+    const chips = [...box.querySelectorAll<HTMLButtonElement>('[data-f]')];
+    const items = [...box.querySelectorAll<HTMLElement>('.di')];
+    const apply = (f: string) => {
+      for (const it of items) it.hidden = !(f === 'all' || it.dataset.kinds!.split(' ').includes(f));
+      chips.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.f === f)));
+    };
+    chips.forEach((b) => b.addEventListener('click', () => apply(b.dataset.f!)));
+    apply('all');
+  }
+</script>

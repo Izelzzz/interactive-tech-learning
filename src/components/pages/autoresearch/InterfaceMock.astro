@@ -1,0 +1,29 @@
+---
+// Page-specific static illustration for the autoresearch teardown: a button-style UI next to a goal-style UI.
+---
+<div class="mocks">
+  <div class="mock">
+    <b>按钮式界面（工具时代）</b>
+    <p class="ev" style="margin:4px 0 8px">每个按钮对应一个动作，人决定顺序</p>
+    <div class="mbtns"><span>新建实验</span><span>修改学习率</span><span>切换优化器</span><span>启动训练</span><span>停止</span><span>对比两次运行</span><span>导出图表</span><span>回滚</span></div>
+    <p style="margin-top:10px">问题：agent 不需要按钮；人也不想再一个个点。</p>
+  </div>
+  <div class="mock">
+    <b>目标式界面（智能体时代）</b>
+    <div class="field"><small>目标</small>固定 5 分钟训练内，最低 val_bpb</div>
+    <div class="field"><small>约束</small>只改 train.py · 不装依赖 · 显存不显著增加 · 越简单越好</div>
+    <div class="field"><small>指标</small>主：val_bpb · 护栏：显存、时长、代码行数 · 复测门槛</div>
+    <div class="field"><small>审查面板</small>保留 11 / 回滚 72 / 崩溃 7 · 待复核 3 条 · [逐条查看差异]</div>
+  </div>
+</div>
+
+<style>
+  .mocks { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; margin: 14px 0; }
+  .mock { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--surface); font-size: 0.85rem; min-width: 0; }
+  .ev { font-size: 0.85rem; color: var(--muted); }
+  .mbtns { display: flex; flex-wrap: wrap; gap: 5px; }
+  .mbtns span { border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; background: var(--surface-2); font-size: 0.78rem; }
+  .field { border: 1px dashed var(--line); border-radius: 8px; padding: 6px 8px; margin: 6px 0; }
+  .field small { display: block; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+  @media (max-width: 760px) { .mocks { grid-template-columns: minmax(0,1fr); } }
+</style>

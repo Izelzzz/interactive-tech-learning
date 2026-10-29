@@ -1,0 +1,635 @@
+---
+layout: ../../../layouts/Article.astro
+title: Dify：AI 功能是怎么真正落地的
+description: 从产品设计视角拆解 Dify：工作流为什么这样设计、固定流程与 Agent 的分工、RAG/模型/工具分层、原型到生产、用户真实痛点、边界场景与 AI 功能落地的启示。
+lede: Dify 是一个开源的大模型应用开发平台，核心是工作流（workflow）：把“检索资料、判断意图、调用模型、调用工具、输出结果”画成一张图，再把这张图发布成 API 或网页应用。这一页不讲代码细节，只讲它为什么这样设计、解决谁的什么问题、放弃了什么，以及这些选择对做 AI 产品的人有什么启发。
+---
+import Callout from '../../../components/Callout.astro';
+import Source from '../../../components/Source.astro';
+import Quiz from '../../../components/Quiz.astro';
+import Diagram from '../../../components/Diagram.astro';
+import FilterCards from '../../../components/FilterCards.astro';
+import DetailItem from '../../../components/DetailItem.astro';
+import WorkflowSim from '../../../components/pages/dify/WorkflowSim.astro';
+import ReadinessCheck from '../../../components/pages/dify/ReadinessCheck.astro';
+
+export const D = 'https://github.com/langgenius/dify/blob/cc5b0b581ed02de04d708e5e50013b458c2684db/';
+export const DT = 'https://github.com/langgenius/dify/tree/cc5b0b581ed02de04d708e5e50013b458c2684db/';
+export const G = 'https://github.com/langgenius/graphon/blob/4fa22141774dff80e90e4dfa98ea3e6fbf0421bb/';
+
+<Callout type="注意" title="资料来源与标注">
+分析基于 <Source href={DT} label="langgenius/dify@cc5b0b5" />（2026-10-22）以及它依赖的独立工作流引擎 <Source href="https://github.com/langgenius/graphon/tree/4fa22141774dff80e90e4dfa98ea3e6fbf0421bb" label="langgenius/graphon@4fa2214" />。源码只作证据，每个结论旁附永久链接；找不到直接出处的地方标了 <span class="tag warn">推测</span> 或 <span class="tag warn">建议</span>。
+</Callout>
+
+
+## 一、Workflow 为什么这么设计
+
+<Callout type="结论">Dify 在“全写代码”和“全交给 Agent”之间选了第三条路：把 AI 应用变成一张**看得见的有向图**，每个节点的输入、输出和出错走向都写在图上，让工程师、产品和业务专家能在同一张图上协作，也让每次运行都能被回放和审计。</Callout>
+
+### 问题背景
+
+一个看似简单的“智能客服”，真正上线时至少包含五六步：理解问题、去知识库找资料、判断这是咨询还是售后、按类型调用不同的模型或工具、把结果整理成固定格式、出错时给一个体面的兜底回复。把这些步骤落地有两种极端做法：
+
+- **全部写成代码**（用 LangChain 之类的框架串起来）：最灵活，但改一句提示词也要工程师发版，产品和业务人员无法参与调优，链路藏在代码里，出错时只能翻日志。
+- **全部交给一个 Agent**（给模型一堆工具，让它自己决定怎么做）：搭建最快，但每次走的路径可能不同，成本和耗时不可预测，合规团队无法回答“它为什么这样回复”。
+
+Dify 在 README 里给自己的定位就是“在可视化画布上构建和测试工作流”，并强调“快速从原型走向生产”。画布不是目的，**让步骤显式化**才是目的。
+
+<Source href={D + 'README.md#L92-L116'} label="README.md 的 Key features" />：Workflow、模型支持、Prompt IDE、RAG Pipeline、Agent、LLMOps、后端即服务七项能力，第一项就是 “Build and test powerful AI workflows on a visual canvas”。
+
+### 产品洞察
+
+### 洞察一：画布只是“图”的一个编辑器，图本身才是产品资产
+
+容易误解的一点是：Dify 的可视化并不意味着“低代码玩具”。在当前版本里，执行工作流的引擎已经被拆成一个独立的 Python 包 `graphon`（图执行引擎），Dify 只是它的“宿主”。graphon 的架构文档开宗明义写着它是“可嵌入的 Python 工作流引擎”，支持从 YAML 导入图、构建图、执行图。也就是说，同一张图既可以在画布上拖拽，也可以作为 DSL（领域特定语言，这里指描述工作流的 YAML 文件）导出、评审、放进版本库。
+
+这对产品的意义是：**工作流成了可以复制、分享、迁移的资产**。模板市场、跨环境迁移、把一个工作流当作另一个工作流的“工具”调用，都建立在“图是数据”这个前提上。
+
+<Source href={G + 'ARCHITECTURE.md#L10-L22'} label="graphon ARCHITECTURE.md" />：“Graphon is an embeddable Python workflow engine”，入口包括 YAML 导入 `graphon.dsl.loads`；Dify 在 <Source href={D + 'api/pyproject.toml#L49'} label="api/pyproject.toml" /> 中以 `graphon==0.8.0` 依赖它。
+
+### 洞察二：Chatflow 和 Workflow 是两种“交付形态”，不是两套引擎
+
+Dify 的应用类型枚举里，`advanced-chat` 就是界面上的 <strong>Chatflow（对话流）</strong>，`workflow` 就是 <strong>Workflow（工作流）</strong>。两者共用同一套节点和引擎，区别在于“谁在用、怎么用”：
+
+|  | Chatflow（对话流） | Workflow（工作流） |
+| --- | --- | --- |
+| 服务谁 | 终端用户在聊天窗口里多轮对话：客服、助手、导购 | 系统或运营人员一次性提交输入：批量处理、报告生成、定时任务、被别的系统调用 |
+| 独有能力 | 会话记忆、会话变量（跨轮次保存的状态）、**直接回复（Answer）节点**可以在流程中途多次流式输出 | **结束（End）节点**一次性返回结构化结果；可被定时、Webhook 等触发器启动；可发布成“工具”给其他应用用 |
+| 心智模型 | “一场对话里的每一轮都跑一遍图” | “一个函数：输入 → 输出” |
+
+这种区分的代价是概念门槛。第 5 章会看到，高讨论量的 [#9741 “Answer 节点去哪了？”](https://github.com/langgenius/dify/issues/9741)（52 条评论）就是用户在 Workflow 里找 Chatflow 才有的节点。维护者的回答很简短：“这是 workflow，没有 answer 节点，请读文档。”说明这条边界对新用户并不直观。
+
+值得一提的是，枚举里还有第三种图：`rag-pipeline`（知识流水线）。它把“文档怎么入库”也做成了工作流——这是第 3 章的主题。
+
+<Source href={D + 'api/models/model.py#L389-L400'} label="api/models/model.py AppMode" />：`COMPLETION / WORKFLOW / CHAT / ADVANCED_CHAT / AGENT_CHAT / AGENT / CHANNEL / RAG_PIPELINE`；<Source href={G + 'src/graphon/enums.py#L109-L113'} label="graphon enums.py WorkflowType" />：`workflow / chat / rag-pipeline`；会话变量存于 <Source href={D + 'api/models/workflow.py#L240-L241'} label="models/workflow.py" />。
+
+### 洞察三：每个概念都是在回答一个用户问题
+
+把节点、变量、分支、循环、并行、失败分支翻译成用户语言，会发现它们各自解决一个非常具体的困惑：
+
+| 概念 | 对用户意味着什么 | Dify 的具体做法 |
+| --- | --- | --- |
+| 节点 | “这一步做什么”——每一步都能单独测试、单独看耗时和 token | 内置 20 多种节点：LLM、知识检索、问题分类器、参数提取器、代码、HTTP 请求、工具、模板转换、人工介入…… |
+| 变量 | “上一步的结果怎么传给下一步”——用点选代替写胶水代码 | 每个节点的输出进入共享的**变量池**，下游用 `{{#节点.变量#}}` 引用；另有系统变量（如 `sys.query`）、环境变量、会话变量 |
+| 分支 | “不同情况走不同的路” | 条件分支与问题分类器选中一条出边；其它出边被标记为“跳过”，跳过会沿着下游一路传递 |
+| 循环 / 迭代 | “重复做，直到满足条件” / “对列表里每一项都做一遍” | 循环节点必须设最大次数和退出条件；迭代节点可开并行，并选择出错时“终止 / 继续 / 剔除异常项” |
+| 并行 | “几件互不依赖的事同时做，省时间” | 一个节点连出多条边即并行；汇合节点要等所有入边都“有结论”才执行 |
+| 失败分支 | “出错了也要有体面的下一步”——把异常当成可设计的路径 | LLM、工具、HTTP、代码、Agent 节点可设重试、默认值或失败分支 |
+
+节点类型见 <Source href={G + 'src/graphon/enums.py#L15-L45'} label="graphon enums.py BuiltinNodeTypes" />；循环上限与退出条件见 <Source href={G + 'src/graphon/nodes/loop/entities.py#L37-L46'} label="loop/entities.py" />（`loop_count: int = Field(ge=1)`）；迭代并行与错误模式见 <Source href={G + 'src/graphon/nodes/iteration/entities.py#L14-L18'} label="iteration/entities.py" /> 与 <Source href={G + 'src/graphon/enums.py#L93-L101'} label="ErrorStrategy / ErrorHandleMode" />。
+
+### 洞察四：图必须无环——放弃“任意跳转”，换来可预测
+
+graphon 在构建图时会拒绝每个作用域内的环路，重复执行只能通过“循环 / 迭代”这种容器节点表达。这是一个明确的取舍：用户不能像写代码那样随意 `goto` 回前面的节点，但换来了三个好处——每次运行步数有上限、画布上一眼能看出哪里会重复、引擎可以准确判断“某个节点是否还会被执行”（这正是并行汇合和跳过传递能成立的前提）。
+
+<Source href={G + 'ARCHITECTURE.md#L152-L163'} label="ARCHITECTURE.md" />：“Container handlers provide repetition; each scope's edges must be acyclic.”
+
+### 具体例子：一个客服 Chatflow 是怎么跑起来的
+
+下面这个模拟器还原了一个典型客服流程：**开始 → 知识检索 → 条件分支（结果为空吗？）→ 问题分类器 → LLM 回答 / Agent 处理 / 固定回复 → 变量聚合器 → 结束**。点“播放”或“单步”，观察节点状态、连线状态（走过 / 跳过）和右侧变量池的变化；再切换场景，看失败、检索为空、中途停止、超时时流程如何改道。模拟逻辑按 graphon 的真实规则编写（跳过传递、汇合等待、失败策略、执行上限），但数据是虚构的。
+
+<WorkflowSim />
+
+### 取舍与替代方案
+
+- **得到的**：每一步可见、可单测、可回放；非工程师能改提示词和分支；运行有步数和时间上限；同一张图能导出成 YAML 复用。
+- **付出的**：复杂逻辑在画布上会变得很“宽”，大图编辑卡顿（[#28245](https://github.com/langgenius/dify/issues/28245)，约 100 个节点时明显）；不能任意回跳，只能用容器节点表达重复；概念多（Chatflow / Workflow、Answer / End），新手容易混淆。
+- **替代方案**：纯代码编排框架（LangGraph 一类）：表达力强、易做单元测试，但把产品和业务人员挡在门外。纯 Agent 平台：上手快，但难以给出确定的成本、延迟和审计结论。Dify 的折中是“图做骨架，代码节点和 Agent 节点作为逃生舱”。
+
+<Callout type="要点">
+- 画布的价值是**让步骤显式化**：输入、输出、出错走向都写在图上，人人能看懂、能改、能审计。
+- Chatflow 服务“多轮对话的终端用户”，Workflow 服务“一次性输入输出的系统调用”，两者共用同一引擎。
+- 变量池、分支跳过、汇合等待、失败分支这些概念，都在回答“下一步拿什么、走哪条路、出错怎么办”。
+- “图必须无环”是有意的约束：放弃任意跳转，换来可预测的执行和可推理的状态。
+</Callout>
+
+
+
+## 二、哪些环节用固定流程，哪些交给 Agent
+
+<Callout type="结论">Dify 的判断是“默认确定，按需自主”：能写成规则的写成节点；必须靠模型判断的地方，用输出被严格约束的“窄口径”LLM 节点；只有当**路径本身无法预先画出**时才放 Agent——而且最新的 Agent 节点也被包进了“声明输出 + 类型检查 + 失败策略”的确定性外壳里。</Callout>
+
+### 问题背景
+
+2024 年以前，很多团队做 AI 功能会陷入两种失败：一种是把所有逻辑塞进一个超长提示词，让模型“既分类、又抽取、又回答”，结果某一项一出错整体就崩；另一种是直接上 Agent，结果在演示里惊艳，在生产里因为路径不稳定、成本飘忽而被叫停。Dify 社区的需求也反映了这种张力：用户一边要求“在工作流里加 Agent 节点”（[#7470](https://github.com/langgenius/dify/issues/7470)，36 条评论），一边又抱怨 ReAct 模式的 Agent 经常给不出最终答案（[#19303](https://github.com/langgenius/dify/issues/19303)）。
+
+### 产品洞察
+
+### 洞察一：“受约束的 LLM 调用”——让模型只做一道选择题或填空题
+
+Dify 把最常见的几类模型用法做成了专用节点，每个节点都把模型的自由度收窄到“只能回答这一类问题”，并且为“模型答歪了”预先设计了退路：
+
+- **问题分类器**：模型只能从你定义的类别里选一个，每个类别对应一条出边。如果模型的输出解析不出合法类别，节点**不报错，而是回落到第一个类别**。产品含义：下游永远有路可走，你应该把“最安全的默认处理”放在第一个类别。
+- **参数提取器**：用函数调用或提示词两种模式从文本里抽取结构化字段，并校验字段数量、必填项和类型。校验失败时节点仍然“成功”，但输出 `__is_success=0` 和 `__reason`，把“抽取失败”交给下游的条件分支决定怎么处理（比如追问用户）。
+- **LLM 节点的结构化输出**：可以给出 JSON Schema（JSON 结构定义），解析失败会以明确的错误信息失败，于是可以接上重试或失败分支。
+
+```
+# 问题分类器：解析不出合法类别时，回落到第一个类别（graphon）
+category_name = rendered_classes[0].name
+...
+if "category_name" not in result_text_json or "category_id" not in result_text_json:
+    return category_name, category_id, category_label
+```
+
+<Source href={G + 'src/graphon/nodes/question_classifier/question_classifier_node.py#L370-L402'} label="question_classifier_node.py _resolve_category" />；<Source href={G + 'src/graphon/nodes/parameter_extractor/parameter_extractor_node.py#L316-L345'} label="parameter_extractor_node.py" />（失败时 `__is_success: 0`）与 <Source href={G + 'src/graphon/nodes/parameter_extractor/parameter_extractor_node.py#L721-L735'} label="_validate_result" />；<Source href={G + 'src/graphon/nodes/llm/node.py#L876-L885'} label="llm/node.py" /> “Failed to parse structured output”。
+
+### 洞察二：Agent 的位置经历了三次演进
+
+1. <strong>Agent 应用（agent-chat）</strong>：一种独立的应用类型，支持函数调用和 ReAct（思考-行动-观察循环）两种策略，最大轮次被硬性限制在 99 以内，超出就报 `AgentMaxIterationError`。它适合“一个能调工具的聊天助手”，但无法嵌入流程。
+2. **工作流里的 Agent 节点**：回应 #7470 的诉求，Agent 成为工作流中的一个节点，推理策略本身做成了插件（Agent 策略插件），可以替换。这样“流程骨架 + 某一步自主”成为可能。
+3. **新一代 Agent 节点与 Agent 应用**：当前代码里出现了 `agent_v2` 节点和新的 `agent` 应用类型，由独立的 Dify Agent 运行时（`dify-agent` 与 `agent_backend` 服务）支撑。README 的描述也变成“拥有自己沙箱的自主 Agent：能执行命令、安装软件、处理文件”。
+
+第三阶段最值得产品人注意的设计是**声明式输出**：在工作流里使用 Agent 节点时，你要先声明它必须产出哪些输出（名称、类型、是否必填），运行后系统逐个做类型检查，文件类输出还可以用模型对照“标准样例文件”做内容检查；任何一项不合格，就按这个输出配置的策略处理——重试整个 Agent、用默认值替换、走失败分支，或者直接让节点失败。多个输出失败时按“失败分支 &gt; 停止 &gt; 默认值”的优先级合并成一个决定。
+
+换句话说，**Agent 的过程可以不确定，但它交给流程的结果必须是确定的形状**。这是 Dify 对“确定性 vs 灵活性”最清晰的一次表态。
+
+<Source href={D + 'api/core/agent/cot_agent_runner.py#L83-L113'} label="cot_agent_runner.py" />（`min(max_iteration, 99)`）；<Source href={D + 'api/core/workflow/nodes/agent_v2/output_failure_orchestrator.py#L1-L46'} label="agent_v2/output_failure_orchestrator.py" />（RETRY / USE_DEFAULT / FAIL_NODE / TAKE_FAIL_BRANCH）；<Source href={D + 'api/models/agent_config_entities.py#L118-L128'} label="OutputErrorStrategy" /> 与 <Source href={D + 'api/models/agent_config_entities.py#L950-L965'} label="DeclaredOutputConfig" />；<Source href={D + 'README.md#L108'} label="README Agent 段落" />。
+
+### 洞察三：确定性 vs 灵活性，本质是在为“谁来承担不确定性”定价
+
+| 维度 | 固定流程（含受约束 LLM 节点） | Agent |
+| --- | --- | --- |
+| 成本与延迟 | 可预估：节点数 × 单次调用 | 随轮次浮动，需上限兜底 |
+| 可测试性 | 每个节点可单步运行，回归测试容易 | 同一输入可能走不同路径，只能做统计意义上的评估 |
+| 可审计 | 日志里每一步输入输出一目了然 | 要看完整的思考与工具调用轨迹 |
+| 覆盖面 | 只能处理你预见到的情况 | 能处理没预见到的组合 |
+| 失败方式 | 局部失败、可设计兜底 | 可能“看起来成功但做错了” |
+
+Dify 的产品结构等于给出了一个默认答案：**把不确定性限制在尽量小的盒子里**。分类、抽取、改写这类“模型判断一次就结束”的环节，用受约束节点；只有“需要多轮探索、步骤数事先未知”的环节才交给 Agent，并且给它轮次上限、执行时间上限和输出契约。
+
+### 洞察四：怎么选——一个实用的判断顺序
+
+1. 这一步**不需要**理解自然语言吗？→ 用代码、HTTP、条件分支等普通节点。
+2. 需要模型，但**输出空间是有限的**（几个类别、几个字段、一段改写）？→ 用问题分类器、参数提取器、带结构化输出的 LLM 节点。
+3. 需要多次调用工具，但**顺序是固定的**？→ 仍然画成流程，每次工具调用一个节点。
+4. 工具调用的**顺序和次数取决于中间结果**，事先画不出来？→ 用 Agent 节点，放在流程中间，前后用固定节点做输入整理和输出校验。
+5. 整个任务都是开放式的（“帮我调研并写报告”）？→ 用 Agent 应用，但要给出轮次与时间上限，并接受结果需要人审。
+
+<Callout type="建议">以上顺序是根据 Dify 的节点设计整理出的使用建议，并非官方文档原文。</Callout>
+
+### 具体例子：场景判断器
+
+<Quiz
+  title="固定流程还是 Agent？"
+  hint="读场景，选你认为最合适的做法，系统会揭示参考答案和理由。共 8 个场景。"
+  score={false}
+  questions={[
+    { q: "客服邮件每天上千封，需要分到“退款 / 物流 / 产品咨询 / 投诉 / 其他”五类，再路由给不同团队。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 1, explain: "输出空间是有限的五个类别，正是问题分类器的用武之地。把“其他”放在第一个类别，模型答歪时会回落到最安全的处理。不需要 Agent：路由逻辑完全可以画出来。" },
+    { q: "法务上传合同 PDF，需要抽取甲方、乙方、金额、签署日期，写入 ERP 系统。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 1, explain: "这是典型的“填空题”：用文档提取器 + 参数提取器（或带 JSON Schema 的 LLM 节点），再用 HTTP 节点写入 ERP。抽取失败时 __is_success=0，可以分支到人工复核。" },
+    { q: "每天凌晨把共享盘里新增的文档切分、向量化、写入知识库。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 0, explain: "整个过程不需要模型做决策，是确定的数据处理流水线。Dify 的知识流水线（RAG Pipeline）就是为此设计的，用定时触发器启动即可。" },
+    { q: "用户说“帮我调研三家竞品的定价策略，做成对比表”。需要搜索多轮、阅读网页、自己决定下一步查什么。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 3, explain: "步骤的顺序和次数完全取决于中间结果，事先画不出流程，适合 Agent 应用。但要设轮次与时间上限，并接受结果需要人审。" },
+    { q: "报销审批：金额小于 1000 元自动通过，大于 1000 元需要主管确认后再打款。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 0, explain: "规则清晰，用条件分支 + 人工介入节点即可；需要人确认的地方用暂停等待（最长 7 天），完全不需要模型做决策。" },
+    { q: "周报流程是固定的：拉取数据 → 分析并写洞察 → 套模板 → 发邮件。其中“分析”这一步，需要根据数据异常自己决定再查哪些明细。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 2, explain: "骨架固定，只有一步需要自主探索。把这一步做成 Agent 节点，前后用固定节点整理输入、校验输出（新一代 Agent 节点可声明输出并配失败策略），其余步骤保持确定。" },
+    { q: "电商详情页：根据商品参数生成 3 个版本的营销文案，供运营挑选。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 1, explain: "一次生成就结束，不需要工具或多轮决策。一个 LLM 节点（必要时用结构化输出返回 3 个字段）就够了，成本和延迟都可预期。" },
+    { q: "运维助手：面对一个从未见过的报错，需要读日志、查内部文档、尝试执行诊断命令，直到找到原因。", options: ["固定流程（普通节点即可，或模型不做决策）", "受约束 LLM 节点（分类器 / 参数提取 / 结构化输出）", "流程骨架 + Agent 节点（只有其中一步需要自主）", "Agent 应用（整件事都是开放式的）"], answer: 3, explain: "探索路径无法预知，需要在沙箱中执行命令，正是新一代 Agent 应用“拥有自己的沙箱”的场景。务必限制可执行的命令范围、设置上限，并保留完整轨迹供审计。" }
+  ]}
+/>
+
+### 取舍与替代方案
+
+- **得到的**：大多数业务场景可以只用受约束节点完成，成本与行为可预期；Agent 被关进节点里，失败可以像普通节点一样走兜底。
+- **付出的**：新一代 Agent 依赖额外的后端服务，自部署用户在 1.15.0 遇到“标准 Docker 部署里 Agent 节点完全不可用”（[#39161](https://github.com/langgenius/dify/issues/39161)）；旧版 ReAct 对模型输出格式敏感，容易给不出最终答案（[#19303](https://github.com/langgenius/dify/issues/19303)）。
+- **替代方案**：“一个大 Agent 搞定一切”的架构更省搭建时间；“完全规则化”更省钱。Dify 选择同时提供两端，并用节点契约把它们接起来，代价是用户必须学会判断用哪种。
+
+<Callout type="要点">
+- 问题分类器、参数提取器、结构化输出是“让模型做选择题”的工具，各自带有不报错的退路。
+- Agent 从独立应用 → 工作流节点 → 带声明输出与失败策略的节点，方向是“过程自主、结果受控”。
+- 判断标准不是“任务难不难”，而是“路径能不能预先画出来”。
+</Callout>
+
+
+
+## 三、各组件怎么分层：RAG、模型、工具
+
+<Callout type="结论">Dify 按“谁负责、多久变一次”来切层：应用编排归业务团队，知识库和工具归数据与集成团队，模型、向量库、追踪平台这些外部依赖通过插件和供应商接口接入，基础设施归运维。每一层都可以单独替换，而不必改动上一层。</Callout>
+
+### 问题背景
+
+AI 应用的依赖变化极快：模型每个月都有新的，向量数据库有几十种，企业内部系统各不相同。如果工作流里直接写死“调用某家的某个模型”“查询某个向量库”，每次换供应商都要改所有应用。Dify 的分层就是在回答：**什么东西应该在工作流里配置，什么东西应该在工作区里统一管理，什么东西应该交给插件生态**。
+
+### 产品洞察
+
+### 洞察一：知识库被拆成“入库”和“检索”两半，入库也变成了工作流
+
+一个知识库的生命周期分两段：
+
+- **入库**：抽取（PDF、Word、网页、Notion 等）→ 清洗 → **分段**（通用段落、父子分段、问答对三种索引方式）→ 向量化 → 写入向量库。新版本把这一段做成了<strong>知识流水线（RAG Pipeline）</strong>：用和工作流同样的画布，组合“数据源节点 → 处理节点 → 知识库写入节点”，于是不同类型的文档可以有不同的处理流程。
+- **检索**：语义检索、全文检索、混合检索、关键词检索四种方式；**重排**可以用专门的重排模型，也可以用“语义与关键词加权打分”；还可以按元数据过滤（关闭 / 自动 / 手动）。
+
+拆开的好处是：数据团队负责“入库质量”，应用团队只在知识检索节点里选“查哪个库、怎么查”。代价是两边的问题容易互相甩锅——第 5 章的 [#29750](https://github.com/langgenius/dify/issues/29750) 就是“知识库测试面板能检索到，工作流里却检索为空”。
+
+<Source href={DT + 'api/core/rag/index_processor/processor'} label="index_processor/processor" />（paragraph / parent_child / qa）；<Source href={D + 'api/core/rag/retrieval/retrieval_methods.py#L4-L8'} label="retrieval_methods.py" />；<Source href={D + 'api/core/rag/rerank/rerank_type.py'} label="rerank_type.py" />（reranking_model / weighted_score）；<Source href={D + 'api/core/workflow/nodes/knowledge_retrieval/entities.py#L46'} label="元数据过滤模式" />；知识流水线服务 <Source href={DT + 'api/services/rag_pipeline'} label="services/rag_pipeline" /> 与 <Source href={DT + 'api/core/workflow/nodes/knowledge_index'} label="knowledge_index 节点" />。
+
+### 洞察二：模型供应商是“工作区级的配置”，应用只引用名字
+
+在 Dify 里，API 密钥和模型凭据配置在工作区（租户）层面，工作流里的 LLM 节点只引用“供应商 + 模型名”。从 1.0 开始，模型供应商本身也变成了插件，由独立的插件守护进程（plugin daemon）运行。好处显而易见：
+
+- 换模型不用改流程，只改节点下拉框；企业可以统一管理、轮换密钥。
+- 新模型上线不必等 Dify 发版，插件作者就能发布。
+- 发布工作流时会校验凭据策略（插件管理启用时），避免“草稿能跑、发布后没权限”。
+
+代价是多了一个独立运行的组件。1.0.0 刚发布时，大量自部署用户遇到“无法配置模型密钥”（[#14603](https://github.com/langgenius/dify/issues/14603)，74 条评论），根源在插件守护进程安装依赖超时或网络受限。
+
+插件实现目录 <Source href={DT + 'api/core/plugin/impl'} label="core/plugin/impl" />（model、tool、agent、datasource、trigger、endpoint 等）；<Source href={D + 'api/services/workflow_service.py#L690-L725'} label="publish_workflow" /> 发布前校验凭据与图结构；<Source href={D + 'docker/docker-compose.yaml#L577'} label="docker-compose.yaml plugin_daemon 服务" />。
+
+### 洞察三：工具有七种来源，但对工作流来说都是“一个工具节点”
+
+工具供应商类型枚举列出了七种来源：**内置工具**、**自定义 API**（导入 OpenAPI 描述即可）、**工作流即工具**（把一个已发布的工作流包装成工具）、**应用**、**知识库检索**、**MCP**（模型上下文协议，一种连接外部工具的开放标准）、**插件**。无论来源，在画布上都是同一种工具节点，在 Agent 里都是同一种可调用工具。
+
+MCP 是社区呼声最高的需求之一（[#11415](https://github.com/langgenius/dify/issues/11415)，64 条评论，2025 年 7 月经 PR #20716 关闭）。现在 Dify 是**双向**的：既能作为客户端调用 MCP 服务器上的工具，也能把自己的应用发布成 MCP 服务器给别的 AI 客户端调用。
+
+“工作流即工具”让复杂能力可以被封装、复用、嵌套，但也带来了递归风险，所以有嵌套调用深度上限（默认 5 层）。
+
+<Source href={D + 'api/core/tools/entities/tool_entities.py#L65-L76'} label="ToolProviderType" />；<Source href={DT + 'api/core/tools'} label="core/tools" />（builtin_tool / custom_tool / workflow_as_tool / mcp_tool / plugin_tool）；MCP 服务端 <Source href={D + 'api/controllers/mcp/mcp.py'} label="controllers/mcp/mcp.py" />；嵌套深度 <Source href={D + 'api/core/workflow/workflow_tool_container_handler.py#L308-L309'} label="workflow_tool_container_handler.py" /> 与 <Source href={D + 'api/configs/feature/__init__.py#L966-L969'} label="WORKFLOW_CALL_MAX_DEPTH" />。
+
+### 洞察四：对开发者和企业用户，同一套分层意味着不同的东西
+
+- **对开发者**：扩展点清晰：要接新模型写模型插件，要接内部系统写自定义 API 或 MCP，要加复杂逻辑写代码节点；不必理解整个平台。
+- **对企业用户**：凭据集中管理、角色分级、可以只打包需要的向量库和追踪组件（构建时用 `--no-group vdb-all` 排除默认组件，官方说法是“增强发行版的安全性与灵活性”）；但离线环境装插件困难（[#14848](https://github.com/langgenius/dify/issues/14848)）。
+- **对平台自身**：30 种向量库、8 个追踪平台以独立包形式存在，Dify 核心不必为每个供应商背负代码；但组合爆炸让测试和升级更难（[#27291](https://github.com/langgenius/dify/issues/27291) 就是一次向量库客户端升级引发的事故）。
+
+<Source href={D + 'api/providers/README.md'} label="api/providers/README.md" />；<Source href={DT + 'api/providers/vdb'} label="providers/vdb" />（30 个目录）。
+
+### 具体例子：可点击的分层架构图
+
+<Diagram
+  title="点击任意方块，查看它负责什么、为什么单独成一层"
+  layers={[
+    { title: "① 应用与交付层：给终端用户和业务系统", blocks: [
+      { label: "Chatflow / Workflow / Agent 应用", detail: ["负责什么：面向使用者的“产品形态”：对话流、工作流、Agent 应用、知识流水线等。", "为什么单独成层：同一个引擎，按使用方式包装成不同应用类型，让用户从“我要做什么”而不是“引擎怎么用”出发。", "对开发者：选错类型会遇到节点集不同的困惑（#9741）。", "对企业用户：应用是权限、限流、日志的基本单位。"], links: [{ label: "AppMode 枚举", href: D + 'api/models/model.py#L389-L400' }] },
+      { label: "API · WebApp · MCP 服务", detail: ["负责什么：发布后的出口：REST API、可分享/嵌入的网页应用、MCP 服务器、作为工具被调用、触发器启动。", "为什么单独成层：“做一次，多渠道交付”，让 AI 能力直接嵌入现有业务系统和其他 AI 客户端。", "对开发者：把 Dify 当后端即服务，前端自己做。", "对企业用户：内部员工用 WebApp，业务系统走 API，统一在一处管理。"], links: [{ label: "MCP 服务端控制器", href: D + 'api/controllers/mcp/mcp.py' }, { label: "README 后端即服务", href: D + 'README.md#L113-L114' }] }
+    ] },
+    { title: "② 编排层：graphon 图引擎", blocks: [
+      { label: "图引擎与变量池", detail: ["图引擎与变量池（graphon）", "负责什么：独立的 Python 包：验证图、调度就绪节点、管理变量池、处理失败策略、接收中止/暂停命令。", "为什么单独成层：把执行语义从 Web 平台中剥离，可以独立测试、独立演进，也可以被其他宿主嵌入。", "对开发者：想理解“为什么这个节点没执行”，答案都在引擎的就绪与跳过规则里。", "对企业用户：执行上限、命令通道是稳定性的基础。"], links: [{ label: "graphon ARCHITECTURE.md", href: G + 'ARCHITECTURE.md#L10-L22' }, { label: "依赖声明", href: D + 'api/pyproject.toml#L49' }] },
+      { label: "节点库", detail: ["负责什么：LLM、知识检索、问题分类器、参数提取器、条件分支、代码、HTTP、工具、循环、迭代、变量聚合、人工介入等。", "为什么单独成层：每个节点封装一种“可单测的步骤”，并自带输入校验和失败语义。", "对开发者：代码节点是逃生舱，复杂逻辑不必硬画。", "对企业用户：受约束的 LLM 节点让行为可预期、可审计。"], links: [{ label: "BuiltinNodeTypes", href: G + 'src/graphon/enums.py#L15-L45' }] },
+      { label: "Agent 运行时", detail: ["负责什么：旧版：Agent 应用内的 ReAct / 函数调用循环，以及可插拔的 Agent 策略插件；新版：独立的 dify-agent 运行时与 agent_backend 服务，支持沙箱、技能与声明式输出。", "为什么单独成层：把“自主推理”做成可替换的部件，流程只关心它的输入输出契约。", "对开发者：新版需要额外部署服务（#39161）。", "对企业用户：声明式输出 + 失败策略，让 Agent 的结果可校验。"], links: [{ label: "agent_v2 失败编排", href: D + 'api/core/workflow/nodes/agent_v2/output_failure_orchestrator.py#L1-L46' }, { label: "compose 中的 agent_backend", href: D + 'docker/docker-compose.yaml#L664' }] }
+    ] },
+    { title: "③ 能力层：知识、工具、模型", blocks: [
+      { label: "知识库与知识流水线", detail: ["负责什么：入库：抽取、清洗、分段（段落 / 父子 / 问答）、向量化；检索：语义 / 全文 / 混合 / 关键词，重排模型或加权打分，元数据过滤。入库流程可用知识流水线编排。", "为什么单独成层：入库归数据团队、检索归应用团队，两边可以独立优化。", "对开发者：在知识检索节点里选库与检索策略即可。", "对企业用户：知识库操作员角色可只管资料不碰应用。"], links: [{ label: "检索方式", href: D + 'api/core/rag/retrieval/retrieval_methods.py#L4-L8' }, { label: "分段处理器", href: DT + 'api/core/rag/index_processor/processor' }, { label: "知识流水线服务", href: DT + 'api/services/rag_pipeline' }] },
+      { label: "工具（7 种来源）", detail: ["负责什么：内置、插件、自定义 API（OpenAPI）、工作流即工具、应用、知识库检索、MCP。", "为什么单独成层：无论来源，在画布与 Agent 中都是同一种工具，接入方式与使用方式解耦。", "对开发者：内部系统用 OpenAPI 或 MCP 接入最省事。", "对企业用户：工作流即工具让团队间复用能力，但有嵌套深度上限 5。"], links: [{ label: "ToolProviderType", href: D + 'api/core/tools/entities/tool_entities.py#L65-L76' }, { label: "嵌套深度检查", href: D + 'api/core/workflow/workflow_tool_container_handler.py#L308-L309' }] },
+      { label: "模型供应商", detail: ["负责什么：工作区级配置供应商与凭据；应用节点只引用“供应商 + 模型名”；剩余上下文、计费等能力由模型运行时统一提供。", "为什么单独成层：换模型不改流程，凭据集中管理和轮换。", "对开发者：新模型通过插件接入，不必等主仓库发版。", "对企业用户：发布时校验凭据策略；1.0 初期插件化导致配置失败（#14603）。"], links: [{ label: "发布前凭据校验", href: D + 'api/services/workflow_service.py#L707-L718' }, { label: "剩余 token 计算", href: G + 'src/graphon/nodes/llm/llm_utils.py#L484-L514' }] }
+    ] },
+    { title: "④ 插件与供应商层：可替换的外部依赖", blocks: [
+      { label: "插件守护进程与市场", detail: ["负责什么：独立运行插件的进程，插件类型包括模型、工具、Agent 策略、数据源、触发器、扩展端点；插件还能反向调用 Dify 的模型和应用。", "为什么单独成层：用部署复杂度换生态速度，第三方可以独立发布能力。", "对开发者：写插件即可扩展平台，不必改核心代码。", "对企业用户：离线环境安装依赖困难（#14848）。"], links: [{ label: "core/plugin/impl", href: DT + 'api/core/plugin/impl' }, { label: "compose 中的 plugin_daemon", href: D + 'docker/docker-compose.yaml#L577' }] },
+      { label: "向量库供应商", detail: ["负责什么：30 种向量库以独立包形式提供，构建时可选择只包含需要的几种。", "为什么单独成层：企业往往已有指定的数据库，平台不应强绑。", "对开发者：新向量库按接口实现并注册即可。", "对企业用户：可裁剪构建以减少攻击面；升级时的兼容风险由各供应商包承担（#27291）。"], links: [{ label: "providers/vdb", href: DT + 'api/providers/vdb' }, { label: "providers/README.md", href: D + 'api/providers/README.md' }] },
+      { label: "追踪平台供应商", detail: ["负责什么：Langfuse、LangSmith、Opik、Arize、Phoenix、Weave、阿里云、MLflow、Databricks、腾讯云。", "为什么单独成层：可观测性交给专业平台，Dify 只负责产出标准化的追踪数据，并通过独立队列异步发送。", "对开发者：在应用设置里填凭据即可接入。", "对企业用户：集成静默失效时很难察觉（#36099）。"], links: [{ label: "TracingProviderEnum", href: D + 'api/core/ops/entities/config_entity.py#L8-L18' }] }
+    ] },
+    { title: "⑤ 基础设施层：运维负责", blocks: [
+      { label: "PostgreSQL · Redis · Celery", detail: ["负责什么：元数据与日志存数据库；Redis 承担缓存、限流计数、停止标记与命令通道；Celery 按用途分队列处理索引、流水线、工作流、追踪、邮件等异步任务。", "为什么单独成层：把慢任务和突发流量隔离开，云版甚至按套餐分工作流队列。", "对开发者：本地一般一个 worker 消费所有队列即可。", "对企业用户：高并发时数据库连接、插件进程常成瓶颈（#36023）。"], links: [{ label: "Celery 队列", href: D + 'api/docker/entrypoint.sh#L34-L45' }, { label: "停止命令通道", href: D + 'api/core/app/apps/execution_coordinator.py#L22-L45' }] },
+      { label: "代码沙箱 · SSRF 代理", detail: ["负责什么：代码节点在独立沙箱服务中运行，有超时、输出大小和系统调用限制；所有出站网络请求经 SSRF 代理。", "为什么单独成层：允许用户写代码，又不让用户代码威胁平台和内网。", "对开发者：第三方库需写进沙箱依赖清单（#4463）。", "对企业用户：是允许多租户运行用户代码的安全前提。"], links: [{ label: "沙箱配置", href: D + 'api/configs/feature/__init__.py#L120-L150' }, { label: "compose 中的 sandbox", href: D + 'docker/docker-compose.yaml#L513' }] }
+    ] }
+  ]}
+/>
+
+### 取舍与替代方案
+
+- **得到的**：换模型、换向量库、换追踪平台都不动应用；生态可以独立于主仓库发布能力。
+- **付出的**：部署组件多（标准编排里有 api、worker、web、sandbox、plugin_daemon、ssrf_proxy、agent_backend 以及向量库等），任何一个配置不对都会表现为“上层功能不可用”。
+- **替代方案**：把模型和工具都做成核心代码的一部分（早期 Dify 就是这样）：部署简单，但每个新供应商都要等主仓库发版，且核心代码越来越臃肿。1.0 的插件化是用部署复杂度换生态速度。
+
+<Callout type="要点">
+- 知识库拆成“入库流水线”和“检索节点”两半，入库本身也能编排。
+- 模型和凭据在工作区层面管理，应用只引用名字；模型供应商自 1.0 起是插件。
+- 七种工具来源统一成一个工具节点，MCP 双向支持，工作流本身也能变成工具。
+- 分层带来可替换性，也带来部署与升级的复杂度，这正是第 5 章大量痛点的来源。
+</Callout>
+
+
+
+## 四、原型怎么走向生产
+
+<Callout type="结论">一个在画布上“能跑通”的工作流，离“敢让客户用”还差五类东西：**可调试、可版本化、可交付、可观测、可防护**。Dify 在每一类都补了专门机制，大部分是普通用户看不见、但运维和合规团队离不开的部分。</Callout>
+
+### 问题背景
+
+AI 原型的典型路径是：周五下午在画布上拼出一个流程，演示效果很好；下周一接入真实流量后，各种问题冒出来——某个模型偶尔超时、一个用户的长文档把上下文撑爆、有人改了提示词导致线上回答变差却不知道是谁改的、促销日并发一高整个服务变慢。“能用”到“敢用”之间的差距，几乎都不在模型本身，而在**工程与运营机制**。
+
+### 产品洞察
+
+### 洞察一：调试——让每个节点都能单独跑
+
+画布上可以**单步运行**任意节点：给它手动填入上游变量，只执行这一个节点，看输出、耗时和 token；还能查看每个节点“上一次运行”的结果。这让调提示词变成“改一下、点一下”的快循环，不必每次从头跑整个流程。
+
+<Source href={D + 'api/services/workflow_service.py#L1154'} label="workflow_service.run_draft_workflow_node" />；控制器中还有 `get_draft_workflow_node_last_run`。
+
+### 洞察二：草稿与发布——线上版本不会被手滑改坏
+
+每个工作流永远有一个 `draft`（草稿）版本供编辑，发布时生成一个新的不可变版本，API 和 WebApp 只调用已发布版本。发布这一步本身就是一道闸门：会校验模型引用、凭据策略、图结构、Agent 节点配置，云版本还会做套餐检查。产品含义：<strong>“编辑”和“上线”被分成两个动作</strong>，修改有记录（可以给版本命名、写备注），也能回滚。
+
+<Source href={D + 'api/models/workflow.py#L247'} label="Workflow.VERSION_DRAFT = &quot;draft&quot;" />；<Source href={D + 'api/services/workflow_service.py#L690-L730'} label="publish_workflow" />（`marked_name`、`marked_comment`、校验与计费检查）。
+
+### 洞察三：交付——同一个工作流，多种出口
+
+发布后的应用天然拥有：REST API（后端即服务）、可直接分享或嵌入网页的 WebApp、MCP 服务器入口，以及“作为工具”被其他应用调用的能力；工作流还可以由定时器、Webhook、插件事件等触发器启动。对产品团队来说，<strong>做一次，就能同时服务内部员工（WebApp）、自家系统（API）和别人的 AI 助手（MCP）</strong>。
+
+### 洞察四：观测——日志、标注、追踪三件套
+
+- **日志**：每次运行的每个节点输入输出、耗时、token、费用都被记录，可以按会话回看。
+- **标注回复**：运营人员可以把一个“标准答案”标注到某类问题上；之后相似问题（相似度超过阈值）会直接返回标注答案，不再调用模型。这是把人工经验沉淀进系统的最低成本方式。
+- **追踪集成**：支持 Langfuse、LangSmith、Opik、Arize、Phoenix、Weave、阿里云、MLflow、Databricks、腾讯云等追踪平台。追踪数据通过独立的异步队列 `ops_trace` 发送，不阻塞主流程。
+
+<Source href={D + 'api/core/app/features/annotation_reply/annotation_reply.py#L19-L45'} label="annotation_reply.py" />（`score_threshold`）；<Source href={D + 'api/core/ops/entities/config_entity.py#L8-L18'} label="TracingProviderEnum" />；队列列表见 <Source href={D + 'api/docker/entrypoint.sh#L34-L45'} label="api/docker/entrypoint.sh" />。
+
+### 洞察五：防护——多租户、限流、上限、沙箱、队列
+
+- **多租户与权限**：工作区内有所有者、管理员、编辑、普通成员、知识库操作员五种角色，后者只能管理知识库，适合让数据团队维护资料却不能改应用。
+- **速率限制**：每个应用可以设置最大并发请求数，超出时直接返回 “Too many requests”，保护下游模型配额。
+- **执行上限**：单次运行最多 500 步、3600 秒，嵌套调用最多 5 层，单个变量最大 200 KB——防止一个配置错误的循环烧掉整月预算。
+- **代码沙箱**：代码节点运行在独立的 `sandbox` 服务里，网络请求经过 `ssrf_proxy`（防服务端请求伪造的代理），并有读写超时和输出大小限制。
+- **异步队列**：文档索引、知识流水线、工作流执行、追踪、邮件等走不同的 Celery 队列；云版本甚至按套餐把工作流分到 `workflow_professional`、`workflow_team`、`workflow_sandbox` 不同队列，避免免费用户的洪峰拖慢付费用户。
+
+<Source href={D + 'api/enums/account.py#L7-L12'} label="TenantAccountRole" />；<Source href={D + 'api/core/app/features/rate_limiting/rate_limit.py#L73-L88'} label="rate_limit.py enter()" />；<Source href={D + 'api/configs/feature/__init__.py#L945-L974'} label="WorkflowConfig" />（500 步 / 3600 秒 / 深度 5 / 200KB）；<Source href={D + 'api/configs/feature/__init__.py#L120-L150'} label="CodeExecutionSandboxConfig" />；<Source href={D + 'api/docker/entrypoint.sh#L34-L45'} label="按版本划分的 Celery 队列" />。
+
+### 具体例子：上线前检查清单
+
+<ReadinessCheck />
+
+### 取舍与替代方案
+
+- **得到的**：大部分生产级机制开箱即用，小团队不必自建日志、限流、沙箱和版本管理。
+- **付出的**：默认值未必适合你的负载：[#36023](https://github.com/langgenius/dify/issues/36023) 中 8 核 32G 的自部署环境在 20 并发时 Agent 工作流耗时到 120 秒，改环境变量也不见效；[#15500](https://github.com/langgenius/dify/issues/15500) 中运行已成功，但发布后的界面却提示“因超时未显示结果”。
+- **替代方案**：把 Dify 只当原型工具，上线时用代码重写；或者只用它的 API 层，把观测接入自家平台。Dify 用十种追踪集成和完整 API 表明它希望自己就是生产环境。
+
+<Callout type="要点">
+- 单步运行 + 上次运行结果，让调试从“跑全流程”变成“点一个节点”。
+- 草稿与发布分离，发布本身是一道校验闸门。
+- 日志、标注、追踪组成运营闭环；角色、限流、执行上限、沙箱、队列组成防护网。
+- 默认值只是起点，生产负载需要按自身情况调优。
+</Callout>
+
+
+
+## 五、Issue 里用户的真实痛点
+
+<Callout type="结论">按评论数和点赞数排名靠前的 issue 显示，用户最痛的不是“模型不够聪明”，而是**升级与自部署、知识库检索的稳定性、复杂流程的可观测性**——也就是第 3、4 章那些“分层”和“生产机制”带来的副作用。</Callout>
+
+### 问题背景与方法
+
+我在 GitHub 上按“评论最多”和“点赞最多”排序检索了 Dify 的 issue，并分别用 workflow、knowledge、agent、plugin、performance/slow、timeout 等关键词检索，挑出 15 个代表性 issue。剔除了纯重构任务（如 “migrate to TypedDict”）和单纯的功能许愿。每张卡片写明：用户遇到了什么、产品层面的原因、官方回应或修复。评论数为检索时（2026-10-22）页面显示的数字。
+
+<Callout type="注意" title="说明">“产品层面的原因”一栏是我基于 issue 讨论和源码做的归纳；issue 本身没有确认根因的，卡片里会明确写“未确认”。</Callout>
+
+<FilterCards
+  title="痛点卡片"
+  unit="个 issue"
+  filters={[{"id": "selfhost", "label": "自部署与升级"}, {"id": "rag", "label": "知识库与检索"}, {"id": "workflow", "label": "工作流编排"}, {"id": "agent", "label": "Agent"}, {"id": "perf", "label": "性能与并发"}, {"id": "plugin", "label": "插件与扩展"}, {"id": "obs", "label": "可观测"}]}
+  cards={[
+    {"ref": "#27291", "href": "https://github.com/langgenius/dify/issues/27291", "title": "升级到 1.9.2 后旧知识库不可用", "meta": "113 条评论 · 已关闭", "tags": ["自部署与升级", "知识库"], "topics": ["selfhost", "rag"], "rows": [{"k": "遇到", "v": "从 1.9.1 及更早版本升级后，知识库检索测试报错 “does not have named vector default configured”，大量用户受影响，文档没说明怎么修。"}, {"k": "原因", "v": "默认向量库 Weaviate 的客户端升级到 v4，要求新的“命名向量”结构，旧数据结构不兼容。产品层面：向量库作为可替换的下层依赖，其升级会直接击穿上层功能。"}, {"k": "回应", "v": "维护者置顶该 issue 并提供迁移脚本，最终通过文档仓库 PR #616 补充迁移指南；社区成员修复了脚本在超过 1 万条数据时截断的问题。"}]},
+    {"ref": "#39161", "href": "https://github.com/langgenius/dify/issues/39161", "title": "标准 Docker 部署里新 Agent 节点完全不可用", "meta": "70 条评论 · 未关闭", "tags": ["自部署与升级", "Agent"], "topics": ["selfhost", "agent"], "rows": [{"k": "遇到", "v": "1.15.0 自部署后，Chatflow/Workflow 中的 Agent 节点每次运行都报 “base_url is required when creating a real Agent backend client”，换模型、换插件都无效。"}, {"k": "原因", "v": "新 Agent 节点依赖独立的 Agent 后端服务，而 1.15.0 的标准编排文件没有包含它。产品层面：新能力引入新组件，但发布物没有同步。"}, {"k": "回应", "v": "被标记为缺陷；有用户确认 main 分支已把 agent_backend 加入默认编排（提交 #39041、#39044），改进错误提示的 PR #39878 尚未合并。"}]},
+    {"ref": "#14603", "href": "https://github.com/langgenius/dify/issues/14603", "title": "1.0.0 本地部署后无法配置模型密钥", "meta": "74 条评论 · 已关闭", "tags": ["插件与扩展", "自部署与升级"], "topics": ["plugin", "selfhost"], "rows": [{"k": "遇到", "v": "保存模型凭据超时，日志显示插件守护进程 “killed by timeout”；绑定域名后供应商列表加载失败。"}, {"k": "原因", "v": "未确认。讨论指向插件守护进程安装依赖超时、代理或网络受限、环境变量缺失。产品层面：模型供应商插件化后，“配个密钥”依赖一个能联网装依赖的新组件。"}, {"k": "回应", "v": "线程中没有维护者回复；有用户通过调大 PLUGIN_MAX_EXECUTION_TIMEOUT、PYTHON_ENV_INIT_TIMEOUT 并配置镜像源解决。"}]},
+    {"ref": "#14848", "href": "https://github.com/langgenius/dify/issues/14848", "title": "完全离线部署时无法安装插件", "meta": "35 条评论 · 已关闭", "tags": ["插件与扩展", "自部署与升级"], "topics": ["plugin", "selfhost"], "rows": [{"k": "遇到", "v": "把镜像和插件包导入内网后，安装插件仍尝试下载 Python 依赖并失败。"}, {"k": "原因", "v": "插件包不自带依赖。产品层面：插件市场的设计默认“能联网”，与对数据安全最敏感的企业客户（内网部署）天然冲突。"}, {"k": "回应", "v": "维护者当天关闭，未附说明；社区用第三方“插件重新打包”工具制作离线包，相关求助持续到 2026 年 5 月。"}]},
+    {"ref": "#29750", "href": "https://github.com/langgenius/dify/issues/29750", "title": "知识库超过 100 个文件时，工作流检索为空", "meta": "43 条评论 · 已关闭", "tags": ["知识库与检索"], "topics": ["rag"], "rows": [{"k": "遇到", "v": "知识库测试面板能检索到内容，但工作流里的知识检索节点返回空；停用文档到 100 个以内就恢复正常。"}, {"k": "原因", "v": "维护者定位到 Weaviate 查询用 OR 条件逐个拼接文档 ID 过滤，101 个 ID 时出错。产品层面：检索为空在 Dify 中是“成功”状态，所以这个 bug 表现为“静默答错”，而非报错。"}, {"k": "回应", "v": "维护者复现后经 PR #30559 修复并关闭（2026-01-05）。"}]},
+    {"ref": "#20555", "href": "https://github.com/langgenius/dify/issues/20555", "title": "升级后知识库检索明显变慢", "meta": "25 条评论 · 已关闭", "tags": ["知识库与检索", "性能与并发"], "topics": ["rag", "perf"], "rows": [{"k": "遇到", "v": "1.3.1 升级到 1.4.x 后，同样的问题检索从几十毫秒变成数秒（有用户实测 1.3.0 约 62ms，1.4.3 约 6.79s）。"}, {"k": "原因", "v": "讨论认为主要是某些版本的 Weaviate 客户端每次搜索前都检查 PyPI 更新；但升级客户端后仍有用户未恢复。"}, {"k": "回应", "v": "相关 PR #20693 回退了客户端版本；维护者最终关闭 issue，但没有确认的修复说明。"}]},
+    {"ref": "#39151", "href": "https://github.com/langgenius/dify/issues/39151", "title": "并行分支快速失败后，其他节点状态无人认领", "meta": "61 条评论 · 未关闭", "tags": ["工作流编排", "可观测"], "topics": ["workflow"], "rows": [{"k": "遇到", "v": "并行分支中一个节点致命失败，其他还在运行或重试的兄弟节点在追踪面板和画布上一直停在“运行中”，事后也看不出是谁导致它们停止。"}, {"k": "原因", "v": "图级失败只携带错误文本，不携带“哪个节点执行导致失败”的身份。产品层面：并行让流程变快，也让“失败归因”变难。"}, {"k": "回应", "v": "已分配处理并标记为缺陷，依赖上游引擎 graphon#220 先暴露失败节点身份；暂无修复。"}]},
+    {"ref": "#17626", "href": "https://github.com/langgenius/dify/issues/17626", "title": "某个分支里的流式输出变成一整块", "meta": "25 条评论 · 已关闭", "tags": ["工作流编排"], "topics": ["workflow"], "rows": [{"k": "遇到", "v": "多数分支能逐字流式输出，但某一条分支的 LLM 回答要等全部生成完才一次性出现。"}, {"k": "原因", "v": "未确认。社区发现与条件分支 + 直接回复节点的组合、代码节点的异常处理设置有关；把三路分支拆成两路有帮助。产品层面：流式输出要求引擎提前知道“哪段文字一定会输出”，分支与失败策略让这件事变复杂。"}, {"k": "回应", "v": "报告者用迭代节点替换循环节点后自行关闭；同类问题 #19595 被标记为重复。"}]},
+    {"ref": "#9741", "href": "https://github.com/langgenius/dify/issues/9741", "title": "“Answer 节点去哪了？”", "meta": "52 条评论 · 已关闭", "tags": ["工作流编排"], "topics": ["workflow"], "rows": [{"k": "遇到", "v": "用户在工作流里找不到直接回复节点，图片和回答都不显示。"}, {"k": "原因", "v": "直接回复节点只存在于 Chatflow，Workflow 用结束节点。产品层面：两种应用形态共用画布但节点集不同，边界不直观。"}, {"k": "回应", "v": "维护者答复“这是 workflow，没有 answer 节点，请读文档”并关闭；之后线程里堆满了无关提问，说明用户把它当成了通用求助入口。"}]},
+    {"ref": "#28245", "href": "https://github.com/langgenius/dify/issues/28245", "title": "大型工作流画布卡顿", "meta": "17 条评论 · 已关闭", "tags": ["性能与并发", "工作流编排"], "topics": ["perf", "workflow"], "rows": [{"k": "遇到", "v": "约 50 到 100 多个节点的 Chatflow，拖动、缩放、打开节点设置都明显卡顿，1.10.0 起变严重，回退 1.9.2 即恢复。"}, {"k": "原因", "v": "维护者未说明根因。产品层面：画布越成功，用户画得越大，可视化方式的天花板就越早出现。"}, {"k": "回应", "v": "维护者经 PR #28591 修复后关闭；之后仍有云版本用户反馈未改善。"}]},
+    {"ref": "#36023", "href": "https://github.com/langgenius/dify/issues/36023", "title": "自部署并发一高，延迟飙升甚至失败", "meta": "16 条评论 · 已关闭（不计划处理）", "tags": ["性能与并发", "自部署与升级"], "topics": ["perf", "selfhost"], "rows": [{"k": "遇到", "v": "8 核 32G 环境，10 并发时 Agent 工作流约 60 秒，20 并发时约 120 秒；出现插件守护进程 CPU 过载 503、PostgreSQL 连接数耗尽。"}, {"k": "原因", "v": "未确认。从报错看，瓶颈分散在插件守护进程、数据库连接、Celery 并发等多个组件。"}, {"k": "回应", "v": "维护者要求按缺陷模板提供日志与复现步骤后关闭。说明多组件架构下，“哪里慢”本身就难以描述。"}]},
+    {"ref": "#19303", "href": "https://github.com/langgenius/dify/issues/19303", "title": "ReAct Agent 给不出最终答案", "meta": "21 条评论 · 已关闭（不计划处理）", "tags": ["Agent"], "topics": ["agent"], "rows": [{"k": "遇到", "v": "多轮之后 Agent 输出占位文字 “I am thinking about how to help you”，或只有思考没有行动，涉及 DeepSeek、Kimi、OpenAI、Gemini 等多种模型，常与 MCP 工具同时出现。"}, {"k": "原因", "v": "未确认。用户推测是模型输出不符合 ReAct 格式时解析失败、被替换成占位文本。产品层面：依赖“模型按格式说话”的策略在异构模型生态里很脆弱。"}, {"k": "回应", "v": "贡献者索要复现 DSL 后无后续；有用户改用函数调用策略绕过。"}]},
+    {"ref": "#7470", "href": "https://github.com/langgenius/dify/issues/7470", "title": "希望在工作流里使用 Agent 节点", "meta": "36 条评论 · 已关闭", "tags": ["Agent", "工作流编排"], "topics": ["agent", "workflow"], "rows": [{"k": "遇到", "v": "LLM 节点不能像 Agent 那样调用工具；用户只能用 HTTP 节点调用另一个 Agent 应用的 API，而 Agent API 当时不支持阻塞模式。"}, {"k": "原因", "v": "产品早期把“流程”和“Agent”做成两种互斥的应用类型。"}, {"k": "回应", "v": "纳入 1.0.0 里程碑并关闭（2025-01）；1.0 起工作流提供 Agent 节点与可插拔的 Agent 策略。"}]},
+    {"ref": "#36099", "href": "https://github.com/langgenius/dify/issues/36099", "title": "Langfuse 只记录输入输出，不记录内部节点", "meta": "96 条评论 · 已关闭", "tags": ["可观测"], "topics": ["obs"], "rows": [{"k": "遇到", "v": "按文档配置 Langfuse 后，只看到整次运行的输入和输出，看不到各节点的追踪；工作进程日志报 “Current tenant not found for account”。"}, {"k": "原因", "v": "未确认。报告者发现手动设置成员关系表里的 current 字段后可用，指向账号与工作区关系的数据问题。"}, {"k": "回应", "v": "维护者关闭但无说明，报告者随后表示“仍不可用”。可观测集成一旦静默失效，用户往往在出事后才发现。"}]},
+    {"ref": "#4463", "href": "https://github.com/langgenius/dify/issues/4463", "title": "沙箱里装了第三方库，网页里运行却找不到", "meta": "39 条评论 · 已关闭", "tags": ["插件与扩展"], "topics": ["plugin"], "rows": [{"k": "遇到", "v": "在沙箱容器里装好 mysql-connector-python、requests 等库，代码节点运行时仍报 ModuleNotFoundError；后来还有 matplotlib 无法使用。"}, {"k": "原因", "v": "沙箱有自己的依赖清单和系统调用白名单，直接在容器里安装不会生效。产品层面：安全隔离与“随便装库”的开发者期待天然冲突。"}, {"k": "回应", "v": "维护者指向沙箱常见问题文档后关闭；用户总结出把依赖写进 python-requirements.txt 并重启沙箱的做法。"}]},
+  ]}
+/>
+
+### 产品洞察：把 15 个痛点归成四个主题
+
+### 主题一：每多一个可替换的组件，就多一条升级断裂线
+
+#27291（向量库客户端升级）、#14603（插件守护进程）、#39161（Agent 后端）、#14848（离线插件）有一个共同点：问题都出在第 3 章那些“为了可替换而拆出去”的组件上。分层让 Dify 的生态扩展得很快，但自部署用户要为每一个组件的版本兼容、网络环境、资源配额负责。**评论最多的 issue 几乎都与升级或部署有关**，这是开源自部署产品的结构性成本。
+
+### 主题二：知识库的失败经常是“静默”的
+
+#29750 中检索为空不报错、#20555 中检索变慢但结果没变——用户感知到的只是“回答变差了”或“变慢了”。因为检索为空在产品语义上是合法的成功状态（第 6 章会讲），所以这类问题很难被监控告警发现。
+
+### 主题三：可视化让简单的事情变简单，也让复杂的事情暴露出新问题
+
+#39151（并行失败归因）、#17626（分支中的流式输出）、#28245（大图卡顿）、#9741（概念混淆）都发生在用户把画布用到更复杂的程度之后。图越大，越需要“谁导致了什么”的归因、越需要性能优化、越需要清晰的概念边界。
+
+### 主题四：Agent 的不确定性最终要靠“契约”和“替代策略”收住
+
+#7470 推动了 Agent 进入工作流，#19303 说明依赖输出格式的 ReAct 策略很脆弱，#39161 说明新一代 Agent 的运维成本更高。Dify 的应对方向——可插拔的 Agent 策略、声明式输出、失败策略——都是在把 Agent 的不确定性关进可管理的边界。
+
+### 取舍与替代方案
+
+- **观察**：很多 issue 由机器人自动回复、长时间无人跟进后被标记为陈旧而关闭（如 #26877、#15500、#19303）。对一个有近两万个 issue 的项目，这是维护带宽的现实。
+- **启示**：<span class="tag warn">建议</span>对自部署产品，“升级迁移脚本 + 兼容性说明 + 一键自检”可能比新功能更能减少高讨论量 issue。
+- **替代方案**：只提供云服务可以规避大部分部署痛点，但会失去对数据敏感的企业客户。Dify 同时维护云版与社区版，等于承担了两份复杂度。
+
+<Callout type="要点">
+- 高讨论量痛点集中在升级、自部署、插件依赖，而不是模型能力。
+- 知识库问题常常静默，需要主动监控检索质量。
+- 画布用得越深，越需要失败归因、性能和概念边界方面的投入。
+</Callout>
+
+
+
+## 六、边界场景的处理逻辑
+
+<Callout type="结论">Dify 处理异常的核心思路是：**把“出错”从意外变成可设计的路径**。容易出错的节点允许配置重试、默认值或失败分支；不该算错误的情况（检索为空）返回成功，让用户自己决定；可能失控的情况（循环、超时、并发）用全局上限兜底；停止和超时都通过同一种“中止命令”实现。</Callout>
+
+### 问题背景
+
+AI 应用的异常比普通软件多一类：除了网络超时、服务宕机这些“硬错误”，还有模型输出格式不对、回答太长、检索没找到、Agent 绕圈子这类“软错误”。产品上的难点是区分：哪些应该让整个流程失败？哪些应该优雅降级？哪些根本不算错误？下面 10 种场景按“用户看到什么 / 产品策略 / 证据”展开。标有“在模拟器中查看”的，可以跳回第 1 章亲眼看走向。
+
+### 产品洞察：三条贯穿所有场景的原则
+
+### 原则一：只给“不可靠”的节点配异常处理
+
+前端只在 LLM、工具、HTTP 请求、代码、Agent 这几类节点上显示“异常处理”面板，重试只在前四类上提供。这几类节点的共同点是：依赖外部服务或运行用户代码，失败是常态。条件分支、模板转换这类纯逻辑节点出错通常意味着配置错误，应该在调试阶段修好，而不是在运行时兜底。
+
+<Source href={D + 'web/app/components/workflow/utils/workflow.ts#L172-L181'} label="hasErrorHandleNode" />；<Source href={D + 'web/app/components/workflow/utils/node.ts#L169-L176'} label="hasRetryNode" />。
+
+### 原则二：顺序是“先重试，再按策略兜底，没有策略就失败”
+
+```
+# graphon NodeFailureHandler.handle（节选）
+if node.retry and retry_count < node.retry_config.max_retries:
+    return self._handle_retry(event, retry_count)
+match node.error_strategy:
+    case None:                       return None   # 没有兜底：当前作用域失败
+    case ErrorStrategy.FAIL_BRANCH:  return self._handle_fail_branch(event)
+    case ErrorStrategy.DEFAULT_VALUE: return self._handle_default_value(event)
+```
+
+走失败分支或默认值时，节点状态变为“异常（exception）”而非“失败”，并把 `error_message` 和 `error_type` 作为输出变量交给下游，整次运行最终是“部分成功”。这让运营能在日志里一眼区分“彻底失败”和“降级成功”。
+
+<Source href={G + 'src/graphon/engine/event/node_failure.py#L48-L97'} label="node_failure.py handle()" />；<Source href={G + 'src/graphon/engine/event/node_failure.py#L131-L205'} label="失败分支与默认值的输出" />；<Source href={G + 'src/graphon/enums.py#L120-L150'} label="运行状态含 partial_succeeded" />。
+
+### 原则三：停止、超时、超步数，都是同一个“中止命令”
+
+用户点停止、运行超过最长时间、步数超过上限，最终都会向引擎的命令通道发送一条 `AbortCommand`（中止命令）。统一机制的好处是行为一致：已完成节点的结果保留，未开始的节点不再执行。一个有意思的细节是，超限中止在 Dify 里被转换成和“用户手动停止”同一类停止事件，只是原因文字不同。
+
+<Source href={G + 'src/graphon/engine/command/README.md#L5-L12'} label="command/README.md" />；<Source href={D + 'api/core/app/apps/workflow_app_runner.py#L649-L654'} label="workflow_app_runner.py" />：`GraphRunAbortedEvent` → `QueueStopEvent(stopped_by=USER_MANUAL, reason=...)`。
+
+### 具体场景（点击展开）
+
+<DetailItem title="1. 节点失败" tags={[{ label: "失败分支 / 默认值 / 重试" }]} open>
+
+- **用户看到**：配置了兜底：得到一个降级回复（“系统繁忙，已转人工”），运行状态“部分成功”。没配置：整次运行失败，看到错误信息。
+- **产品策略**：重试默认关闭，开启后界面默认 3 次，可设间隔；之后才走失败策略。失败分支把错误信息作为变量交给下游，可以据此写更友好的提示。
+- **证据**：<Source href={G + 'src/graphon/entities/base_node_data.py#L17-L26'} label="RetryConfig" />（默认 0 次、毫秒间隔）；<Source href={D + 'web/app/components/workflow/nodes/_base/components/retry/retry-on-panel.tsx#L38'} label="retry-on-panel.tsx" />（默认 3）；<Source href={G + 'src/graphon/engine/event/node_failure.py#L99-L129'} label="_handle_retry" />。
+
+<button class="btn" type="button" data-try="llmfail" data-strat="branch">在模拟器中查看（失败分支）</button> <button class="btn" type="button" data-try="llmfail" data-strat="retry">查看（重试）</button>
+</DetailItem>
+
+<DetailItem title="2. LLM 输出不合法或超长" tags={[{ label: "结构化输出 / 分类 / 抽取 / 上下文窗口" }]}>
+
+- **用户看到**：结构化输出解析失败：节点失败并给出 “Failed to parse structured output”，可接重试或失败分支。分类器答歪：走第一个类别。参数抽取失败：节点成功但 `__is_success=0`。
+- **产品策略**：不同节点的“不合法”含义不同：路由类节点绝不卡死（回落默认类别），抽取类节点把判断交给下游，生成类节点明确报错。超长方面：对话记忆按“模型上下文 − 最大输出 − 当前提示”计算剩余 token 截断；代码节点字符串输出上限 40 万字符；单变量上限 200KB。
+- **证据**：<Source href={G + 'src/graphon/nodes/llm/node.py#L876-L885'} label="llm/node.py" />；<Source href={G + 'src/graphon/nodes/question_classifier/question_classifier_node.py#L370-L402'} label="分类回落" />；<Source href={G + 'src/graphon/nodes/llm/llm_utils.py#L484-L514'} label="calculate_rest_token" />；<Source href={G + 'src/graphon/nodes/code/code_node.py#L188-L193'} label="代码输出长度校验" />；<Source href={D + 'api/configs/feature/__init__.py#L971-L974'} label="MAX_VARIABLE_SIZE" />。
+
+
+</DetailItem>
+
+<DetailItem title="3. 检索为空" tags={[{ label: "成功而不是失败" }]}>
+
+- **用户看到**：知识检索节点显示“成功”，输出 `result` 是空数组；如果没加判断，LLM 会在没有资料的情况下回答，可能编造。
+- **产品策略**：“没找到”是合法结果，不是系统错误，所以交给用户用条件分支判断 `result` 是否为空，走“抱歉，资料中没有”或转人工。连查询变量都没配置时，节点直接成功返回空输出。代价是 #29750 这类 bug 会表现为静默答错。
+- **证据**：<Source href={D + 'api/core/workflow/nodes/knowledge_retrieval/knowledge_retrieval_node.py#L101-L155'} label="knowledge_retrieval_node.py _run" />（空查询直接 SUCCEEDED；结果包成 `{"result": [...]}`）。
+
+<button class="btn" type="button" data-try="empty">在模拟器中查看</button>
+</DetailItem>
+
+<DetailItem title="4. 工具调用出错" tags={[{ label: "工具节点 / Agent 内的工具" }]}>
+
+- **用户看到**：工具节点失败，错误信息分成“获取工具运行时失败”和“调用工具失败”两类，便于判断是配置问题还是对方服务问题。
+- **产品策略**：工具节点支持重试和失败分支，适合对接不稳定的第三方 API。HTTP 请求节点有连接 10 秒、读写最长 600 秒的超时上限；所有出站请求经 SSRF 代理。<span class="tag warn">推测</span>Agent 内部的工具错误会作为观察结果返回给模型继续推理，我没有在本次阅读的代码中逐行确认。
+- **证据**：<Source href={G + 'src/graphon/nodes/tool/tool_node.py#L135-L198'} label="tool_node.py" />（“Failed to invoke tool”）；<Source href={G + 'src/graphon/nodes/http_request/config.py#L8-L10'} label="http_request/config.py" />；<Source href={D + 'docker/docker-compose.yaml#L731'} label="ssrf_proxy 服务" />。
+
+
+</DetailItem>
+
+<DetailItem title="5. 循环上限" tags={[{ label: "循环 / 迭代 / Agent 轮次 / 全局步数" }]}>
+
+- **用户看到**：循环节点必须填最大次数（1 到 100），否则无法保存；Agent 达到最大轮次会报错；整个运行超过 500 步会被中止。
+- **产品策略**：四层上限层层兜底：循环次数（前端默认上限 100）、迭代最大数量（默认 99）、Agent 轮次（硬上限 99）、全局步数（500）。产品含义：任何“可能不结束”的结构，在配置时就必须回答“最多几次”。
+- **证据**：<Source href={D + 'web/app/components/workflow/nodes/loop/default.ts#L95-L101'} label="loop/default.ts" />；<Source href={D + 'docker/.env.example#L140-L150'} label=".env.example" />（LOOP_NODE_MAX_COUNT=100、MAX_ITERATIONS_NUM=99、MAX_PARALLEL_LIMIT=10）；<Source href={D + 'api/core/agent/cot_agent_runner.py#L198-L200'} label="AgentMaxIterationError" />；<Source href={G + 'src/graphon/engine/layer/builtin/execution_limits.py#L69-L97'} label="ExecutionLimitsLayer" />。
+
+
+</DetailItem>
+
+<DetailItem title="6. 并行汇合" tags={[{ label: "等谁、跳过谁、一条失败怎么办" }]}>
+
+- **用户看到**：汇合节点（如变量聚合器）会等所有上游分支“有结论”后才执行；未被选中的分支显示为跳过。
+- **产品策略**：规则很简洁：一个节点的入边里**没有“未确定”的边，并且至少有一条被走过**，它才就绪；分支选中一条后，其它出边标记为跳过，并沿下游传递——所有入边都被跳过的节点也被跳过。并行中某一支失败且无兜底时，整个作用域快速失败，而这正是 #39151 中“其他节点状态无人认领”的来源。迭代的并行度默认 10。
+- **证据**：<Source href={G + 'src/graphon/engine/scheduler.py#L72-L90'} label="scheduler.py is_node_ready" />；<Source href={G + 'src/graphon/graph/graph.py#L605-L630'} label="graph.py 跳过传递" />；<Source href={G + 'ARCHITECTURE.md#L169-L172'} label="ARCHITECTURE.md" /> “Joins wait for branch resolution”；[#39151](https://github.com/langgenius/dify/issues/39151)。
+
+<button class="btn" type="button" data-try="llmfail" data-strat="branch">在模拟器中查看汇合等待</button>
+</DetailItem>
+
+<DetailItem title="7. 变量缺失" tags={[{ label: "引用了不存在或类型不对的变量" }]}>
+
+- **用户看到**：LLM 节点报 “Variable xxx not found”；知识检索节点的查询变量不是文本时报 “Query variable is not string type.”。
+- **产品策略**：运行时快速失败、错误信息指名道姓；更前置的防线是发布时校验图结构与模型引用，让问题尽量在草稿阶段暴露。变量缺失属于配置错误，因此不建议依赖失败分支掩盖。
+- **证据**：<Source href={G + 'src/graphon/nodes/llm/node.py#L1214-L1221'} label="llm/node.py _get_required_variable" />；<Source href={D + 'api/core/workflow/nodes/knowledge_retrieval/knowledge_retrieval_node.py#L114-L121'} label="knowledge_retrieval_node.py" />；<Source href={D + 'api/services/workflow_service.py#L707-L718'} label="发布前校验" />。
+
+
+</DetailItem>
+
+<DetailItem title="8. 超时" tags={[{ label: "整次运行 / 单个请求 / 人工等待" }]}>
+
+- **用户看到**：超过最长执行时间后运行被中止，表现为“已停止”，原因写着 “Maximum execution time exceeded”。
+- **产品策略**：分层设置：整次运行默认 3600 秒；HTTP 节点自带连接与读写超时；等待人工输入的暂停最长 7 天。关键细节：执行上限是在**节点完成时**检查的，所以一个卡住的长节点不会被它立即打断，单节点必须依赖自身超时。
+- **证据**：<Source href={G + 'src/graphon/engine/layer/builtin/execution_limits.py#L69-L97'} label="execution_limits.py" />（仅在 NodeRunSucceeded/Failed 时判断）；<Source href={D + 'api/core/workflow/workflow_entry.py#L140-L157'} label="workflow_entry.py" />；<Source href={D + 'api/configs/feature/__init__.py#L114-L118'} label="HUMAN_INPUT_GLOBAL_TIMEOUT_SECONDS" />。
+
+<button class="btn" type="button" data-try="timeout">在模拟器中查看</button>
+</DetailItem>
+
+<DetailItem title="9. 用户中途停止" tags={[{ label: "停止按钮与 API 的停止接口" }]}>
+
+- **用户看到**：点停止后流程在下一个检查点停下，已经输出的内容保留，状态为“已停止”。
+- **产品策略**：工作流类应用通过 Redis 命令通道发送中止命令；其它应用设置 10 分钟有效的停止标记作为后备。终端用户只能停止自己的任务（有归属校验），防止有人拿到任务 ID 去停别人的运行。暂停是“协作式”的：等正在执行的节点收尾，中止可以覆盖暂停。#36079 里用户停不下 Agent 测试、最后强关容器导致数据库损坏，说明“停得下来”对用户心理安全感有多重要。
+- **证据**：<Source href={D + 'api/services/app_task_service.py#L66-L86'} label="app_task_service.stop_app_task" />；<Source href={D + 'api/core/app/apps/execution_coordinator.py#L33-L45'} label="send_abort_command" />；<Source href={D + 'api/core/app/apps/base_app_queue_manager.py#L189-L204'} label="set_stop_flag 归属校验" />；<Source href={G + 'ARCHITECTURE.md#L193-L199'} label="ARCHITECTURE.md “Pause is cooperative”" />；[#36079](https://github.com/langgenius/dify/issues/36079)。
+
+<button class="btn" type="button" data-try="stop">在模拟器中查看</button>
+</DetailItem>
+
+<DetailItem title="10. 代码沙箱超时" tags={[{ label: "代码节点运行太久或沙箱不可达" }]}>
+
+- **用户看到**：代码节点失败，提示类似 “Failed to execute code, which is likely a network issue” 或 “Code execution service is unavailable”。
+- **产品策略**：双重超时：Dify 调沙箱的读取超时默认 60 秒，沙箱内部工作进程超时默认 15 秒；输出还要过数字范围、嵌套深度（5 层）、数组长度等校验。代码节点支持重试和失败分支，可以把“代码跑挂了”当成普通异常兜底。
+- **证据**：<Source href={D + 'api/configs/feature/__init__.py#L136-L150'} label="CODE_EXECUTION_*_TIMEOUT" />；<Source href={D + 'docker/.env.example#L183-L200'} label="SANDBOX_WORKER_TIMEOUT=15" />；<Source href={D + 'api/core/helper/code_executor/code_executor.py#L90-L135'} label="code_executor.py" />；<Source href={G + 'src/graphon/nodes/code/code_node.py#L160-L176'} label="code_node.py 失败处理" />。
+
+
+</DetailItem>
+
+### 取舍与替代方案
+
+- **得到的**：异常处理是“配置”而不是“代码”，产品和运营也能设计降级体验；全局上限让最坏情况可预期。
+- **付出的**：默认没有兜底（失败策略默认为空、重试默认关闭），新手的第一个上线版本往往一出错就整体失败；“检索为空算成功”需要用户自觉加判断。
+- **替代方案**：默认给所有节点开重试和兜底：新手更友好，但会掩盖配置错误、让账单在故障时翻倍。Dify 选择“默认暴露错误、按需兜底”。
+
+<Callout type="要点">
+- 只有外部依赖类节点有异常处理：先重试，再失败分支或默认值，最后才是失败。
+- 检索为空是成功，判断交给用户；路由节点永不卡死，抽取节点把失败交给下游。
+- 停止、超时、超步数统一成中止命令；执行上限在节点完成时检查，长节点要靠自身超时。
+</Callout>
+
+
+
+## 七、AI 功能如何真正落地
+
+<Callout type="结论">Dify 的代码和 issue 共同说明一件事：AI 功能落地的难点，大部分不在“模型会不会”，而在**把不确定性关进可管理的盒子、让每一步可见、给每种失败一条出路、让运营能持续改进**。</Callout>
+
+### 问题背景
+
+前六章分别从设计、分工、分层、生产化、用户痛点、边界场景看了 Dify。如果把它当作一份“别人替你踩过的坑”的清单，可以提炼出下面这些对 AI 产品人普遍适用的启示。每条都标注了在前文中的依据。
+
+### 产品洞察：八条启示
+
+1. **先把流程画出来，再决定哪一步需要智能**
+   Dify 的默认形态是流程图，Agent 只是其中一种节点。做 AI 功能时先列出步骤，再逐步问“这一步真的需要模型吗？需要的话，输出能不能收窄成选择题？”多数步骤的答案会让你用更便宜、更稳定的方案。（第 1、2 章）
+2. **给模型的每一次调用都设计“答歪了怎么办”**
+   问题分类器回落到第一个类别、参数提取器输出成功标记、结构化输出失败可走失败分支——它们都在回答同一个问题。没有退路的模型调用，迟早成为线上事故。（第 2、6 章）
+3. **让 Agent 过程自由，结果受约束**
+   新一代 Agent 节点要求声明输出、做类型检查、配置失败策略。即使你没用 Dify，也可以照做：Agent 交给下游的东西必须有固定形状，并且有人能判断它合不合格。（第 2 章）
+4. **区分“错误”和“空结果”，并让空结果可被看见**
+   检索为空是合法结果，但它也是回答质量下降的头号信号。#29750 说明静默的空结果最难发现：建议在流程里显式处理，并把空检索率当作监控指标。（第 5、6 章，监控部分为 <span class="tag warn">建议</span>）
+5. **任何可能不结束的东西，都要在配置时回答“最多几次、最长多久”**
+   循环次数、迭代数、Agent 轮次、全局步数、全局时长、嵌套深度，Dify 设了六层上限。注意上限的检查时机：在节点完成时检查，就拦不住一个卡死的节点。（第 4、6 章）
+6. **编辑和上线必须是两个动作**
+   草稿与发布分离、发布时校验、版本可命名可回滚。AI 功能的“代码”常常是提示词，改提示词也要走发布流程。（第 4 章）
+7. **可替换性有价格，升级路径是产品的一部分**
+   插件化、供应商化让生态飞速扩张，但评论最多的 issue 几乎都来自升级和部署。如果你的产品允许客户自部署，迁移脚本、兼容说明和自检工具要和新功能一起排期。（第 3、5 章）
+8. **把人的经验沉淀成系统的一部分**
+   标注回复让运营直接修正高频问题的答案，日志与追踪让每次失败都能被复盘。AI 功能上线不是终点，“运营闭环”决定它三个月后是变好还是变差。（第 4 章）
+
+### 具体例子：用这些启示重看第 1 章的客服流程
+
+- 知识检索后加“结果为空？”判断——对应启示 4。
+- 问题分类器的第一个类别放“其他 / 转人工”这种最安全的处理——对应启示 2。
+- 售后办理才交给 Agent，并限制轮次、声明输出“工单号”——对应启示 1、3、5。
+- LLM 节点开启重试，并配置失败分支到兜底话术——对应启示 2。
+- 上线走发布流程，接入追踪平台，高频问题用标注回复——对应启示 6、8。
+
+### 取舍与替代方案
+
+- **Dify 路线适合**：需要多角色协作、需要审计、流程大体稳定、希望一次搭建多渠道交付的团队。
+- **可能不适合**：极度定制的交互、对延迟极端敏感、或流程本身就是开放式探索的场景；以及无法承担多组件运维的小团队自部署。
+- **可借鉴而不必照搬**：即使最终用代码实现，也可以借用 Dify 的产品原则：显式步骤、窄口径模型调用、失败分支、全局上限、草稿与发布、标注闭环。
+
+<Callout type="要点">
+- 落地难点主要在工程与运营机制，而不在模型能力。
+- “默认确定，按需自主”是一个可复用的产品原则。
+- 为每种失败设计出路，为每个循环设置上限，为每次修改设置发布流程。
+</Callout>
+
+## 检验一下你的理解
+
+<Quiz
+  title="测验"
+  hint="共 8 题，点选后立即显示对错与解析。"
+  questions={[
+    { q: "问题分类器的模型输出无法解析成任何一个合法类别时，Dify 会怎么做？", options: ["让整个工作流失败", "回落到第一个类别继续执行", "随机选一个类别", "暂停等待人工选择"], answer: 1, explain: "源码中先把结果初始化为第一个类别，解析失败就直接返回它。产品含义：把最安全的处理放在第一个类别。" },
+    { q: "一个 LLM 节点配置了“失败分支”，运行时调用模型报错。整次运行的最终状态最可能是？", options: ["失败", "成功", "部分成功", "已停止"], answer: 2, explain: "走失败分支或默认值时，节点状态是“异常”，错误信息成为变量，流程继续；整次运行记为部分成功（partial succeeded）。" },
+    { q: "知识检索节点没有检索到任何分段时，节点状态是？", options: ["成功，result 为空数组", "失败，提示检索为空", "自动重试三次", "跳过"], answer: 0, explain: "“没找到”是合法结果。是否需要兜底由用户用条件分支决定，这也是 #29750 这类问题会静默发生的原因。" },
+    { q: "在 graphon 中，一个有多条入边的汇合节点什么时候才会执行？", options: ["任意一条入边被走过就立即执行", "所有入边都必须被走过", "入边中没有“未确定”的边，且至少一条被走过", "由用户手动触发"], answer: 2, explain: "is_node_ready：只要还有 UNKNOWN 的入边就等待；全部确定后，至少有一条 TAKEN 才执行，全部 SKIPPED 则跟着跳过。" },
+    { q: "下面哪个场景最适合用 Agent，而不是固定流程？", options: ["把工单分成 5 类", "从发票里抽取金额和日期", "排查一个从未见过的系统报错，需要自己决定查什么、试什么", "每晚把新文档写入知识库"], answer: 2, explain: "判断标准是“路径能否预先画出来”。前两项是受约束 LLM 节点的典型用法，第四项是确定的流水线。" },
+    { q: "关于 WORKFLOW_MAX_EXECUTION_TIME（默认 3600 秒），哪种说法正确？", options: ["任何节点运行到第 3600 秒时都会被立刻打断", "只在节点完成时检查，一个卡住的长节点要靠自身超时", "只对 Agent 节点生效", "超时后工作流会自动重跑"], answer: 1, explain: "ExecutionLimitsLayer 只在节点成功或失败事件时判断是否超限，然后发送中止命令。所以 HTTP、代码等节点都有各自的超时。" },
+    { q: "为什么 Dify 只给 LLM、工具、HTTP、代码、Agent 这几类节点提供异常处理配置？", options: ["其他节点不会出错", "这几类依赖外部服务或运行用户代码，失败是常态；纯逻辑节点出错多是配置错误", "出于性能考虑", "这是插件市场的限制"], answer: 1, explain: "前端的 hasErrorHandleNode 只覆盖这几类。配置错误应该在调试阶段修好，而不是在运行时用兜底掩盖。" },
+    { q: "第 5 章中评论最多的痛点主要集中在哪一类？", options: ["模型回答不够聪明", "升级、自部署与插件依赖", "界面配色", "缺少模板"], answer: 1, explain: "#27291、#14603、#39161、#14848 等高讨论 issue 都出在为可替换性拆出去的组件上：向量库客户端、插件守护进程、Agent 后端。" }
+  ]}
+/>
+
+资料来源：`langgenius/dify@cc5b0b581ed02de04d708e5e50013b458c2684db`、`langgenius/graphon@4fa22141774dff80e90e4dfa98ea3e6fbf0421bb`，以及 GitHub issue 页面（检索于 2026-10-22）。模拟器中的数据为虚构示例。

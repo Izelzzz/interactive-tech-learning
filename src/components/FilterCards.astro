@@ -1,0 +1,63 @@
+---
+// A grid of cards that can be filtered by topic chips (e.g. real issues grouped by theme).
+// filters: [{ id, label }]   chips; a leading "全部" chip is added automatically
+// cards:   [{ title, ref?, href?, meta?, tags?: string[], topics: string[], rows?: [{ k, v }] }]
+//          `topics` lists the filter ids a card belongs to; `ref` is the linked label before the title.
+interface Filter { id: string; label: string }
+interface Card { title: string; ref?: string; href?: string; meta?: string; tags?: string[]; topics: string[]; rows?: { k: string; v: string }[] }
+interface Props { title: string; hint?: string; filters: Filter[]; cards: Card[]; unit?: string; allLabel?: string }
+const { title, hint = '', filters, cards, unit = '项', allLabel = '全部' } = Astro.props;
+---
+<section class="card fc" data-unit={unit}>
+  <p class="widget-title">{title}</p>
+  {hint && <p class="widget-hint">{hint}</p>}
+  <div class="row chips" role="group" aria-label="筛选">
+    <button class="btn" type="button" data-f="all" aria-pressed="true">{allLabel}</button>
+    {filters.map((f) => <button class="btn" type="button" data-f={f.id} aria-pressed="false">{f.label}</button>)}
+  </div>
+  <p class="count"></p>
+  <div class="grid">
+    {cards.map((c) => (
+      <article class="fcard" data-t={c.topics.join(' ')}>
+        <h4>{c.ref && c.href ? <a href={c.href} target="_blank" rel="noopener">{c.ref}</a> : c.ref} {c.title}</h4>
+        {c.meta && <div class="meta">{c.meta}</div>}
+        {c.tags && c.tags.length > 0 && <div class="tags">{c.tags.map((t) => <span>{t}</span>)}</div>}
+        {(c.rows ?? []).map((r) => <p><b>{r.k}</b>{r.v}</p>)}
+      </article>
+    ))}
+  </div>
+</section>
+
+<style>
+  .chips { margin-bottom: 8px; }
+  .count { color: var(--muted); font-size: .9rem; margin: 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 8px; }
+  .fcard { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+  .fcard[hidden] { display: none; }
+  .fcard h4 { margin: 0; font-size: .96rem; }
+  .meta { font-size: .78rem; color: var(--muted); }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tags span { font-size: .72rem; background: var(--surface-2); padding: 0 7px; border-radius: 999px; }
+  .fcard p { margin: 2px 0 0; }
+  .fcard p b { color: var(--muted); font-size: .8rem; margin-right: 4px; }
+</style>
+
+<script>
+  for (const box of document.querySelectorAll<HTMLElement>('.fc')) {
+    const chips = [...box.querySelectorAll<HTMLButtonElement>('[data-f]')];
+    const cards = [...box.querySelectorAll<HTMLElement>('.fcard')];
+    const count = box.querySelector<HTMLElement>('.count')!;
+    const apply = (f: string) => {
+      let n = 0;
+      for (const c of cards) {
+        const show = f === 'all' || c.dataset.t!.split(' ').includes(f);
+        c.hidden = !show;
+        if (show) n++;
+      }
+      chips.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.f === f)));
+      count.textContent = `显示 ${n} / ${cards.length} ${box.dataset.unit}`;
+    };
+    chips.forEach((b) => b.addEventListener('click', () => apply(b.dataset.f!)));
+    apply('all');
+  }
+</script>
