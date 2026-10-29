@@ -94,6 +94,22 @@ await check('SQL injection: textbook payloads behave like real SQL', async () =>
   await page.close();
 });
 
+await check('SQL NULL explainer: two worlds and the WHERE doorman agree with the data', async () => {
+  const { page } = await open('sql/index.html');
+  await setLevel(page, 'advanced');
+  await page.click('#worldPick button:has-text("TRUE OR NULL")');
+  assert(/agree/.test(await page.textContent('#worldVerdict')), 'TRUE OR NULL should be settled in both worlds');
+  await page.click('#worldPick button:has-text("3 NOT IN")');
+  assert(/UNKNOWN/.test(await page.textContent('#worldVerdict')), 'NOT IN with NULL should be UNKNOWN');
+  const count = async () => ({ in: await page.locator('#gateRows .gate-row.in').count(), stuck: await page.locator('#gateRows .gate-row.stuck').count() });
+  let c = await count();
+  assert(c.in === 5 && c.stuck === 1, `city <> 'Paris' should let 5 in and stop Eli, got ${JSON.stringify(c)}`);
+  await page.click('#gatePick button:has-text("IS NULL")');
+  c = await count();
+  assert(c.in === 6 && c.stuck === 0, `adding OR city IS NULL should let Eli in, got ${JSON.stringify(c)}`);
+  await page.close();
+});
+
 await check('SQL JOIN: FULL JOIN + WHERE is described as a RIGHT JOIN', async () => {
   const { page } = await open('sql/index.html');
   await setLevel(page, 'advanced');

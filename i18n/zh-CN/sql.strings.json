@@ -2,12 +2,20 @@
  "title": "用 SQL 向数据库提问",
  "strings": [
   [
-   "\"Unknown, so WHERE drops Eli. Use city IS DISTINCT FROM 'Paris' if he should be included.\"",
-   "\"结果未知，所以 WHERE 会丢掉 Eli。如果应该包含他，请用 city IS DISTINCT FROM 'Paris'。\""
+   "\"Eli's envelope says 'Paris'\"",
+   "\"Eli 的信封里写的是 'Paris'\""
   ],
   [
-   "\"city <> 'Paris'   -- Eli, city is NULL\"",
-   "\"city <> 'Paris'   -- Eli 的 city 是 NULL\""
+   "\"Five rows come back. Eli's envelope might say Paris or might not, so his condition is UNKNOWN and the doorman keeps him out. Nobody gets a warning.\"",
+   "\"只返回了 5 行。Eli 的信封里可能是 Paris，也可能不是，所以他的条件是 UNKNOWN，被门卫拦在了外面。而且不会有任何警告。\""
+  ],
+  [
+   "\"It says 'Berlin'\"",
+   "\"信封里写的是 'Berlin'\""
+  ],
+  [
+   "\"World A (Paris): NOT TRUE = FALSE. World B (Berlin): NOT FALSE = TRUE. NOT can't turn unknown into known.\"",
+   "\"世界 A（Paris）：NOT TRUE = FALSE。世界 B（Berlin）：NOT FALSE = TRUE。NOT 没法把“不知道”变成“知道”。\""
   ],
   [
    "' For INNER JOIN, a condition in ON or in WHERE gives the same result.'",
@@ -50,6 +58,10 @@
    "'11 和 7'"
   ],
   [
+   "'3 IN (…) means 3 = 1 OR 3 = 3 OR 3 = NULL. The middle part is TRUE and OR needs only one, so every world agrees. Compare NOT IN, where one NULL spoils everything.'",
+   "'3 IN (…) 的意思是 3 = 1 OR 3 = 3 OR 3 = NULL。中间那项是 TRUE，而 OR 只需要一个 TRUE，所以每个世界结论都一样。对比 NOT IN：一个 NULL 就会把一切搞砸。'"
+  ],
+  [
    "'3 random products'",
    "'随机 3 件商品'"
   ],
@@ -58,8 +70,16 @@
    "'7 和 7'"
   ],
   [
+   "'<span class=\"tv u\">UNKNOWN</span>'",
+   "'<span class=\"tv u\">UNKNOWN（未知）</span>'"
+  ],
+  [
    "'A full scan with no ordering: the row order is whatever the plan produces.'",
    "'全表扫描且不排序：行的顺序取决于执行计划。'"
+  ],
+  [
+   "'AND needs both sides to be TRUE. One FALSE settles it in every world.'",
+   "'AND 要求两边都是 TRUE。只要有一个 FALSE，在哪个世界里结果都是 FALSE。'"
   ],
   [
    "'AVG(rating) divides by the number of non-NULL ratings. A bucket whose ratings are all NULL gets NULL, not 0. Use COALESCE(rating, 0) only if a missing rating really means 0.'",
@@ -90,12 +110,12 @@
    "'报错'"
   ],
   [
-   "'Any comparison with NULL is unknown, even with NULL itself.'",
-   "'任何与 NULL 的比较结果都是未知，即使和 NULL 自己比较也一样。'"
-  ],
-  [
    "'Blocking the word DROP'",
    "'屏蔽 DROP 这个词'"
+  ],
+  [
+   "'Both envelopes hold 30'",
+   "'两个信封里都是 30'"
   ],
   [
    "'COUNT(*) counts rows. COUNT(col) counts non-NULL values of col.'",
@@ -210,12 +230,16 @@
    "'INNER JOIN 只保留两侧都能匹配上的行。'"
   ],
   [
-   "'IS NULL is the correct test. Eli is found.'",
-   "'IS NULL 才是正确的判断方式。找到了 Eli。'"
+   "'IS NULL asks whether the envelope is sealed, so it answers TRUE for Eli. TRUE OR anything is TRUE, and now he gets in.'",
+   "'IS NULL 问的是“信封是不是没拆”，所以对 Eli 回答 TRUE。TRUE OR 任何东西都是 TRUE，这下他进来了。'"
   ],
   [
-   "'IS NULL is the test made for this. It never returns NULL.'",
-   "'IS NULL 就是专门干这个的。它永远不会返回 NULL。'"
+   "'IS NULL asks whether the envelope is still sealed, not what is inside. It always answers TRUE or FALSE, never UNKNOWN.'",
+   "'IS NULL 问的是“信封是不是还没拆”，而不是“里面写了什么”。它只会回答 TRUE 或 FALSE，永远不会是 UNKNOWN。'"
+  ],
+  [
+   "'IS NULL is the correct test. Eli is found.'",
+   "'IS NULL 才是正确的判断方式。找到了 Eli。'"
   ],
   [
    "'In FROM'",
@@ -240,10 +264,6 @@
   [
    "'It can only be used with ORDER BY'",
    "'它只能和 ORDER BY 一起用'"
-  ],
-  [
-   "'It expands to 3 <> 1 AND 3 <> 2 AND 3 <> NULL. The last part is NULL, so the whole thing can never be TRUE.'",
-   "'它展开为 3 <> 1 AND 3 <> 2 AND 3 <> NULL。最后一部分是 NULL，所以整个表达式永远不可能是 TRUE。'"
   ],
   [
    "'It ignores NULL customers'",
@@ -310,6 +330,10 @@
    "'永远没有行'"
   ],
   [
+   "'OR needs just one TRUE, so the unknown part never matters here.'",
+   "'OR 只需要一个 TRUE，所以这里未知的部分根本不影响结果。'"
+  ],
+  [
    "'ORDER BY runs after SELECT, so it is the one clause that can reference output aliases in standard SQL.'",
    "'ORDER BY 在 SELECT 之后执行，所以在标准 SQL 中，它是唯一能引用输出别名的子句。'"
   ],
@@ -318,12 +342,8 @@
    "'ORDER BY：在 SELECT 之后执行，所以可以用名字“total”。总额最大的排在最前。'"
   ],
   [
-   "'One FALSE is enough for AND.'",
-   "'对于 AND，只要有一个 FALSE 就够了。'"
-  ],
-  [
-   "'One TRUE is enough for OR, whatever the unknown value turns out to be.'",
-   "'对于 OR，只要有一个 TRUE 就够了，不管那个未知值最终是什么。'"
+   "'One holds 30, the other 41'",
+   "'一个是 30，另一个是 41'"
   ],
   [
    "'One row per city, with how many customers live there'",
@@ -414,6 +434,10 @@
    "'还是这两张表，但改用 LEFT JOIN（customers 在左边）。那位顾客会怎样？'"
   ],
   [
+   "'So a NOT IN list with a NULL in it is never TRUE, and a WHERE using it returns no rows at all.'",
+   "'所以只要 NOT IN 的列表里有一个 NULL，它就永远不会是 TRUE，用它的 WHERE 一行也查不出来。'"
+  ],
+  [
    "'Some rows had NULL in that column. NULL is not equal or unequal to anything, so those rows were dropped.'",
    "'有些行在这一列上是 NULL。NULL 既不等于也不“不等于”任何值，所以这些行被丢掉了。'"
   ],
@@ -440,6 +464,14 @@
   [
    "'The cities in alphabetical order only'",
    "'只是按字母顺序排列的城市'"
+  ],
+  [
+   "'The hidden value is 3'",
+   "'藏着的值是 3'"
+  ],
+  [
+   "'The hidden value is 5'",
+   "'藏着的值是 5'"
   ],
   [
    "'The injected OR is valid SQL, but this comparison happens to be false, so only exact name matches come back. An attacker just picks a comparison that is always true.'",
@@ -472,6 +504,14 @@
   [
    "'The total number of customers'",
    "'顾客总人数'"
+  ],
+  [
+   "'The unknown part is FALSE'",
+   "'未知的那部分是 FALSE'"
+  ],
+  [
+   "'The unknown part is TRUE'",
+   "'未知的那部分是 TRUE'"
   ],
   [
    "'The whole input is compared as one plain value. Quotes and keywords have no special meaning, so nothing leaks and nothing breaks. 0 rows, because no customer has that name.'",
@@ -582,6 +622,22 @@
    "'普通输入可以正常工作。危险在于输入变成了 SQL 文本的一部分。'"
   ],
   [
+   "'World A'",
+   "'世界 A'"
+  ],
+  [
+   "'World A, both hold 30: 30 <> 30 is FALSE. World B, 30 and 41: TRUE. The worlds disagree, so it is UNKNOWN.'",
+   "'世界 A，两个信封里都是 30：30 <> 30 为 FALSE。世界 B，一个 30 一个 41：TRUE。两个世界结论不同，所以是 UNKNOWN。'"
+  ],
+  [
+   "'World A: FALSE OR TRUE = TRUE. World B: FALSE OR FALSE = FALSE. The FALSE side settles nothing for OR.'",
+   "'世界 A：FALSE OR TRUE = TRUE。世界 B：FALSE OR FALSE = FALSE。对 OR 来说，FALSE 这一边决定不了任何事。'"
+  ],
+  [
+   "'World B'",
+   "'世界 B'"
+  ],
+  [
    "'You cannot multiply in SQL'",
    "'SQL 里不能做乘法'"
   ],
@@ -652,6 +708,14 @@
   [
    "'x NOT IN (…, NULL) is never TRUE. Use NOT EXISTS, or filter the NULLs out of the subquery.'",
    "'x NOT IN (…, NULL) 永远不会是 TRUE。请用 NOT EXISTS，或者在子查询里把 NULL 过滤掉。'"
+  ],
+  [
+   "'✓ in'",
+   "'✓ 放行'"
+  ],
+  [
+   "'✗ out'",
+   "'✗ 拦下'"
   ],
   [
    "`${gs.agg} is computed once per bucket.`",
@@ -732,6 +796,10 @@
   [
    "`<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan=\"${cols.length}\" style=\"font-family:inherit;color:var(--muted)\">${L('No rows.', '(0 rows)')}</td></tr>`}</tbody>`",
    "`<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan=\"${cols.length}\" style=\"font-family:inherit;color:var(--muted)\">${L('没有行。', '（0 行）')}</td></tr>`}</tbody>`"
+  ],
+  [
+   "`Both worlds agree, so ${expr} is ${tvChip(w.a.r)}, whatever is in the envelope.`",
+   "`两个世界结论相同，所以不管信封里写的是什么，${expr} 都是 ${tvChip(w.a.r)}。`"
   ],
   [
    "`Different queries run: <b>${Math.min(queriesRun.size, 3)} / 3</b>`",
@@ -816,6 +884,10 @@
   [
    "`SELECT projects ${[...qs.cols].length} of ${t.cols.length} columns. Faded columns are not in the output.`",
    "`SELECT 投影出 ${t.cols.length} 列中的 ${[...qs.cols].length} 列。变淡的列不会出现在输出里。`"
+  ],
+  [
+   "`The worlds disagree, so ${expr} is ${tvChip(null)}. SQL shows it as NULL.`",
+   "`两个世界结论不同，所以 ${expr} 是 ${tvChip(null)}。SQL 会把它显示为 NULL。`"
   ],
   [
    "`Tie at the cut: two rows share ${qs.order} = ${sorted[edge][qs.order] === null ? 'NULL' : sorted[edge][qs.order]} on either side of the LIMIT, so which one you get is not defined. Add a tie-breaker: ORDER BY ${qs.order} ${qs.dir}, id.`",

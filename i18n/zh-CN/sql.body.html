@@ -176,7 +176,39 @@
 
     <div class="only-advanced">
       <h3 class="sub-h">NULL 与三值逻辑</h3>
-      <p class="lede" style="margin-bottom:8px">在 SQL 里，一个条件的结果可以是 TRUE、FALSE 或 NULL（未知）。WHERE 只保留条件为 TRUE 的行。预测一下每个表达式的结果。</p>
+      <div class="tvl-steps">
+        <div class="tvl-step"><div class="tvl-num">1</div><div>
+          <h4>NULL 的意思是“不知道”，不是“空”</h4>
+          <p>Eli 注册的时候没填城市。他的城市不是空字符串，也不是“哪儿都不住”。把它想成一个没拆开的信封：里面有真实的答案，只是数据库看不到。</p>
+          <div class="envelopes">
+            <div class="person"><b>Ana</b><span>Lisbon</span></div>
+            <div class="person"><b>Cleo</b><span>Paris</span></div>
+            <div class="person unknown"><b>Eli</b><span>NULL ✉</span></div>
+          </div>
+        </div></div>
+        <div class="tvl-step"><div class="tvl-num">2</div><div>
+          <h4>拿“不知道”去比较，得到的也是“不知道”</h4>
+          <p>Eli 住在巴黎吗？唯一诚实的回答是“不知道”。所以 SQL 里一个条件有三种可能的结果：<span class="tv t">TRUE</span> <span class="tv f">FALSE</span> <span class="tv u">UNKNOWN（未知）</span>。SQL 会把 UNKNOWN 显示成 <code>NULL</code>。</p>
+          <p><code>NULL = NULL</code> 也一样。两个人的年龄都没填，并不能说明他们同岁。</p>
+        </div></div>
+        <div class="tvl-step"><div class="tvl-num">3</div><div>
+          <h4>“两个世界”技巧</h4>
+          <p>不用背真值表。想象在两个不同的世界里把信封拆开，分别算一遍表达式。两个世界答案相同，那就是答案；答案不同，结果就是 UNKNOWN。</p>
+          <div class="pills" id="worldPick"></div>
+          <div class="worlds" id="worlds"></div>
+          <div class="verdict" id="worldVerdict"></div>
+        </div></div>
+        <div class="tvl-step"><div class="tvl-num">4</div><div>
+          <h4>WHERE 是个严格的门卫：只放 TRUE 进来</h4>
+          <p>WHERE 只保留条件为 TRUE 的行。FALSE 进不来，UNKNOWN 也进不来。含有 NULL 的行就是这样悄悄从结果里消失的。</p>
+          <div class="pills" id="gatePick"></div>
+          <code class="gate-sql" id="gateSql"></code>
+          <div class="gate-rows" id="gateRows"></div>
+          <div class="insight" id="gateInsight"></div>
+        </div></div>
+      </div>
+      <h3 class="sub-h">现在来预测</h3>
+      <p class="lede" style="margin-bottom:8px">每一题都用“两个世界”推一推。按钮上的 NULL 表示 UNKNOWN（未知）。</p>
       <div class="qcards" id="tvl"></div>
       <div class="label" style="margin-top:16px">在数据上跑一跑</div>
       <div class="pills" id="nullPick"></div>

@@ -324,6 +324,39 @@
   }
   .sub-h { margin-top: 28px; }
 
+  /* three-valued logic explainer: numbered steps, two-worlds widget, WHERE doorman */
+  .tvl-steps { display: grid; gap: 22px; margin-top: 12px; }
+  .tvl-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
+  .tvl-num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 0.9rem; display: grid; place-items: center; }
+  .tvl-step h4 { margin: 2px 0 6px; font-size: 1.02rem; }
+  .tvl-step p { margin: 0 0 8px; }
+  .envelopes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .person { border: 1.5px solid var(--border); border-radius: 10px; padding: 6px 12px; min-width: 96px; background: var(--surface); }
+  .person b { display: block; font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+  .person span { font-family: var(--mono); font-size: 0.9rem; }
+  .person.unknown { border-style: dashed; border-color: var(--warn); background: var(--warn-soft); }
+  .tv { display: inline-block; font: 700 0.76rem var(--mono); padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .tv.t { background: var(--ok-soft); color: var(--ok); }
+  .tv.f { background: var(--bad-soft); color: var(--bad); }
+  .tv.u { background: var(--warn-soft); color: var(--warn); }
+  .worlds { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
+  .world { border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface); min-width: 0; animation: worldIn 0.35s ease-out both; }
+  .world + .world { animation-delay: 0.12s; }
+  .world .wlabel { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .world .assume { margin: 4px 0 6px; font-size: 0.9rem; }
+  .world code { display: block; font-size: 0.82rem; margin-bottom: 6px; overflow-wrap: anywhere; }
+  @keyframes worldIn { from { opacity: 0; transform: translateY(6px); } }
+  .verdict { margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 0.92rem; }
+  .verdict.same { background: var(--ok-soft); }
+  .verdict.differ { background: var(--warn-soft); }
+  .gate-sql { display: block; margin: 10px 0 6px; font-size: 0.85rem; }
+  .gate-rows { display: grid; gap: 4px; }
+  .gate-row { display: grid; grid-template-columns: 4.5em 5.5em 6.5em minmax(0, 1fr); gap: 8px; align-items: center; font-size: 0.86rem; padding: 4px 8px; border-radius: 8px; animation: worldIn 0.3s ease-out both; }
+  .gate-row .city { font-family: var(--mono); font-size: 0.82rem; }
+  .gate-row.in { background: var(--ok-soft); }
+  .gate-row.out { color: var(--muted); }
+  .gate-row.stuck { background: var(--warn-soft); font-weight: 600; }
+
   /* ---------- quiz ---------- */
   .quiz-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
   .q { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
@@ -347,6 +380,8 @@
     section.card { padding: 18px 16px; }
     .bar { width: 70px; }
     .qcard { grid-template-columns: 1fr; }
+    .worlds { grid-template-columns: minmax(0, 1fr); }
+    .gate-row { grid-template-columns: 3.6em 4.6em 6.2em minmax(0, 1fr); gap: 6px; padding: 4px 6px; font-size: 0.8rem; }
     .qb-row { grid-template-columns: 1fr; gap: 4px; }
     .qb-row > .kw { padding-top: 0; }
     .pipe { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -537,7 +572,39 @@
 
     <div class="only-advanced">
       <h3 class="sub-h">NULL 与三值逻辑</h3>
-      <p class="lede" style="margin-bottom:8px">在 SQL 里，一个条件的结果可以是 TRUE、FALSE 或 NULL（未知）。WHERE 只保留条件为 TRUE 的行。预测一下每个表达式的结果。</p>
+      <div class="tvl-steps">
+        <div class="tvl-step"><div class="tvl-num">1</div><div>
+          <h4>NULL 的意思是“不知道”，不是“空”</h4>
+          <p>Eli 注册的时候没填城市。他的城市不是空字符串，也不是“哪儿都不住”。把它想成一个没拆开的信封：里面有真实的答案，只是数据库看不到。</p>
+          <div class="envelopes">
+            <div class="person"><b>Ana</b><span>Lisbon</span></div>
+            <div class="person"><b>Cleo</b><span>Paris</span></div>
+            <div class="person unknown"><b>Eli</b><span>NULL ✉</span></div>
+          </div>
+        </div></div>
+        <div class="tvl-step"><div class="tvl-num">2</div><div>
+          <h4>拿“不知道”去比较，得到的也是“不知道”</h4>
+          <p>Eli 住在巴黎吗？唯一诚实的回答是“不知道”。所以 SQL 里一个条件有三种可能的结果：<span class="tv t">TRUE</span> <span class="tv f">FALSE</span> <span class="tv u">UNKNOWN（未知）</span>。SQL 会把 UNKNOWN 显示成 <code>NULL</code>。</p>
+          <p><code>NULL = NULL</code> 也一样。两个人的年龄都没填，并不能说明他们同岁。</p>
+        </div></div>
+        <div class="tvl-step"><div class="tvl-num">3</div><div>
+          <h4>“两个世界”技巧</h4>
+          <p>不用背真值表。想象在两个不同的世界里把信封拆开，分别算一遍表达式。两个世界答案相同，那就是答案；答案不同，结果就是 UNKNOWN。</p>
+          <div class="pills" id="worldPick"></div>
+          <div class="worlds" id="worlds"></div>
+          <div class="verdict" id="worldVerdict"></div>
+        </div></div>
+        <div class="tvl-step"><div class="tvl-num">4</div><div>
+          <h4>WHERE 是个严格的门卫：只放 TRUE 进来</h4>
+          <p>WHERE 只保留条件为 TRUE 的行。FALSE 进不来，UNKNOWN 也进不来。含有 NULL 的行就是这样悄悄从结果里消失的。</p>
+          <div class="pills" id="gatePick"></div>
+          <code class="gate-sql" id="gateSql"></code>
+          <div class="gate-rows" id="gateRows"></div>
+          <div class="insight" id="gateInsight"></div>
+        </div></div>
+      </div>
+      <h3 class="sub-h">现在来预测</h3>
+      <p class="lede" style="margin-bottom:8px">每一题都用“两个世界”推一推。按钮上的 NULL 表示 UNKNOWN（未知）。</p>
       <div class="qcards" id="tvl"></div>
       <div class="label" style="margin-top:16px">在数据上跑一跑</div>
       <div class="pills" id="nullPick"></div>
@@ -1336,13 +1403,75 @@
 
   // Advanced: three-valued logic
   const TVL = [
-    { e: 'NULL = NULL', a: 'NULL', why: '任何与 NULL 的比较结果都是未知，即使和 NULL 自己比较也一样。' },
-    { e: 'NULL IS NULL', a: 'TRUE', why: 'IS NULL 就是专门干这个的。它永远不会返回 NULL。' },
-    { e: "city <> 'Paris'   -- Eli 的 city 是 NULL", a: 'NULL', why: "结果未知，所以 WHERE 会丢掉 Eli。如果应该包含他，请用 city IS DISTINCT FROM 'Paris'。" },
-    { e: 'TRUE OR NULL', a: 'TRUE', why: '对于 OR，只要有一个 TRUE 就够了，不管那个未知值最终是什么。' },
-    { e: 'FALSE AND NULL', a: 'FALSE', why: '对于 AND，只要有一个 FALSE 就够了。' },
-    { e: '3 NOT IN (1, 2, NULL)', a: 'NULL', why: '它展开为 3 <> 1 AND 3 <> 2 AND 3 <> NULL。最后一部分是 NULL，所以整个表达式永远不可能是 TRUE。' },
+    { e: 'NULL <> NULL', a: 'NULL', why: '世界 A，两个信封里都是 30：30 <> 30 为 FALSE。世界 B，一个 30 一个 41：TRUE。两个世界结论不同，所以是 UNKNOWN。' },
+    { e: 'NULL IS NULL', a: 'TRUE', why: 'IS NULL 问的是“信封是不是还没拆”，而不是“里面写了什么”。它只会回答 TRUE 或 FALSE，永远不会是 UNKNOWN。' },
+    { e: "NOT (city = 'Paris')   -- Eli", a: 'NULL', why: "世界 A（Paris）：NOT TRUE = FALSE。世界 B（Berlin）：NOT FALSE = TRUE。NOT 没法把“不知道”变成“知道”。" },
+    { e: 'FALSE OR NULL', a: 'NULL', why: '世界 A：FALSE OR TRUE = TRUE。世界 B：FALSE OR FALSE = FALSE。对 OR 来说，FALSE 这一边决定不了任何事。' },
+    { e: 'FALSE AND NULL', a: 'FALSE', why: 'AND 要求两边都是 TRUE。只要有一个 FALSE，在哪个世界里结果都是 FALSE。' },
+    { e: '3 IN (1, 3, NULL)', a: 'TRUE', why: '3 IN (…) 的意思是 3 = 1 OR 3 = 3 OR 3 = NULL。中间那项是 TRUE，而 OR 只需要一个 TRUE，所以每个世界结论都一样。对比 NOT IN：一个 NULL 就会把一切搞砸。' },
   ];
+
+  // Advanced: explain before asking. Each worked example is evaluated in two "worlds",
+  // one per possible content of the sealed NULL envelope.
+  const WORLDS = [
+    { e: "city = 'Paris'   -- Eli",
+      a: { assume: "Eli 的信封里写的是 'Paris'", calc: "'Paris' = 'Paris'", r: true },
+      b: { assume: "信封里写的是 'Berlin'", calc: "'Berlin' = 'Paris'", r: false } },
+    { e: "city <> 'Paris'   -- Eli",
+      a: { assume: "Eli 的信封里写的是 'Paris'", calc: "'Paris' <> 'Paris'", r: false },
+      b: { assume: "信封里写的是 'Berlin'", calc: "'Berlin' <> 'Paris'", r: true } },
+    { e: 'NULL = NULL',
+      a: { assume: '两个信封里都是 30', calc: '30 = 30', r: true },
+      b: { assume: '一个是 30，另一个是 41', calc: '30 = 41', r: false } },
+    { e: 'TRUE AND NULL',
+      a: { assume: '未知的那部分是 TRUE', calc: 'TRUE AND TRUE', r: true },
+      b: { assume: '未知的那部分是 FALSE', calc: 'TRUE AND FALSE', r: false } },
+    { e: 'TRUE OR NULL',
+      a: { assume: '未知的那部分是 TRUE', calc: 'TRUE OR TRUE', r: true },
+      b: { assume: '未知的那部分是 FALSE', calc: 'TRUE OR FALSE', r: true },
+      note: 'OR 只需要一个 TRUE，所以这里未知的部分根本不影响结果。' },
+    { e: '3 NOT IN (1, 2, NULL)',
+      a: { assume: '藏着的值是 3', calc: '3 <> 1 AND 3 <> 2 AND 3 <> 3', r: false },
+      b: { assume: '藏着的值是 5', calc: '3 <> 1 AND 3 <> 2 AND 3 <> 5', r: true },
+      note: '所以只要 NOT IN 的列表里有一个 NULL，它就永远不会是 TRUE，用它的 WHERE 一行也查不出来。' },
+  ];
+  let worldAt = 0;
+  const tvChip = (r) => r === null ? '<span class="tv u">UNKNOWN（未知）</span>' : r ? '<span class="tv t">TRUE</span>' : '<span class="tv f">FALSE</span>';
+  function renderWorlds() {
+    pills($('worldPick'), WORLDS.map((w, i) => ({ label: w.e.split('   --')[0], v: i })), it => it.v === worldAt, it => { worldAt = it.v; renderWorlds(); });
+    const w = WORLDS[worldAt];
+    $('worlds').innerHTML = [['世界 A', w.a], ['世界 B', w.b]].map(([name, x]) =>
+      `<div class="world"><div class="wlabel">${name}</div><div class="assume">${esc(x.assume)}</div><code>${esc(x.calc)}</code>${tvChip(x.r)}</div>`).join('');
+    const same = w.a.r === w.b.r;
+    const expr = `<code>${esc(w.e.split('   --')[0])}</code>`;
+    $('worldVerdict').className = 'verdict ' + (same ? 'same' : 'differ');
+    $('worldVerdict').innerHTML = (same
+      ? `两个世界结论相同，所以不管信封里写的是什么，${expr} 都是 ${tvChip(w.a.r)}。`
+      : `两个世界结论不同，所以 ${expr} 是 ${tvChip(null)}。SQL 会把它显示为 NULL。`) + (w.note ? ` ${esc(w.note)}` : '');
+  }
+
+  const GATES = [
+    { sql: "SELECT name FROM customers WHERE city <> 'Paris';", test: (c) => c.city === null ? null : c.city !== 'Paris',
+      note: "只返回了 5 行。Eli 的信封里可能是 Paris，也可能不是，所以他的条件是 UNKNOWN，被门卫拦在了外面。而且不会有任何警告。" },
+    { sql: "SELECT name FROM customers WHERE city <> 'Paris' OR city IS NULL;", test: (c) => c.city === null ? true : c.city !== 'Paris',
+      note: 'IS NULL 问的是“信封是不是没拆”，所以对 Eli 回答 TRUE。TRUE OR 任何东西都是 TRUE，这下他进来了。' },
+  ];
+  let gateAt = 0;
+  function renderGate() {
+    pills($('gatePick'), GATES.map((g, i) => ({ label: i ? "… OR city IS NULL" : "city <> 'Paris'", v: i })), it => it.v === gateAt, it => { gateAt = it.v; renderGate(); });
+    const g = GATES[gateAt];
+    $('gateSql').textContent = g.sql;
+    $('gateRows').innerHTML = CUSTOMERS.map((c, i) => {
+      const r = g.test(c);
+      const cls = r === true ? 'in' : r === null ? 'stuck' : 'out';
+      const fate = r === true ? '✓ 放行' : '✗ 拦下';
+      // short chip here: the explanation above already says what UNKNOWN means
+      const chip = r === null ? '<span class="tv u">' + 'UNKNOWN</span>' : tvChip(r);
+      return `<div class="gate-row ${cls}" style="animation-delay:${i * 60}ms"><span>${esc(c.name)}</span><span class="city">${c.city === null ? 'NULL' : esc(c.city)}</span>${chip}<span>${fate}</span></div>`;
+    }).join('');
+    $('gateInsight').className = 'insight ' + (gateAt ? 'good' : 'warn');
+    $('gateInsight').textContent = g.note;
+  }
   const tvlDone = new Set();
   function renderTVL() {
     $('tvl').innerHTML = '';
@@ -1623,6 +1752,8 @@
     renderPipe();
     renderAlias();
     renderTVL();
+    renderWorlds();
+    renderGate();
     renderNullDemo();
     renderInj();
     QUIZ = L(QUIZ_BEGINNER, QUIZ_ADVANCED);
